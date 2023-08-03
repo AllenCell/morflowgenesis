@@ -1,0 +1,25 @@
+working_dir: //allen/aics/assay-dev/users/Benji/DataForOthers/NPM1_movie/workflow_version/
+
+steps:
+  0:
+    function:
+      _target_: morflowgenesis.steps_object.image_objects_from_csv.generate_objects
+      _partial_: True
+      csv_path:  //allen/aics/assay-dev/MicroscopyData/Frick/2023/20230327/ZSD0/AICS86_day3_nucleolus_movie_interactive-01-1.czi/AICS86_day3_nucleolus_movie_interactive-01-1_AcquisitionBlock1.czi/AICS86_day3_nucleolus_movie_interactive-01-1_AcquisitionBlock1_pt1.czi
+      working_dir: ${working_dir}
+      source_column: 'BF'
+      target_column: 'Lamin'
+    step_type: 'none'
+  1:
+    function:
+      _target_: morflowgenesis.steps_object.run_cytodl.run_cytodl
+      _partial_: True
+      step_name: run_cytodl
+      output_name: 20x_nucseg
+      input_step: split_czi_20x_raw
+      config_path: ${working_dir}configs/20x_bf_to_20x_nucseg.yaml
+    step_type: 'list'
+  2:
+    
+
+
