@@ -70,8 +70,8 @@ master_doc = "index"
 
 # General information about the project.
 project = u"morflowgenesis"
-copyright = u'2023, Jackson Maxfield Brown'
-author = u"Jackson Maxfield Brown"
+copyright = u'2023, AICS'
+author = u"AICS"
 
 # The version info for the project you"re documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout

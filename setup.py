@@ -41,11 +41,12 @@ step_workflow_requirements = [
     "bokeh>=2.0.2",
     "dask[bag]>=2.18.1",
     "dask_jobqueue>=0.7.0",
-    "datastep>=0.1.9",
     "distributed>=2.18.0",
     "docutils",
+    "hydra-core",
     "fire",
-    "prefect",
+    "prefect==2.11.2",
+    "pydantic==1.10.12",
     "python-dateutil",
 ]
 
@@ -56,6 +57,7 @@ requirements = [
     "pandas",
     "Pillow",
     "tqdm",
+    "aicspylibczi>3.1.1",
 ]
 
 extra_requirements = {
@@ -69,15 +71,15 @@ extra_requirements = {
 }
 
 setup(
-    author="Jackson Maxfield Brown",
+    author="AICS",
     author_email="benjamin.morris@alleninstitute.org",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "License :: Free for non-commercial use",
         "Natural Language :: English",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
     description="general workflow for morphogenesis projects",
     entry_points={
@@ -93,7 +95,7 @@ setup(
     keywords="morflowgenesis",
     name="morflowgenesis",
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*"]),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=setup_requirements,
     test_suite="morflowgenesis/tests",
     tests_require=test_requirements,
