@@ -99,10 +99,12 @@ def extract_cell(image_object, raw_images, seg_images , prop, splitting_step, ra
     # get bounding box based on splitting_column
     roi, bbox = get_roi_from_regionprops(prop.bbox,  seg_images[splitting_step].shape)
 
-    cell = Cell(parent_image = image_object, roi = roi)
+    cell_id = hashlib.sha224(
+            bytes(image_object.id + str(roi), "utf-8")
+    ).hexdigest()
    
     df = {
-        'CellId': cell.id,
+        'CellId': cell_id,
         'workflow':'standard_workflow',
         'roi': str(roi),
         "scale_micron": str([qcb_res]*3),
@@ -130,7 +132,7 @@ def extract_cell(image_object, raw_images, seg_images , prop, splitting_step, ra
     df.update(img_paths)
     df = pd.DataFrame([df])
 
-    thiscell_path = image_object.working_dir / 'single_cell_dataset' / str(cell.id)
+    thiscell_path = image_object.working_dir / 'single_cell_dataset' / str(cell_id)
     if os.path.isdir(thiscell_path):
         rmtree(thiscell_path)
     Path(thiscell_path).mkdir(parents=True, exist_ok=True)
@@ -146,12 +148,12 @@ def extract_cell(image_object, raw_images, seg_images , prop, splitting_step, ra
         save_path = thiscell_path / f"{output_type}.tiff"
         OmeTiffWriter().save(uri = save_path, data =imgs, dimension_order = 'CZYX', channel_names = channel_names)
 
-        FMS_meta = {"id": cell.id, "path": save_path}
+        FMS_meta = {"id": cell_id, "path": save_path}
         if upload_fms:
             crop_FMS = upload_file(
                 fms_env="prod",
                 file_path=save_path,
-                intended_file_name=cell.id + "_data.tiff",
+                intended_file_name=cell_id + f"_{output_type}.tiff",
                 prov_input_file_id=dataset_name,
                 prov_algorithm="Crop and resize",
             )
@@ -163,7 +165,7 @@ def extract_cell(image_object, raw_images, seg_images , prop, splitting_step, ra
         df[f"channel_names_{output_type}"] = str(channel_names)
         name_dict[f'crop_{output_type}'] = channel_names
     df['name_dict'] = json.dumps(name_dict)
-    return df, cell
+    return df
 
 @flow(task_runner=ConcurrentTaskRunner(), name = 'Single Cell Extraction')
 def single_cell_dataset(image_object,step_name, output_name, splitting_step, raw_steps, seg_steps, tracking_step = None, xy_res=0.108, z_res=0.29, qcb_res=0.108, upload_fms=False):
@@ -195,13 +197,10 @@ def single_cell_dataset(image_object,step_name, output_name, splitting_step, raw
     for prop in seg_props:
         results.append(extract_cell.submit( image_object, raw_images, seg_images , prop, splitting_step, raw_steps, seg_steps,  qcb_res, z_res, xy_res,tp=tp, upload_fms=False, dataset_name = 'morphogenesis', tracking_df=None))
         break
-    results = [r.result() for r in results]
-    df, cells = zip(*results)
-    df = pd.concat(df)
+    df = pd.concat([r.result() for r in results])
     csv_output_path = image_object.working_dir / 'single_cell_dataset'/ f'{image_object.id}.csv'
-    for cell in cells:
-        step_output = StepOutput(image_object.working_dir, step_name,output_name, output_type='csv', image_id = cell.id, path = csv_output_path)
-        cell.add_step_output(step_output)
-        cell.save()
+    step_output = StepOutput(image_object.working_dir, step_name,output_name, output_type='csv', image_id = image_object.id, path = csv_output_path)
+    image_object.add_step_output(step_output)
+    image_object.save()
     df.to_csv(csv_output_path,  index=False)
-    return cells
+    return image_object

@@ -43,21 +43,10 @@ class ImageObject:
         with open(self.save_path, 'wb') as f:
             pickle.dump(self, f)
 
-class Cell(ImageObject):
-    def __init__(self, parent_image, roi):
-        self.parent_image = parent_image
-        self.working_dir = parent_image.working_dir
-        self.id = hashlib.sha224(
-            bytes(parent_image.id + str(roi), "utf-8")
-        ).hexdigest()
-        self.run_history = parent_image.run_history
-        self.save_path = Path(self.working_dir/'_CellObjectStore'/f"{self.id}.pkl")
-        self.save_path.parent.mkdir(exist_ok=True, parents=True)
 
 class StepOutput:
     def __init__(self, working_dir, step_name, output_name, output_type, image_id, path = None,):
-        # what to do about multiple outputs?
-        # be able to overwrite paths afterward
+        # what to do about multiple outputs? save in csv file
         self.image_id =image_id
         self.step_name = step_name
         self.output_name = output_name
