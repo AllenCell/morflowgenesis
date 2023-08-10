@@ -1,0 +1,86 @@
+working_dir: //allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nuc_and_cellseg_20x/skoots/2023-06-16_11-26-12/validation_subset
+steps:
+  0:
+    function:
+      _target_: morflowgenesis.steps_object.image_object_from_csv.generate_objects
+      _partial_: True
+      csv_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/20x_cell_and_nuc_from_bf/subset_skoots/lamin_label/test_subset.csv"
+      working_dir: ${working_dir}
+      step_name: generate_objects
+      source_column: 'raw'
+      non_source_columns: ['nucseg']
+    step_type: 'none'
+  1:
+    function:
+      _target_: morflowgenesis.steps_object.run_cytodl.run_cytodl
+      _partial_: True
+      step_name: run_cytodl
+      output_name: 20x_nucseg
+      input_step: generate_objects_raw
+      config_path: ${working_dir}/configs/20x_bf_to_20x_nucseg.yaml
+      overrides:
+        - trainer.devices=[3]
+    step_type: 'list'
+    
+  2:
+    function:
+      _target_: morflowgenesis.steps_object.single_cell_dataset.single_cell_dataset
+      _partial_: True
+      step_name: single_cell_dataset
+      output_name: pred
+      splitting_step: run_cytodl_20x_nucseg
+      raw_steps: []
+      seg_steps: [run_cytodl_20x_nucseg] 
+    step_type: 'list'
+  3:
+    function:
+      _target_: morflowgenesis.steps_object.single_cell_dataset.single_cell_dataset
+      _partial_: True
+      step_name: single_cell_dataset
+      output_name: gt
+      splitting_step: generate_objects_nucseg
+      raw_steps: []
+      seg_steps: [generate_objects_nucseg] 
+    step_type: 'list'
+  4: 
+    function:
+      _target_: morflowgenesis.steps_object.cell_matching.match_cells
+      _partial_: True
+      step_name: match_cells
+      output_name: matched_cells
+      pred_step: single_cell_dataset_pred
+      label_step: single_cell_dataset_gt
+    step_type: 'list'
+  5:
+    function:
+      _target_: morflowgenesis.steps_object.feature_calculation.calculate_features
+      _partial_: True
+      step_name: get_features
+      output_name: matched_features
+      reference_step: single_cell_dataset_gt
+      input_step: single_cell_dataset_pred
+      matching_step: match_cells_matched_cells
+      segmentation_columns: [crop_seg_path]
+      features:
+        - shcoeff
+        - volume
+        - height
+        - number of  pieces
+    step_type: 'list'
+  6:
+    function:
+      _target_: morflowgenesis.steps_object.compare_features.run_plot
+      _partial_: True
+      step_name: compare_features
+      output_name: plot
+      input_step: get_features_matched_features
+      pca_n_components: 10
+      features:
+        - shcoeff
+        - volume
+        - height
+    step_type: 'list'
+
+
+
+
