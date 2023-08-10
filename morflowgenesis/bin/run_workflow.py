@@ -7,17 +7,6 @@ from pathlib import Path
 import pickle
 
 
-@flow(task_runner=ConcurrentTaskRunner())
-def WorkflowRunner(cfg):
-    data_history = {-1:cfg['data']}
-    for step_id, step_meta in cfg['steps'].items():
-        step_fn = step_meta['function']
-        step_type = step_meta['step_type']
-        parent = step_meta['parent']
-        step = hydra.utils.instantiate(step_fn)
-        out = run_step(step, step_type, data_history.get(parent))
-        data_history[step_id] = out
-
 @task
 def load_image_objects(obj_path):
     with open(obj_path, 'rb') as f:
