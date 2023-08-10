@@ -1,18 +1,22 @@
 import numpy as np
 from aicsimageio import AICSImage
 from aicsimageio.writers import OmeTiffWriter
-import json
 import pandas as pd
 import hashlib
 from pathlib import Path
 import pickle
 
 class ImageObject:
-    def __init__(self, working_dir, source_path, metadata):
+    def __init__(self, working_dir, source_path, metadata=None):
         self.run_history =[]
         self.source_path = source_path
-        for k, v in metadata.items():
-            setattr(self, k, v)
+        self.C = 0
+        self.T = 0
+        self.S = None
+
+        if metadata is not None:
+            for k, v in metadata.items():
+                setattr(self, k, v)
         self.id = hashlib.sha224(bytes(source_path +str(metadata), "utf-8")).hexdigest()
         self.working_dir = Path(working_dir)
         self.save_path = Path(self.working_dir/'_ImageObjectStore'/f"{self.id}.pkl")
@@ -45,7 +49,7 @@ class ImageObject:
 
 
 class StepOutput:
-    def __init__(self, working_dir, step_name, output_name, output_type, image_id, path = None,):
+    def __init__(self, working_dir, step_name, output_name, output_type, image_id, path = None):
         # what to do about multiple outputs? save in csv file
         self.image_id =image_id
         self.step_name = step_name
