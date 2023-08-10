@@ -3,7 +3,6 @@ from shutil import rmtree
 
 import pandas as pd
 import numpy as np
-from skimage.measure import regionprops
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 
@@ -19,7 +18,8 @@ from prefect import task,flow, get_run_logger
 import json
 # logger = get_run_logger()
 from prefect.task_runners import ConcurrentTaskRunner
-from morflowgenesis.utils.image_object import StepOutput, Cell
+from morflowgenesis.utils.image_object import StepOutput
+from scipy.ndimage import find_objects
 
 
 def upload_file(
@@ -51,13 +51,6 @@ def upload_file(
     )
 
 
-def crop(img, roi):
-    return img[roi[0] : roi[1], roi[2] : roi[3], roi[4] : roi[5]]
-
-def clean_seg_crop(img, label):
-    img = (img == label)*255
-    return img.astype(np.uint8)
-
 def reshape(img,  z_res, xy_res, qcb_res, order = 0):
     return rescale(
         img,
@@ -67,55 +60,35 @@ def reshape(img,  z_res, xy_res, qcb_res, order = 0):
         # multichannel=False,
     ).astype(np.uint8)
 
-def get_roi_from_regionprops(bbox, img_shape):
-    # determine crop roi
-    z_range = (bbox[0], bbox[3])
-    y_range = (bbox[1], bbox[4])
-    x_range = (bbox[2], bbox[5])
 
-    # pad edges of roi for nicer crop
-    roi = [
-        max(z_range[0] - 10, 0),
-        min(z_range[1] + 10, img_shape[0]),
-        max(y_range[0] - 50, 0),
-        min(y_range[1] + 50, img_shape[1]),
-        max(x_range[0] - 50, 0),
-        min(x_range[1] + 50, img_shape[2]),
-    ]
-    return roi, bbox
+def centroid_from_slice(slicee):
+    return [(s.start + s.stop) // 2 for s in slicee]
 
-def mask_images(raw_images, seg_images,label,splitting_column, bbox):
-    mask = crop(seg_images[splitting_column]==label, bbox)
-    raw_images= {k: crop(v, bbox) for k, v in raw_images.items()}
-    seg_images = {k: mask * crop(v>0, bbox) for k, v in seg_images.items()}
-    return raw_images, seg_images
-
-def get_volumes(seg_images):
-    seg_volumes = {f'{k}_volume': np.sum(v) for k, v in seg_images.items()}
-    return seg_volumes
+def roi_from_slice(slicee):
+    return ','.join([f'{s.start},{s.stop}' for s in slicee])
 
 @task
-def extract_cell(image_object, raw_images, seg_images , prop, splitting_step, raw_steps, seg_steps,  qcb_res, z_res, xy_res,tp=None, upload_fms=False, dataset_name = 'morphogenesis', tracking_df=None):
-    # get bounding box based on splitting_column
-    roi, bbox = get_roi_from_regionprops(prop.bbox,  seg_images[splitting_step].shape)
-
+def extract_cell(image_object,output_name, raw_images, seg_images , roi, coords, lab, raw_steps, seg_steps,  qcb_res, z_res, xy_res, upload_fms=False, dataset_name = 'morphogenesis', tracking_df=None):
+    roi = roi_from_slice(roi)
     cell_id = hashlib.sha224(
-            bytes(image_object.id + str(roi), "utf-8")
+            bytes(image_object.id + roi, "utf-8")
     ).hexdigest()
+
+    centroid= centroid_from_slice(coords)
    
     df = {
         'CellId': cell_id,
         'workflow':'standard_workflow',
-        'roi': str(roi),
+        'roi': roi,
         "scale_micron": str([qcb_res]*3),
-        "centroid_x": (bbox[2] + bbox[5]) // 2,
-        "centroid_y": (bbox[1] + bbox[4]) // 2,
-        "centroid_z": (bbox[0] + bbox[3]) // 2,
+        "centroid_x": centroid[2],
+        "centroid_y": centroid[1],
+        "centroid_z": centroid[0],
     }
     if tracking_df is not None:
-        tracking_df = tracking_df[tracking_df.label_image == prop.labl]
+        tracking_df = tracking_df[tracking_df.label_image == lab]
         df.update({
-            "frame": tp,
+            "frame": tracking_df.time_index.iloc[0],
             "track_id": tracking_df.track_id.iloc[0],
             "lineage_id": tracking_df.lineage_id.iloc[0],
             "label_img": tracking_df.label_img.iloc[0],
@@ -124,25 +97,27 @@ def extract_cell(image_object, raw_images, seg_images , prop, splitting_step, ra
             "daughter": tracking_df.daughter.iloc[0],
             "edge_cell": tracking_df.edge_cell.iloc[0],
         })
-    raw_images, seg_images = mask_images(raw_images, seg_images, prop.label, splitting_step, roi)
-    volumes = get_volumes(seg_images)
-    df.update(volumes)
 
     img_paths = {step_name : image_object.get_step(step_name).path for step_name in raw_steps+ seg_steps}
     df.update(img_paths)
     df = pd.DataFrame([df])
 
-    thiscell_path = image_object.working_dir / 'single_cell_dataset' / str(cell_id)
+    thiscell_path = image_object.working_dir / 'single_cell_dataset'/ output_name / str(cell_id)
     if os.path.isdir(thiscell_path):
         rmtree(thiscell_path)
     Path(thiscell_path).mkdir(parents=True, exist_ok=True)
 
     raw_images = {k: reshape(v, z_res, xy_res, qcb_res, order = 3) for k, v in raw_images.items()}
     seg_images = {k: reshape(v, z_res, xy_res, qcb_res, order = 0) for k, v in seg_images.items()}
-
+    
+    volumes = {f'{k}_volume': np.sum(v) for k, v in seg_images.items()}
+    df.update(volumes)
+    
     name_dict ={}
     for output_type, data in zip(['raw', 'seg'], [raw_images, seg_images]):
         fns = sorted(data.keys())
+        if len(fns) == 0:
+            continue
         imgs = np.asarray([data[k] for k in fns])
         channel_names = [f"crop_{output_type}_{c}" for c in fns]
         save_path = thiscell_path / f"{output_type}.tiff"
@@ -167,8 +142,25 @@ def extract_cell(image_object, raw_images, seg_images , prop, splitting_step, ra
     df['name_dict'] = json.dumps(name_dict)
     return df
 
-@flow(task_runner=ConcurrentTaskRunner(), name = 'Single Cell Extraction')
+def pad_slice(s, padding, constraints):
+    new_slice = []
+    for slice_part, c in zip(s, constraints):
+        start = max(0, slice_part.start - padding)
+        stop = min(c, slice_part.stop + padding)
+        new_slice.append(slice(start, stop, None))
+    return tuple(new_slice)
+
+def mask_images(raw_images, seg_images,label,splitting_column, coords):
+    mask = seg_images[splitting_column][coords]==label
+    raw_images= {k: v[coords] for k, v in raw_images.items()}
+    seg_images = {k: mask * (v>0)[coords] for k, v in seg_images.items()}
+    return raw_images, seg_images
+
+@flow(task_runner=ConcurrentTaskRunner(), name = 'Single Cell Extraction', log_prints=True)
 def single_cell_dataset(image_object,step_name, output_name, splitting_step, raw_steps, seg_steps, tracking_step = None, xy_res=0.108, z_res=0.29, qcb_res=0.108, upload_fms=False):
+    if  image_object.step_is_run(f'{step_name}_{output_name}'):
+        print(f'Skipping step {step_name}_{output_name} for image {image_object.id}')
+        return image_object
     assert splitting_step in seg_steps, 'Splitting step must be included in `seg_steps`'
     seg_images = {
         step_name: image_object.load_step(step_name) for step_name in seg_steps
@@ -177,30 +169,52 @@ def single_cell_dataset(image_object,step_name, output_name, splitting_step, raw
         step_name: image_object.load_step(step_name) for step_name in raw_steps
     }
     raw_images = {
-        k: rescale_intensity(v, out_range=np.uint8).astype(np.uint8) for  k, v in raw_images.items() 
+        k: rescale_intensity(v, out_range=np.uint8).astype(np.uint8) if v.dtype != np.uint8 else v for k, v in raw_images.items()
     }
     # assert all images same shape
     assert len(set([v.shape for v in raw_images.values()]+[v.shape for v in seg_images.values()])) == 1, "images are not same shape"
+    
+    # find objects in segmentation
+    regions = find_objects(seg_images[splitting_step].astype(int))
 
-    # get regionprops of segmentations
-    seg_props = regionprops(seg_images[splitting_step].astype(int))
-
-    tp = image_object.T
-
+    # load timepoint's tracking data if available
     tracking_df = None
     if tracking_step is not None:
-        tracking_step_obj = image_object.load_step(tracking_step)
-        tracking_df = tracking_step_obj.load_output(tracking_step_obj.output_path/'edges.csv')
-        tracking_df = tracking_df[tracking_df.time_index] ==  tp
+        tracking_df = image_object.load_step(tracking_step)
+        tracking_df = tracking_df[tracking_df.time_index ==  image_object.T]
 
     results =[]
-    for prop in seg_props:
-        results.append(extract_cell.submit( image_object, raw_images, seg_images , prop, splitting_step, raw_steps, seg_steps,  qcb_res, z_res, xy_res,tp=tp, upload_fms=False, dataset_name = 'morphogenesis', tracking_df=None))
-        break
+    for lab, coords in enumerate(regions, start=1):
+        if coords is None:
+            continue
+        padded_coords = pad_slice(coords, 10, seg_images[splitting_step].shape)
+        # do cropping serially to avoid memory blow up
+        crop_raw_images, crop_seg_images = mask_images(raw_images, seg_images, lab, splitting_step, padded_coords)
+        results.append(extract_cell.submit( image_object, output_name, crop_raw_images, crop_seg_images , padded_coords,coords, lab, raw_steps, seg_steps,  qcb_res, z_res, xy_res, upload_fms=False, dataset_name = 'morphogenesis', tracking_df=None))
+
     df = pd.concat([r.result() for r in results])
-    csv_output_path = image_object.working_dir / 'single_cell_dataset'/ f'{image_object.id}.csv'
+    csv_output_path = image_object.working_dir / 'single_cell_dataset'/ output_name / f'{image_object.id}.csv'
+
     step_output = StepOutput(image_object.working_dir, step_name,output_name, output_type='csv', image_id = image_object.id, path = csv_output_path)
+    step_output.save(df)
+
     image_object.add_step_output(step_output)
     image_object.save()
-    df.to_csv(csv_output_path,  index=False)
     return image_object
+
+
+# if __name__ == '__main__':
+#     import pickle
+#     srcdir = "//allen/aics/assay-dev/users/Benji/DataForOthers/NPM1_movie/workflow_version/_ImageObjectStore/"
+#     image_objects = []
+#     for fn in Path(srcdir).glob('*.pkl'):
+#         with open(fn, 'rb') as f:
+#             image_objects.append( pickle.load(f))
+#         break
+#     step_name= 'single_cell_dataset'
+#     output_name= 'single_cell_dataset'
+#     splitting_step= 'resize_100x_nucseg'
+#     raw_steps= ['run_cytodl_100x_npm1']
+#     seg_steps= ['run_cytodl_100x_npm1_seg', 'resize_100x_nucseg'] 
+#     tracking_step= 'run_tracking_tracking'
+#     single_cell_dataset(image_objects[0],step_name, output_name, splitting_step, raw_steps, seg_steps, tracking_step = tracking_step, xy_res=0.108, z_res=0.29, qcb_res=0.108, upload_fms=False)
