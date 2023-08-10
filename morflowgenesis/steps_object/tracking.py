@@ -115,16 +115,3 @@ def run_tracking(image_objects, step_name, output_name, input_step):
         obj.save()
     return image_objects
 
-
-
-if __name__ == '__main__':
-    import pickle
-    srcdir = "//allen/aics/assay-dev/users/Benji/DataForOthers/NPM1_movie/workflow_version/_ImageObjectStore/"
-    image_objects = []
-    for fn in Path(srcdir).glob('*.pkl'):
-        with open(fn, 'rb') as f:
-            image_objects.append( pickle.load(f))
-    step_name= 'run_tracking'
-    output_name= 'tracking'
-    input_step= 'resize_100x_nucseg'
-    run_tracking(image_objects,step_name, output_name, input_step)
