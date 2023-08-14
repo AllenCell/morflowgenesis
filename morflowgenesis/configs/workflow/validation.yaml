@@ -2,7 +2,7 @@ working_dir: //allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-d
 steps:
   0:
     function:
-      _target_: morflowgenesis.steps_object.image_object_from_csv.generate_objects
+      _target_: morflowgenesis.steps.image_object_from_csv.generate_objects
       _partial_: True
       csv_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/20x_cell_and_nuc_from_bf/subset_skoots/lamin_label/test_subset.csv"
       working_dir: ${working_dir}
@@ -12,19 +12,19 @@ steps:
     step_type: 'none'
   1:
     function:
-      _target_: morflowgenesis.steps_object.run_cytodl.run_cytodl
+      _target_: morflowgenesis.steps.run_cytodl.run_cytodl
       _partial_: True
       step_name: run_cytodl
       output_name: 20x_nucseg
       input_step: generate_objects_raw
-      config_path: ${working_dir}/configs/20x_bf_to_20x_nucseg.yaml
+      config_path: .configs/step/20x_bf_to_20x_nucseg.yaml
       overrides:
         - trainer.devices=[3]
     step_type: 'list'
     
   2:
     function:
-      _target_: morflowgenesis.steps_object.single_cell_dataset.single_cell_dataset
+      _target_: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
       _partial_: True
       step_name: single_cell_dataset
       output_name: pred
@@ -34,7 +34,7 @@ steps:
     step_type: 'list'
   3:
     function:
-      _target_: morflowgenesis.steps_object.single_cell_dataset.single_cell_dataset
+      _target_: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
       _partial_: True
       step_name: single_cell_dataset
       output_name: gt
@@ -44,7 +44,7 @@ steps:
     step_type: 'list'
   4: 
     function:
-      _target_: morflowgenesis.steps_object.cell_matching.match_cells
+      _target_: morflowgenesis.steps.cell_matching.match_cells
       _partial_: True
       step_name: match_cells
       output_name: matched_cells
@@ -53,7 +53,7 @@ steps:
     step_type: 'list'
   5:
     function:
-      _target_: morflowgenesis.steps_object.feature_calculation.calculate_features
+      _target_: morflowgenesis.steps.feature_calculation.calculate_features
       _partial_: True
       step_name: get_features
       output_name: matched_features
@@ -69,7 +69,7 @@ steps:
     step_type: 'list'
   6:
     function:
-      _target_: morflowgenesis.steps_object.compare_features.run_plot
+      _target_: morflowgenesis.steps.compare_features.run_plot
       _partial_: True
       step_name: compare_features
       output_name: plot

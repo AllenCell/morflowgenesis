@@ -1,0 +1,125 @@
+task_name: train
+tags:
+- dev
+train: false
+test: false
+ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/benji_NPM1/half_and_half_finetune/2023-01-30_15-57-18/checkpoints/epoch_829.ckpt"
+seed: 12345
+data:
+  _target_: cyto_dl.datamodules.path_list.make_path_dataloader
+  paths:
+  x_key: ${source_col}
+  transforms:
+    _target_: monai.transforms.Compose
+    transforms:
+    - _target_: monai.transforms.LoadImaged
+      keys: ${source_col}
+      reader:
+      - _target_: cyto_dl.image.io.MonaiBioReader
+        dimension_order_out: CZYX
+    - _target_: monai.transforms.ToTensord
+      keys: ${source_col}
+    - _target_: monai.transforms.NormalizeIntensityd
+      keys:
+      - ${source_col}
+  _aux:
+    patch_shape:
+    - 32
+    - 256
+    - 256
+model:
+  _target_: cyto_dl.models.im2im.MultiTaskIm2Im
+  save_images_every_n_epochs: 10
+  save_dir: //allen/aics/assay-dev/users/Benji/DataForOthers/NPM1_movie/npm1_seg
+  x_key: ${source_col}
+  compile: False
+  backbone:
+    _target_: monai.networks.nets.DynUNet
+    spatial_dims: 3
+    in_channels: 1
+    out_channels: 1
+    strides:
+    - 1
+    - 2
+    - 2
+    - 2
+    - 2
+    kernel_size:
+    - 3
+    - 3
+    - 3
+    - 3
+    - 3
+    upsample_kernel_size:
+    - 2
+    - 2
+    - 2
+    - 2
+    filters:
+    - 64
+    - 128
+    - 256
+    - 512
+    - 768
+    dropout: 0.1
+    res_block: true
+  task_heads:
+    seg:
+      _target_: cyto_dl.nn.BaseHead
+      save_raw: false
+      loss:
+        _target_: torch.nn.BCEWithLogitsLoss
+      postprocess:
+        prediction:
+          _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
+          activation:
+            _target_: torch.nn.Sigmoid
+          threshold: 0.5
+  optimizer:
+    generator:
+      _partial_: true
+      _target_: torch.optim.Adam
+      lr: 5.0e-05
+      weight_decay: 0.0001
+  lr_scheduler:
+    generator:
+      _partial_: true
+      _target_: torch.optim.lr_scheduler.ExponentialLR
+      gamma: 0.995
+  inference_args:
+    roi_size: ${data._aux.patch_shape}
+    overlap: 0.25
+    mode: gaussian
+    sw_batch_size: 1
+
+callbacks: null
+logger: null
+trainer:
+  _target_: lightning.pytorch.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 1000
+  accelerator: gpu
+  devices: 1
+  check_val_every_n_epoch: 10
+  deterministic: false
+  detect_anomaly: true
+  precision: 16
+paths:
+  root_dir: .
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: true
+  precision:
+    _target_: torch.set_float32_matmul_precision
+    precision: medium
+source_col: raw
+target_col: seg
+cmap_col: cmap
+experiment_name: benji_NPM1
+run_name: half_and_half_finetune
