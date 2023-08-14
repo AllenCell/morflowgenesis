@@ -1,7 +1,5 @@
 from prefect import task, get_run_logger, flow
 from prefect.task_runners import ConcurrentTaskRunner
-from skimage.measure import regionprops
-import tqdm
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -12,50 +10,44 @@ from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.viz_utils import visualize_tracks_2d
 from morflowgenesis.utils.image_object import StepOutput
 
+from scipy.ndimage import find_objects
+
 
 @task
 def create_regionprops_csv(obj, input_step):
-    data_table = []
-    # find centroids and volumes for each instance
-    centroids = dict()
-    vol = dict()
-    edges = dict()
-
-    origin = np.zeros((3,), dtype=int)
-
     inst_seg = obj.get_step(input_step).load_output()
     timepoint = obj.T
-
+    # find centroids and volumes for each instance
+    data_table = []
+    origin = np.zeros((3,), dtype=int)
     field_shape = np.array(inst_seg.shape, dtype=int)
+    regions = find_objects(inst_seg)
 
-    label_info = regionprops(inst_seg)
-    for instance_label in label_info:
-        centroids[instance_label.label] = instance_label.centroid
-        vol[instance_label.label] = instance_label.area
-        obj_idxs = instance_label.coords
-        min_coors = np.min(obj_idxs, axis=0) 
-        max_coors = np.max(obj_idxs, axis=0 )
+    for lab, coords in enumerate(regions, start = 1):
+        if coords is None:
+            continue
+        min_coors = np.asarray([s.start for s in coords])
+        max_coors = np.asarray([s.stop for s in coords])
 
-        edges[instance_label.label] = np.any(
+        is_edge= np.any(
             np.logical_or(
-                np.equal(min_coors, origin), np.equal(max_coors, field_shape - 1)
+                np.equal(min_coors, origin), np.equal(max_coors, field_shape)
             )
         )
-  
-    for seg_label in tqdm.tqdm(vol.keys()):
-        if seg_label == 0:
-            continue
+
+        centroid = [(s.start + s.stop) // 2 for s in coords]
         row = {
-            "CellLabel": seg_label,
+            "CellLabel": lab,
             "Timepoint": timepoint,
-            'Centroid_z':centroids[seg_label][0],
-            'Centroid_y':centroids[seg_label][1],
-            'Centroid_x':centroids[seg_label][2],
-            "Volume": vol[seg_label],
-            "Edge_Cell": edges[seg_label],
+            'Centroid_z':centroid[0],
+            'Centroid_y':centroid[1],
+            'Centroid_x':centroid[2],
+            "Volume": np.sum(inst_seg[coords] == lab),
+            "Edge_Cell": is_edge,
             'img_shape':  field_shape,
         }
         data_table.append(row)
+
     return pd.DataFrame(data_table)
 
 @task
@@ -88,6 +80,7 @@ def track(regionprops,  working_dir, step_name, output_name, edge_thresh_dist=75
     return tracking_output
 
 def _do_tracking(image_objects, step_name, output_name):
+    # check if any step does not have tracking output
     logger = get_run_logger()
     run = False
     for obj in image_objects:
@@ -104,6 +97,7 @@ def run_tracking(image_objects, step_name, output_name, input_step):
     if not _do_tracking(image_objects, step_name, output_name):
         return image_objects
     
+    # create centroid/volume csv
     tasks = []
     for obj in image_objects:
         tasks.append(create_regionprops_csv.submit(obj, input_step))
@@ -114,4 +108,5 @@ def run_tracking(image_objects, step_name, output_name, input_step):
         obj.add_step_output(output)
         obj.save()
     return image_objects
+
 

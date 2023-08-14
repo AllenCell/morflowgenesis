@@ -9,9 +9,11 @@ logger = get_run_logger()
 @task
 def generate_object(row, working_dir, step_name, source_column, non_source_columns, metadata_column=None):
     source_img = AICSImage(row[source_column])
+    # add metadata
     metadata = {'S': source_img.scenes, 'T': source_img.dims.T-1, 'C': source_img.dims.C-1}
     if metadata_column is not None:
         metadata.update(row.get(metadata_column))
+        
     obj = ImageObject(working_dir, row[source_column], metadata)
     for col in [source_column] + non_source_columns:
         step_output = StepOutput(working_dir, step_name, col, 'image', image_id = obj.id, path =row[col])

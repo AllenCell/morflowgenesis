@@ -69,6 +69,7 @@ def roi_from_slice(slicee):
 
 @task
 def extract_cell(image_object,output_name, raw_images, seg_images , roi, coords, lab, raw_steps, seg_steps,  qcb_res, z_res, xy_res, upload_fms=False, dataset_name = 'morphogenesis', tracking_df=None):
+    # prepare metadata for csv
     roi = roi_from_slice(roi)
     cell_id = hashlib.sha224(
             bytes(image_object.id + roi, "utf-8")
@@ -102,22 +103,24 @@ def extract_cell(image_object,output_name, raw_images, seg_images , roi, coords,
     df.update(img_paths)
     df = pd.DataFrame([df])
 
+    # remove cell folder if it exists
     thiscell_path = image_object.working_dir / 'single_cell_dataset'/ output_name / str(cell_id)
     if os.path.isdir(thiscell_path):
         rmtree(thiscell_path)
     Path(thiscell_path).mkdir(parents=True, exist_ok=True)
 
+    # anisotropic resize
     raw_images = {k: reshape(v, z_res, xy_res, qcb_res, order = 3) for k, v in raw_images.items()}
     seg_images = {k: reshape(v, z_res, xy_res, qcb_res, order = 0) for k, v in seg_images.items()}
     
-    volumes = {f'{k}_volume': np.sum(v) for k, v in seg_images.items()}
-    df.update(volumes)
-    
+    # save out raw and segmentation single cell images
     name_dict ={}
     for output_type, data in zip(['raw', 'seg'], [raw_images, seg_images]):
         fns = sorted(data.keys())
+        # possible that there is no raw or segmented image available for this cell
         if len(fns) == 0:
             continue
+        # stack segmentation/raw images into multichannel image
         imgs = np.asarray([data[k] for k in fns])
         channel_names = [f"crop_{output_type}_{c}" for c in fns]
         save_path = thiscell_path / f"{output_type}.tiff"
@@ -143,6 +146,7 @@ def extract_cell(image_object,output_name, raw_images, seg_images , roi, coords,
     return df
 
 def pad_slice(s, padding, constraints):
+    # pad slice by padding subject to image size constraints
     new_slice = []
     for slice_part, c in zip(s, constraints):
         start = max(0, slice_part.start - padding)
@@ -151,6 +155,7 @@ def pad_slice(s, padding, constraints):
     return tuple(new_slice)
 
 def mask_images(raw_images, seg_images,label,splitting_column, coords):
+    # use masking segmentation to crop out non-cell regions
     mask = seg_images[splitting_column][coords]==label
     raw_images= {k: v[coords] for k, v in raw_images.items()}
     seg_images = {k: mask * (v>0)[coords] for k, v in seg_images.items()}
@@ -162,6 +167,8 @@ def single_cell_dataset(image_object,step_name, output_name, splitting_step, raw
         print(f'Skipping step {step_name}_{output_name} for image {image_object.id}')
         return image_object
     assert splitting_step in seg_steps, 'Splitting step must be included in `seg_steps`'
+
+    # load images
     seg_images = {
         step_name: image_object.load_step(step_name) for step_name in seg_steps
     }
@@ -171,7 +178,8 @@ def single_cell_dataset(image_object,step_name, output_name, splitting_step, raw
     raw_images = {
         k: rescale_intensity(v, out_range=np.uint8).astype(np.uint8) if v.dtype != np.uint8 else v for k, v in raw_images.items()
     }
-    # assert all images same shape
+
+    # check all images same shape
     assert len(set([v.shape for v in raw_images.values()]+[v.shape for v in seg_images.values()])) == 1, "images are not same shape"
     
     # find objects in segmentation
@@ -201,20 +209,3 @@ def single_cell_dataset(image_object,step_name, output_name, splitting_step, raw
     image_object.add_step_output(step_output)
     image_object.save()
     return image_object
-
-
-# if __name__ == '__main__':
-#     import pickle
-#     srcdir = "//allen/aics/assay-dev/users/Benji/DataForOthers/NPM1_movie/workflow_version/_ImageObjectStore/"
-#     image_objects = []
-#     for fn in Path(srcdir).glob('*.pkl'):
-#         with open(fn, 'rb') as f:
-#             image_objects.append( pickle.load(f))
-#         break
-#     step_name= 'single_cell_dataset'
-#     output_name= 'single_cell_dataset'
-#     splitting_step= 'resize_100x_nucseg'
-#     raw_steps= ['run_cytodl_100x_npm1']
-#     seg_steps= ['run_cytodl_100x_npm1_seg', 'resize_100x_nucseg'] 
-#     tracking_step= 'run_tracking_tracking'
-#     single_cell_dataset(image_objects[0],step_name, output_name, splitting_step, raw_steps, seg_steps, tracking_step = tracking_step, xy_res=0.108, z_res=0.29, qcb_res=0.108, upload_fms=False)

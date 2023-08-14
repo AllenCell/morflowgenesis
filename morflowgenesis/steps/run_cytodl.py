@@ -13,13 +13,16 @@ logger = get_run_logger()
 
 @task
 def run_cytodl(image_object, step_name, output_name, input_step, config_path , overrides=[]):
+    # skip if already run
     if  image_object.step_is_run(f'{step_name}_{output_name}'):
         logger.info(f'Skipping step {step_name}_{output_name} for image {image_object.id}')
         return image_object
     
+    # get input data path
     prev_step_output = image_object.get_step(input_step)
     data_path = prev_step_output.path
                      
+    # initialize config with overrides    
     config_path = Path(config_path)
     GlobalHydra.instance().clear()
     with initialize_config_dir(version_base="1.2", config_dir=str(config_path.parent)):
@@ -36,6 +39,7 @@ def run_cytodl(image_object, step_name, output_name, input_step, config_path , o
                 cfg.hydra.job.num = 0
                 cfg.hydra.job.id = 0
 
+        # TODO make load/save path overrides work on default cytodl configs
         cfg['data']['paths'] = [{cfg.source_col:str(data_path)}]
         save_dir = image_object.working_dir/step_name/output_name/image_object.id
         cfg['model']['save_dir'] = str(save_dir)
@@ -43,12 +47,13 @@ def run_cytodl(image_object, step_name, output_name, input_step, config_path , o
         HydraConfig.instance().set_config(cfg)
         OmegaConf.set_readonly(cfg.hydra, None)
         evaluate(cfg)
+
     # find where cytodl saves out image
     out_image_path = list((save_dir/'predict_images').glob('*'))[0]
     output = StepOutput(image_object.working_dir, step_name=step_name, output_name=output_name, output_type='image',image_id = image_object.id)
     # move it to expected path of output step
     shutil.move(str(out_image_path), str(output.path))
-    # delete cytodl folders
+    # delete cytodl-generated predict_image/test_image etc. folders
     shutil.rmtree(save_dir)
 
     image_object.add_step_output(output)
