@@ -14,6 +14,9 @@ def load_image_objects(obj_path):
     
 @flow(task_runner=ConcurrentTaskRunner())
 def get_workflow_state(cfg):
+    """
+    Load image objects as previous workflow state
+    """
     logger= get_run_logger()
     existing_objects= []
     img_object_dir =Path(cfg['working_dir'])/'_ImageObjectStore'
@@ -24,7 +27,11 @@ def get_workflow_state(cfg):
 
 
 @flow(task_runner=SequentialTaskRunner())
-def WorkflowRunner_object(cfg):
+def WorkflowRunner(cfg):
+    """
+    Sequentially run config-specified steps, starting with the previous workflow state
+    and passing output from step n-1 as input to step n
+    """
     prev_output = get_workflow_state(cfg)
     for step_name, step_meta in cfg['steps'].items():
         step_fn = step_meta['function']
@@ -33,9 +40,10 @@ def WorkflowRunner_object(cfg):
         out = run_step(step, step_type, prev_output)
         prev_output = out
 
-@hydra.main(version_base="1.3", config_path="../configs", config_name="config.yaml")
+@hydra.main(version_base="1.3", config_path="../configs/workflow", config_name="config.yaml")
+# default config is morflowgenesis/configs/workflow/config.yaml
 def main(cfg: DictConfig):
-    WorkflowRunner_object(cfg)
+    WorkflowRunner(cfg)
 
 if __name__ == "__main__":
     main()

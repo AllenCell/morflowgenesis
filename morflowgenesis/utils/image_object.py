@@ -9,11 +9,14 @@ import pickle
 class ImageObject:
     def __init__(self, working_dir, source_path, metadata=None):
         self.run_history =[]
+
+        # generally useful metadata 
         self.source_path = source_path
         self.C = 0
         self.T = 0
         self.S = None
 
+        # user-defined, workflow-specific metadata
         if metadata is not None:
             for k, v in metadata.items():
                 setattr(self, k, v)
@@ -21,14 +24,13 @@ class ImageObject:
         self.working_dir = Path(working_dir)
         self.save_path = Path(self.working_dir/'_ImageObjectStore'/f"{self.id}.pkl")
         self.save_path.parent.mkdir(exist_ok=True, parents=True)
-
-    def current_step(self):
-        return  getattr(self, self.run_history[-1])
     
     def step_is_run(self, step_name):
+        # for a step to be considered run, must be in history and output must exist
         return step_name in self.run_history and self.get_step(step_name).path.exists()
 
     def add_step_output(self, output):
+        # add output to image object
         step_name = f'{output.step_name}_{output.output_name}'
         setattr(self, step_name, output)
 
@@ -37,20 +39,22 @@ class ImageObject:
             self.run_history.append(step_name)
 
     def get_step(self, step_name):
+        # load StepOutput object
         return  getattr(self, step_name)
     
     def load_step(self, step_name):
+        # load output from StepOutput object
         step_obj = getattr(self, step_name)
         return step_obj.load_output()
 
     def save(self):
+        # pickle image object
         with open(self.save_path, 'wb') as f:
             pickle.dump(self, f)
 
 
 class StepOutput:
     def __init__(self, working_dir, step_name, output_name, output_type, image_id, path = None):
-        # what to do about multiple outputs? save in csv file
         self.image_id =image_id
         self.step_name = step_name
         self.output_name = output_name

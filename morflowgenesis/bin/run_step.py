@@ -6,6 +6,7 @@ from prefect.tasks import Task
 
 
 @flow(task_runner=SequentialTaskRunner())
+# Sequentially run steps to avoid overloading GPU/CPU resources. Eventually this should be concurrent.
 def run_step(fn, step_type,  data):
     issues = []
     if step_type == 'csv':
