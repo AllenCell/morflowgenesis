@@ -1,4 +1,4 @@
-working_dir: 
+working_dir: //allen/aics/assay-dev/users/Benji/hydra_workflow/workings
 
 steps:
   0:
@@ -12,7 +12,7 @@ steps:
       output_name: 20x_raw
       channels: -1
       dimension_order_out: CZYX
-      timepoints: [0,1,2,3]
+      timepoints: [0] #,1,2,3]
       scenes: [P4-F6]
     step_type: 'none'
   1:
@@ -22,7 +22,7 @@ steps:
       step_name: run_cytodl
       output_name: 20x_nucseg
       input_step: split_czi_20x_raw
-      config_path: .configs/step/20x_bf_to_20x_nucseg.yaml
+      config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
     step_type: 'list'
   2:
     function:
@@ -40,7 +40,7 @@ steps:
       step_name: run_cytodl
       output_name: 100x_npm1
       input_step: split_czi_20x_raw
-      config_path: .configs/step/20x_npm1_to_100x_npm1.yaml
+      config_path: ./morflowgenesis/configs/step/20x_npm1_to_100x_npm1.yaml
     step_type: 'list'
   4:
     function:
@@ -49,7 +49,7 @@ steps:
       step_name: run_cytodl
       output_name: 100x_npm1_seg
       input_step: run_cytodl_100x_npm1
-      config_path: .configs/step/100x_npm1_to_100x_npm1_seg.yaml
+      config_path: ./morflowgenesis/configs/step/100x_npm1_to_100x_npm1_seg.yaml
     step_type: 'list'
   5: 
     function:

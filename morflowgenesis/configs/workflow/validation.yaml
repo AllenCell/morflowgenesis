@@ -17,7 +17,7 @@ steps:
       step_name: run_cytodl
       output_name: 20x_nucseg
       input_step: generate_objects_raw
-      config_path: .configs/step/20x_bf_to_20x_nucseg.yaml
+      config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
       overrides:
         - trainer.devices=[3]
     step_type: 'list'
