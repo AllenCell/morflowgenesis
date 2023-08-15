@@ -48,18 +48,19 @@ step_workflow_requirements = [
     "prefect==2.11.2",
     "pydantic==1.10.12",
     "python-dateutil",
-]
-
-requirements = [
-    *step_workflow_requirements,
-    # project requires
-    "numpy",
-    "pandas",
-    "Pillow",
-    "tqdm",
     "aicspylibczi>3.1.1",
 ]
 
+# requirements = [
+#     *step_workflow_requirements,
+#     # project requires
+#     "numpy",
+#     "pandas",
+#     "Pillow",
+#     "tqdm",
+# ]
+
+requirements =[]
 extra_requirements = {
     "setup": setup_requirements,
     "test": test_requirements,
@@ -83,8 +84,8 @@ setup(
     ],
     description="general workflow for morphogenesis projects",
     entry_points={
-        "console_scripts": [
-            "morflowgenesis=morflowgenesis.bin.cli:cli"
+        "run_morflowgenesis": [
+            "morflowgenesis=morflowgenesis.bin.run_workflow:main"
         ]
     },
     install_requires=requirements,
