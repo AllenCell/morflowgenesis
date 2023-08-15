@@ -110,16 +110,3 @@ def calculate_features(image_object, step_name, output_name,  input_step, featur
 
     return image_object
 
-
-if __name__ == '__main__':
-    import pickle
-    from pathlib import Path
-    srcdir = "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nuc_and_cellseg_20x/skoots/2023-06-16_11-26-12/validation_subset/_ImageObjectStore/"
-    image_objects = []
-    for fn in Path(srcdir).glob('*.pkl'):
-        with open(fn, 'rb') as f:
-            image_objects.append( pickle.load(f))
-        break
-
-    calculate_features(image_objects[0],'get_shcoeffs',"matched_features", input_step="single_cell_dataset_pred",features= ['shcoeff', 'volume', 'height'], segmentation_columns =["crop_seg_path"], matching_step="match_cells_matched_cells", reference_step='single_cell_dataset_gt')
-

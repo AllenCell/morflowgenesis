@@ -10,9 +10,13 @@ from hydra.core.global_hydra import GlobalHydra
 from omegaconf import read_write, open_dict
 import shutil
 logger = get_run_logger()
+gpu = 0
 
-@task
-def run_cytodl(image_object, step_name, output_name, input_step, config_path , overrides=[]):
+@task(tags=['gpu'])
+def run_cytodl_task(image_object, step_name, output_name, input_step, config_path , overrides=[]):
+    global gpu
+    overrides.append(f'trainer.devices=[{gpu}]')
+    logger.info('GPU: {}'.format(gpu))
     # skip if already run
     if  image_object.step_is_run(f'{step_name}_{output_name}'):
         logger.info(f'Skipping step {step_name}_{output_name} for image {image_object.id}')
@@ -24,8 +28,9 @@ def run_cytodl(image_object, step_name, output_name, input_step, config_path , o
                      
     # initialize config with overrides    
     config_path = Path(config_path)
+    logger.info(config_path)
     GlobalHydra.instance().clear()
-    with initialize_config_dir(version_base="1.2", config_dir=str(config_path.parent)):
+    with initialize_config_dir(version_base="1.2", config_dir=str(config_path.parent.resolve())):
         cfg = compose(config_name=config_path.name, return_hydra_config=True, overrides=overrides)
         output_dir = os.path.abspath(cfg.hydra.run.dir)
         Path(output_dir).mkdir(exist_ok=True, parents=True)
@@ -40,13 +45,14 @@ def run_cytodl(image_object, step_name, output_name, input_step, config_path , o
                 cfg.hydra.job.id = 0
 
         # TODO make load/save path overrides work on default cytodl configs
-        cfg['data']['paths'] = [{cfg.source_col:str(data_path)}]
+        cfg['data']['data'] = [{cfg.source_col:str(data_path)}]
         save_dir = image_object.working_dir/step_name/output_name/image_object.id
         cfg['model']['save_dir'] = str(save_dir)
 
         HydraConfig.instance().set_config(cfg)
         OmegaConf.set_readonly(cfg.hydra, None)
         evaluate(cfg)
+    
 
     # find where cytodl saves out image
     out_image_path = list((save_dir/'predict_images').glob('*'))[0]
@@ -58,4 +64,9 @@ def run_cytodl(image_object, step_name, output_name, input_step, config_path , o
 
     image_object.add_step_output(output)
     image_object.save()
+    gpu += 1
     return image_object
+
+@flow
+def run_cytodl(image_object, step_name, output_name, input_step, config_path , overrides=[]):
+    run_cytodl_task(image_object, step_name, output_name, input_step, config_path , overrides=overrides)

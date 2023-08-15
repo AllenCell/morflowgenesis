@@ -1,5 +1,4 @@
-from morflowgenesis.utils.image_object import StepOutput
-from prefect import task, get_run_logger, flow
+from prefect import  flow
 import numpy as np
 import sklearn.metrics as skmetrics
 from sklearn.utils import resample
@@ -7,7 +6,6 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 import os
 import pandas as pd
-# logger = get_run_logger()
 
 def target_vs_prediction_scatter_metrics(x, y, niter=200):
     feats = {}
@@ -208,7 +206,7 @@ def plot(x,y , destdir):
 @flow(log_prints=True)
 def run_plot(image_object, step_name, output_name,  input_step, features, pca_n_components=10):
     if  image_object.step_is_run(f'{step_name}_{output_name}'):
-        logger.info(f'Skipping step {step_name}_{output_name} for image {image_object.id}')
+        print(f'Skipping step {step_name}_{output_name} for image {image_object.id}')
         return image_object
     (image_object.working_dir/step_name/output_name).mkdir(exist_ok=True, parents=True)
     features_df = image_object.load_step(input_step)
@@ -219,17 +217,3 @@ def run_plot(image_object, step_name, output_name,  input_step, features, pca_n_
             label, pred = perform_PCA(label, pred, pca_n_components)
         print(label.columns, pred.columns)
         plot(label, pred, image_object.working_dir/step_name/output_name)
-    
-
-if __name__ == '__main__':
-    import pickle
-    from pathlib import Path
-    srcdir = "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nuc_and_cellseg_20x/skoots/2023-06-16_11-26-12/validation_subset/_ImageObjectStore/"
-    image_objects = []
-    for fn in Path(srcdir).glob('*.pkl'):
-        with open(fn, 'rb') as f:
-            image_objects.append( pickle.load(f))
-        break
-
-    run_plot(image_objects[0],'plot',"plot", input_step="get_shcoeffs_matched_features")
-
