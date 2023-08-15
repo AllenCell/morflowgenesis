@@ -1,4 +1,4 @@
-working_dir: //allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nuc_and_cellseg_20x/skoots/2023-06-16_11-26-12/validation_subset
+working_dir: 
 steps:
   0:
     function:
