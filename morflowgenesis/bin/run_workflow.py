@@ -5,7 +5,7 @@ from prefect.task_runners import ConcurrentTaskRunner, SequentialTaskRunner
 from morflowgenesis.bin.run_step import run_step
 from pathlib import Path
 import pickle
-
+import OmegaConf
 
 @task
 def load_image_objects(obj_path):
@@ -26,12 +26,18 @@ def get_workflow_state(cfg):
     return [x.result() for x in existing_objects]
 
 
+def save_workflow_config( cfg):
+    working_dir = Path(cfg['working_dir'])
+    with open(working_dir/'workflow_config.yaml', 'w') as f:
+        OmegaConf.save(config= cfg, f = f)
+
 @flow(task_runner=SequentialTaskRunner())
 def WorkflowRunner(cfg):
     """
     Sequentially run config-specified steps, starting with the previous workflow state
     and passing output from step n-1 as input to step n
     """
+    save_workflow_config(cfg)
     prev_output = get_workflow_state(cfg)
     for step_name, step_meta in cfg['steps'].items():
         step_fn = step_meta['function']
