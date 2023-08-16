@@ -23,7 +23,7 @@ def WorkflowRunner(cfg):
         step_fn = step_meta['function']
         step_type = step_meta['step_type']
         step = hydra.utils.instantiate(step_fn)
-        out = run_step(step, step_type, prev_output)
+        out = run_step(step,step_name, step_type, prev_output)
         prev_output = out
 
 @hydra.main(version_base="1.3", config_path="../configs/workflow", config_name="config.yaml")

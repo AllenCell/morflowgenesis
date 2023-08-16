@@ -1,8 +1,7 @@
-from prefect import task, flow, get_run_logger
+from prefect import task, flow
 from morflowgenesis.utils.image_object import ImageObject, StepOutput
 from aicsimageio import AICSImage
 from pathlib import Path
-logger = get_run_logger()
 
 
 def get_data(img, load_kwargs):
@@ -22,6 +21,7 @@ def split(img, working_dir, output_name,step_name, file_path, load_kwargs):
     output = StepOutput(working_dir,step_name, output_name, 'image', image_id = img_obj.id)
     output.save(data)
     img_obj.add_step_output(output)
+    img_obj.save()
     return img_obj
 
 def _validate_list(val):
@@ -30,8 +30,9 @@ def _validate_list(val):
     else:
         return list(val)
 
-@flow
+@flow(log_prints=True)
 def split_czi(image_objects, czi_path, working_dir, output_name, step_name, scenes=-1, timepoints=-1, channels=-1, dimension_order_out = 'ZYX'):
+    print('WHATTTT')
     working_dir = Path(working_dir)
     (working_dir/step_name).mkdir(exist_ok=True, parents=True)
 
@@ -55,9 +56,8 @@ def split_czi(image_objects, czi_path, working_dir, output_name, step_name, scen
             if (t, s) not in already_run:
                 new_image_objects.append(split.submit(img, working_dir, output_name, step_name, czi_path, load_kwargs))
             else:
-                logger.info(f'Scene {s} timepoint {t} already run')
+                print(f'Scene {s} timepoint {t} already run')
     new_image_objects =  [im_obj.result() for im_obj in new_image_objects]
-    [im_obj.save() for im_obj in new_image_objects]
     return image_objects + new_image_objects
 
 
