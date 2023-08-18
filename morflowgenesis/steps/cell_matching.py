@@ -34,7 +34,6 @@ def iou_from_roi(roi1: str, roi2: str, eps: float = 1e-8):
     return (intersection + eps) / (union + eps)
 
 
-
 def match_cells(image_object, step_name, output_name, pred_step, label_step, iou_thresh=0.9):
     # check if step already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):

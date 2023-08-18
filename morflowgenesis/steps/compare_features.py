@@ -204,7 +204,6 @@ def plot(x, y, destdir):
         summary_plot(all_feats, destdir)
 
 
-
 def run_plot(image_object, step_name, output_name, input_step, features, pca_n_components=10):
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")

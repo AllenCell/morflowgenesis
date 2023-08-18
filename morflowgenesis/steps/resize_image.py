@@ -35,7 +35,6 @@ def run_resize_task(
     return image_object
 
 
-
 def run_resize(
     image_object, step_name, output_name, input_step, output_shape=None, scale=None, order=0
 ):

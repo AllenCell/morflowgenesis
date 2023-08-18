@@ -3,12 +3,13 @@ from pathlib import Path
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
-from prefect.deployments.deployments import run_deployment, build_from_flow
 from prefect import flow
+from prefect.deployments.deployments import build_from_flow, run_deployment
 
 from morflowgenesis.steps.load_workflow_state import get_workflow_state
-from .run_step import run_step
+
 from .deploy_step import deploy_step
+from .run_step import run_step
 
 
 def save_workflow_config(working_dir, cfg):
@@ -42,7 +43,7 @@ async def main(cfg: DictConfig):
             storage=cfg.storage,
             path=cfg.path,
             entrypoint=cfg.entrypoint,
-            infra_overrides=cfg.infra_overrides
+            infra_overrides=cfg.infra_overrides,
         )
 
         deployments = []
@@ -50,11 +51,8 @@ async def main(cfg: DictConfig):
             deployments.append(deploy_step(cfg, step_cfg))
         await asyncio.gather(*deployments)
 
-
     await run_deployment(
-        name=f"morflowgenesis/{deployment_name}",
-        parameters=resolved_cfg,
-        timeout=0
+        name=f"morflowgenesis/{deployment_name}", parameters=resolved_cfg, timeout=0
     )
 
 

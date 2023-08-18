@@ -184,7 +184,6 @@ def mask_images(raw_images, seg_images, label, splitting_column, coords):
     return raw_images, seg_images
 
 
-
 def single_cell_dataset(
     image_object,
     step_name,

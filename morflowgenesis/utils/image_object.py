@@ -1,13 +1,12 @@
-from typing import List, Dict, Optional
-
 import hashlib
 import pickle
 from pathlib import Path
+from typing import Dict, List, Optional
 
 from aicsimageio import AICSImage
 from aicsimageio.writers import OmeTiffWriter
-
 from pydantic import BaseModel
+
 from .step_output import StepOutput
 
 
@@ -22,7 +21,9 @@ class ImageObject(BaseModel):
     run_history: List[str] = []
     _steps: Dict[str, StepOutput] = {}
 
-    def __init__(self, working_dir, source_path, metadata=None, C=0, T=0, S=None, run_history=[], _steps={}):
+    def __init__(
+        self, working_dir, source_path, metadata=None, C=0, T=0, S=None, run_history=[], _steps={}
+    ):
         super().__init__(
             working_dir=working_dir,
             source_path=source_path,
@@ -31,7 +32,7 @@ class ImageObject(BaseModel):
             T=T,
             S=S,
             run_history=run_history,
-            _steps=_steps
+            _steps=_steps,
         )
         self.run_history = []
 

@@ -23,8 +23,7 @@ async def run_step(step_cfg, prev_output):
         deployment_name = step_cfg.get("deployment_name", "default")
 
         results.append(
-            run_deployment(f"{flow_name}/{deployment_name}",
-                           parameters=payload, timeout=0)
+            run_deployment(f"{flow_name}/{deployment_name}", parameters=payload, timeout=0)
         )
 
     results = await asyncio.gather(*results)

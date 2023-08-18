@@ -28,7 +28,6 @@ def generate_object(
     return obj
 
 
-
 def generate_objects(
     image_objects,
     working_dir,

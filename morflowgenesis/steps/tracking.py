@@ -100,7 +100,6 @@ def _do_tracking(image_objects, step_name, output_name):
     return run
 
 
-
 def run_tracking(image_objects, step_name, output_name, input_step):
     if not _do_tracking(image_objects, step_name, output_name):
         return image_objects

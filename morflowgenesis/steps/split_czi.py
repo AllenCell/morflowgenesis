@@ -35,7 +35,6 @@ def _validate_list(val):
         return list(val)
 
 
-
 def split_czi(
     image_objects,
     czi_path,

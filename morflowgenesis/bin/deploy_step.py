@@ -2,8 +2,8 @@ from copy import copy
 
 from hydra._internal.utils import _locate
 from hydra.utils import instantiate
-from prefect.deployments.deployments import run_deployment, build_from_flow
 from prefect import flow
+from prefect.deployments.deployments import build_from_flow, run_deployment
 
 
 def _merge_configs(cfg, step_cfg, key):
@@ -30,5 +30,5 @@ def deploy_step(cfg, step_cfg):
         storage=cfg.storage,
         path=cfg.path,
         entrypoint=entrypoint,
-        infra_overrides=infra_overrides
+        infra_overrides=infra_overrides,
     )

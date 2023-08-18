@@ -7,19 +7,18 @@ path: morflowgenesis
 entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
 
 infra_overrides:
-  env:
-    EXTRA_PIP_PACKAGES: "torch prefect-dask; pip install numpy lz4 pandas dask[distributed]==2023.8.0"
-  #image: "rapidsai/rapidsai-dev:23.06-cuda11.8-devel-ubuntu22.04-py3.10"
-  namespace: "prefect"
-  resources:
-    limits:
-      cpu: "20000m"
-      memory: "50Gi"
-    requests:
-      cpu: "1000m"
-      memory: "1024Mi"
-      #nvidia.com/gpu: "1"
-
+    env:
+        EXTRA_PIP_PACKAGES: "torch prefect-dask; pip install numpy lz4 pandas dask[distributed]==2023.8.0"
+    #image: "rapidsai/rapidsai-dev:23.06-cuda11.8-devel-ubuntu22.04-py3.10"
+    namespace: "prefect"
+    resources:
+        limits:
+            cpu: "20000m"
+            memory: "50Gi"
+        requests:
+            cpu: "1000m"
+            memory: "1024Mi"
+            #nvidia.com/gpu: "1"
 
 steps:
     - function: morflowgenesis.steps.split_czi.split_czi
