@@ -8,7 +8,7 @@ entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
 
 infra_overrides:
     env:
-        EXTRA_PIP_PACKAGES: "torch prefect-dask; pip install numpy lz4 pandas dask[distributed]==2023.8.0"
+        EXTRA_PIP_PACKAGES: "prefect-dask; pip install numpy lz4 pandas dask[distributed]==2023.8.0"
     #image: "rapidsai/rapidsai-dev:23.06-cuda11.8-devel-ubuntu22.04-py3.10"
     namespace: "prefect"
     resources:
@@ -19,6 +19,11 @@ infra_overrides:
             cpu: "1000m"
             memory: "1024Mi"
             #nvidia.com/gpu: "1"
+            #
+
+task_runner:
+  _target_: prefect_dask.task_runners.DaskTaskRunner
+  address: "tcp://dask.a100.int.allencell.org:8786"
 
 steps:
     - function: morflowgenesis.steps.split_czi.split_czi
@@ -41,7 +46,13 @@ steps:
           input_step: split_czi_20x_raw
           config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
       step_type: "list"
-      infra_overrides: {}
+      task_runner:
+        _target_: prefect.task_runners.SequentialTaskRunner
+
+      infra_overrides:
+        image:
+        requests:
+          nvidia.com/gpu: "1"
 
     - function: morflowgenesis.steps.resize_image.run_resize
       args:
