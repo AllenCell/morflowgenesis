@@ -1,16 +1,38 @@
+from typing import List, Dict, Optional
+
 import hashlib
-import json
 import pickle
 from pathlib import Path
 
 from aicsimageio import AICSImage
 from aicsimageio.writers import OmeTiffWriter
 
+from pydantic import BaseModel
 from .step_output import StepOutput
 
 
-class ImageObject:
-    def __init__(self, working_dir, source_path, metadata=None):
+class ImageObject(BaseModel):
+    working_dir: Path
+    source_path: str
+    metadata: Optional[Dict] = None
+    C: Optional[int] = 0
+    T: Optional[int] = 0
+    S: Optional[int] = None
+
+    run_history: List[str] = []
+    _steps: Dict[str, StepOutput] = {}
+
+    def __init__(self, working_dir, source_path, metadata=None, C=0, T=0, S=None, run_history=[], _steps={}):
+        super().__init__(
+            working_dir=working_dir,
+            source_path=source_path,
+            metadata=metadata,
+            C=C,
+            T=T,
+            S=S,
+            run_history=run_history,
+            _steps=_steps
+        )
         self.run_history = []
 
         # generally useful metadata
@@ -55,42 +77,3 @@ class ImageObject:
         # pickle image object
         with open(self.save_path, "wb") as f:
             pickle.dump(self, f)
-
-    def to_dict(self):
-        # Convert ImageObject instance to a dictionary
-        obj_dict = {
-            "run_history": self.run_history,
-            "source_path": str(self.source_path),
-            "C": self.C,
-            "T": self.T,
-            "S": self.S,
-            "id": self.id,
-            "working_dir": str(self.working_dir),
-            "save_path": str(self.save_path),
-            "_steps": {k: v.to_json() for k, v in self._steps},
-        }
-        return obj_dict
-
-    def to_json(self, indent=None):
-        # Convert ImageObject instance to a JSON string
-        obj_dict = self.to_dict()
-        return json.dumps(obj_dict, indent=indent)
-
-    @classmethod
-    def from_dict(cls, obj_dict):
-        # Create an ImageObject instance from a dictionary
-        instance = cls(obj_dict["working_dir"], obj_dict["source_path"])
-        instance.run_history = obj_dict["run_history"]
-        instance.C = obj_dict["C"]
-        instance.T = obj_dict["T"]
-        instance.S = obj_dict["S"]
-        instance.id = obj_dict["id"]
-        instance.save_path = Path(obj_dict["save_path"])
-        instance._steps = {k: StepOutput.from_json(v) for k, v in obj_dict["_steps"].items()}
-        return instance
-
-    @classmethod
-    def from_json(cls, json_string):
-        # Create an ImageObject instance from a JSON string
-        obj_dict = json.loads(json_string)
-        return cls.from_dict(obj_dict)

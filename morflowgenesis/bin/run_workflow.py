@@ -16,7 +16,6 @@ def save_workflow_config(working_dir, cfg):
         OmegaConf.save(config=cfg, f=f)
 
 
-
 async def morflowgenesis(cfg):
     """Sequentially run config-specified steps, starting with the previous workflow state and
     passing output from step n-1 as input to step n."""

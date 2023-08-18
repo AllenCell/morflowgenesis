@@ -11,7 +11,6 @@ def load_image_objects(obj_path):
         return pickle.load(f)
 
 
-
 def get_workflow_state(cfg):
     """Load image objects as previous workflow state."""
     logger = get_run_logger()
