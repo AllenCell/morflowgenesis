@@ -1,10 +1,14 @@
+import asyncio
 from pathlib import Path
 
 import hydra
 from omegaconf import DictConfig, OmegaConf
+from prefect.deployments.deployments import run_deployment, build_from_flow
+from prefect import flow
 
-from morflowgenesis.bin.run_step import run_step
 from morflowgenesis.steps.load_workflow_state import get_workflow_state
+from .run_step import run_step
+from .deploy_step import deploy_step
 
 
 def save_workflow_config(working_dir, cfg):
@@ -12,27 +16,47 @@ def save_workflow_config(working_dir, cfg):
         OmegaConf.save(config=cfg, f=f)
 
 
-@flow
-def workflow_runner(cfg):
+
+async def morflowgenesis(cfg):
     """Sequentially run config-specified steps, starting with the previous workflow state and
     passing output from step n-1 as input to step n."""
     working_dir = Path(cfg["working_dir"])
     working_dir.mkdir(exist_ok=True, parents=True)
     save_workflow_config(working_dir, cfg)
 
-    prev_output = get_workflow_state(cfg)
-    for step_name, step_meta in cfg["steps"].items():
-        step_fn = step_meta["function"]
-        step_type = step_meta["step_type"]
-        step = hydra.utils.instantiate(step_fn)
-        out = run_step(step, step_name, step_type, prev_output)
-        prev_output = out
+    out = get_workflow_state(cfg)
+    for step_cfg in cfg["steps"]:
+        out = await run_step(step_cfg, out)
 
 
-@hydra.main(version_base="1.3", config_path="../configs/workflow", config_name="config.yaml")
 # default config is morflowgenesis/configs/workflow/config.yaml
-def main(cfg: DictConfig):
-    workflow_runner(cfg)
+@hydra.main(version_base="1.3", config_path="../configs/workflow", config_name="config.yaml")
+async def main(cfg: DictConfig):
+    deployment_name = cfg.get("deployment_name").get("default")
+    resolved_cfg = OmegaConf.to_container(cfg, resolve=True)
+
+    if cfg.deploy:
+        await build_from_flow(
+            morflowgenesis,
+            deployment_name,
+            apply=True,
+            storage=cfg.storage,
+            path=cfg.path,
+            entrypoint=cfg.entrypoint,
+            infra_overrides=cfg.infra_overrides
+        )
+
+        deployments = []
+        for step_cfg in cfg["steps"]:
+            deployments.append(deploy_step(cfg, step_cfg))
+        await asyncio.gather(*deployments)
+
+
+    await run_deployment(
+        name=f"morflowgenesis/{deployment_name}",
+        parameters=resolved_cfg,
+        timeout=0
+    )
 
 
 if __name__ == "__main__":

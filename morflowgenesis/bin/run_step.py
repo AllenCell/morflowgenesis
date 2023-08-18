@@ -1,38 +1,32 @@
-import pandas as pd
-from prefect.deployments.deployments import Deployment, run_deployment
+import asyncio
+
+import hydra
+from hydra._internal.utils import _locate
+from prefect import flow
+from prefect.deployments.deployments import run_deployment
 
 
-# TODO make csv/list steps non-blocking
-# Sequentially run steps to avoid overloading GPU/CPU resources. Eventually this should be concurrent.
-def run_step(fn, step_name, step_type, data):
-    breakpoint()
+async def run_step(step_cfg, prev_output):
     results = []
-    if step_type == "csv":
-        assert isinstance(
-            data, pd.DataFrame
-        ), f"input data must be csv for csv steps, got {type(data)}"
-        for row in data.itertuples():
-            # dep = Deployment(step_name, parameters = {'data': row})
-            # dep.build_from_flow(fn, name=str(row))
-            # dep_id = dep.apply()
-            results.append(run_deployment(step_name, parameters={"data": row}))
-    elif step_type == "list":
-        d.build_from_flow(fn)
-        for d in data:
-            # dep_id = dep.apply()
-            results.append(run_deployment(step_name, parameters={"data": data}))
 
-    elif step_type == "string" or step_type == "gather":
-        return fn(data, **fn.keywords)
-    elif step_type == "none":
-        dep = Deployment.build_from_flow(
-            flow=fn.func,
-            name=str(step_name),
+    step_fn = step_cfg["function"]
+    step_type = step_cfg["step_type"]
+    step_args = step_cfg["args"]
+
+    if step_type == "gather":
+        step = _locate(step_fn)
+        return step(prev_output, **step_args)
+
+    for datum in prev_output:
+        payload = {"image_objects": datum, **step_args}
+        flow_name = payload["step_name"]
+        deployment_name = step_cfg.get("deployment_name", "default")
+
+        results.append(
+            run_deployment(f"{flow_name}/{deployment_name}",
+                           parameters=payload, timeout=0)
         )
-        dep_id = dep.apply()
-        data = {"data": data}
-        data.update(fn.keywords)
-        results.append(run_deployment(dep_id, parameters=data))
-        # return fn(data, **fn.keywords)
+
+    results = await asyncio.gather(*results)
 
     return results
