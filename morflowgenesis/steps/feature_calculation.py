@@ -84,7 +84,7 @@ def get_matched_features(row_pred, row_label, features, segmentation_columns):
     return pd.DataFrame([data])
 
 
-@flow(task_runner=ConcurrentTaskRunner())
+
 def calculate_features(
     image_object,
     step_name,

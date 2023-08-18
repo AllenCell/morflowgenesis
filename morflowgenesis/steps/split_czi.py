@@ -35,7 +35,7 @@ def _validate_list(val):
         return list(val)
 
 
-@flow(log_prints=True)
+
 def split_czi(
     image_objects,
     czi_path,

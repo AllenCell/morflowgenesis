@@ -76,7 +76,7 @@ def run_cytodl_task(image_object, step_name, output_name, input_step, config_pat
     return image_object
 
 
-@flow
+
 def run_cytodl(image_object, step_name, output_name, input_step, config_path, overrides=[]):
     run_cytodl_task(
         image_object, step_name, output_name, input_step, config_path, overrides=overrides

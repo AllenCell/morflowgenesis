@@ -10,7 +10,7 @@ from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
-from morflowgenesis.utils.image_object import StepOutput
+from morflowgenesis.utils.step_output import StepOutput
 
 
 @task
@@ -100,7 +100,7 @@ def _do_tracking(image_objects, step_name, output_name):
     return run
 
 
-@flow(task_runner=ConcurrentTaskRunner())
+
 def run_tracking(image_objects, step_name, output_name, input_step):
     if not _do_tracking(image_objects, step_name, output_name):
         return image_objects

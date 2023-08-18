@@ -28,7 +28,7 @@ def generate_object(
     return obj
 
 
-@flow(task_runner=ConcurrentTaskRunner())
+
 def generate_objects(
     image_objects,
     working_dir,

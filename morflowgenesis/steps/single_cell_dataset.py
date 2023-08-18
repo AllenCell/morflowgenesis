@@ -22,9 +22,6 @@ from morflowgenesis.utils.image_object import StepOutput
 # from aicsfiles.model import FMSFile
 
 
-
-
-
 def upload_file(
     fms_env: str,
     file_path: Path,
@@ -187,7 +184,7 @@ def mask_images(raw_images, seg_images, label, splitting_column, coords):
     return raw_images, seg_images
 
 
-@flow(task_runner=ConcurrentTaskRunner(), name="Single Cell Extraction", log_prints=True)
+
 def single_cell_dataset(
     image_object,
     step_name,
