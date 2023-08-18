@@ -1,11 +1,12 @@
 import hashlib
+import json
 import pickle
 from pathlib import Path
 
-import numpy as np
-import pandas as pd
 from aicsimageio import AICSImage
 from aicsimageio.writers import OmeTiffWriter
+
+from .step_output import StepOutput
 
 
 class ImageObject:
@@ -26,6 +27,7 @@ class ImageObject:
         self.working_dir = Path(working_dir)
         self.save_path = Path(self.working_dir / "_ImageObjectStore" / f"{self.id}.pkl")
         self.save_path.parent.mkdir(exist_ok=True, parents=True)
+        self._steps = {}
 
     def step_is_run(self, step_name):
         # for a step to be considered run, must be in history and output must exist
@@ -34,7 +36,7 @@ class ImageObject:
     def add_step_output(self, output):
         # add output to image object
         step_name = f"{output.step_name}_{output.output_name}"
-        setattr(self, step_name, output)
+        self._steps[step_name] = output
 
         # don't want to mess up history with reruns
         if "step_name" not in self.run_history:
@@ -42,7 +44,7 @@ class ImageObject:
 
     def get_step(self, step_name):
         # load StepOutput object
-        return getattr(self, step_name)
+        return self._steps[step_name]
 
     def load_step(self, step_name):
         # load output from StepOutput object
@@ -54,30 +56,41 @@ class ImageObject:
         with open(self.save_path, "wb") as f:
             pickle.dump(self, f)
 
+    def to_dict(self):
+        # Convert ImageObject instance to a dictionary
+        obj_dict = {
+            "run_history": self.run_history,
+            "source_path": str(self.source_path),
+            "C": self.C,
+            "T": self.T,
+            "S": self.S,
+            "id": self.id,
+            "working_dir": str(self.working_dir),
+            "save_path": str(self.save_path),
+            "_steps": {k: v.to_json() for k, v in self._steps},
+        }
+        return obj_dict
 
-class StepOutput:
-    def __init__(self, working_dir, step_name, output_name, output_type, image_id, path=None):
-        self.image_id = image_id
-        self.step_name = step_name
-        self.output_name = output_name
-        self.output_type = output_type
-        file_extension = ".tif" if output_type == "image" else ".csv"
-        self.path = path or working_dir / step_name / output_name / (image_id + file_extension)
-        Path(self.path).parent.mkdir(exist_ok=True, parents=True)
+    def to_json(self, indent=None):
+        # Convert ImageObject instance to a JSON string
+        obj_dict = self.to_dict()
+        return json.dumps(obj_dict, indent=indent)
 
-    def __repr__(self):
-        return f"StepOutput({self.step_name}, {self.path}, {self.output_name}, {self.output_type})"
+    @classmethod
+    def from_dict(cls, obj_dict):
+        # Create an ImageObject instance from a dictionary
+        instance = cls(obj_dict["working_dir"], obj_dict["source_path"])
+        instance.run_history = obj_dict["run_history"]
+        instance.C = obj_dict["C"]
+        instance.T = obj_dict["T"]
+        instance.S = obj_dict["S"]
+        instance.id = obj_dict["id"]
+        instance.save_path = Path(obj_dict["save_path"])
+        instance._steps = {k: StepOutput.from_json(v) for k, v in obj_dict["_steps"].items()}
+        return instance
 
-    def load_output(self, path=None):
-        path = path or self.path
-        if self.output_type == "image":
-            return AICSImage(self.path).data.squeeze()
-        elif self.output_type == "csv":
-            return pd.read_csv(self.path)
-
-    def save(self, data, path=None):
-        path = path or self.path
-        if self.output_type == "image":
-            OmeTiffWriter.save(uri=path, data=data)
-        elif self.output_type == "csv":
-            data.to_csv(path, index=False)
+    @classmethod
+    def from_json(cls, json_string):
+        # Create an ImageObject instance from a JSON string
+        obj_dict = json.loads(json_string)
+        return cls.from_dict(obj_dict)
