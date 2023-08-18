@@ -2,156 +2,156 @@ experiment_name: nucleolus_transfer_function
 run_name: npm1
 task_name: train
 tags:
-- dev
+    - dev
 train: true
 test: false
 ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nucleolus_transfer_function/npm1/2023-05-09_09-30-22/checkpoints/last.ckpt"
 seed: 12345
 data:
-  _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader
-  data:
-  num_workers: 1
-  batch_size: 1
-  pin_memory: True
-  persistent_workers: False
-  _aux:
-    patch_shape: [24, 192, 192]
-  transforms:
-    _target_: monai.transforms.Compose
+    _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader
+    data:
+    num_workers: 1
+    batch_size: 1
+    pin_memory: True
+    persistent_workers: False
+    _aux:
+        patch_shape: [24, 192, 192]
     transforms:
-    - _target_: monai.transforms.LoadImaged
-      keys: ${source_col}
-      reader:
-      - _target_: cyto_dl.image.io.MonaiBioReader
-        dimension_order_out: ZYX
-        C: 0
-    - _target_: monai.transforms.AddChanneld
-      keys: ${source_col}
-    - _target_: monai.transforms.ToTensord
-      keys: ${source_col}
-    - _target_: monai.transforms.NormalizeIntensityd
-      keys: ${source_col}
-    - _target_: cyto_dl.image.transforms.Resized
-      keys:
-      - ${source_col}
-      scale_factor:
-      - 1.3067
-      - 1.25025
-      - 1.25025
+        _target_: monai.transforms.Compose
+        transforms:
+            - _target_: monai.transforms.LoadImaged
+              keys: ${source_col}
+              reader:
+                  - _target_: cyto_dl.image.io.MonaiBioReader
+                    dimension_order_out: ZYX
+                    C: 0
+            - _target_: monai.transforms.AddChanneld
+              keys: ${source_col}
+            - _target_: monai.transforms.ToTensord
+              keys: ${source_col}
+            - _target_: monai.transforms.NormalizeIntensityd
+              keys: ${source_col}
+            - _target_: cyto_dl.image.transforms.Resized
+              keys:
+                  - ${source_col}
+              scale_factor:
+                  - 1.3067
+                  - 1.25025
+                  - 1.25025
 model:
-  _target_: cyto_dl.models.im2im.GAN
-  save_images_every_n_epochs: 1
-  save_dir: ${paths.output_dir}
-  x_key: ${source_col}
-  backbone:
-    _target_: monai.networks.nets.DynUNet
-    spatial_dims: 3
-    in_channels: 1
-    out_channels: 64
-    strides:
-    - 1
-    - 2
-    - 2
-    - 2
-    kernel_size:
-    - 3
-    - 3
-    - 3
-    - 3
-    upsample_kernel_size:
-    - 2
-    - 2
-    - 2
-    - 2
-    dropout: 0.0
-    res_block: true
-  task_heads:
-    hr:
-      _target_: cyto_dl.nn.head.gan_head_superres.GANHead_resize
-      gan_loss:
-        _target_: cyto_dl.nn.losses.Pix2PixHD
-        scales: ${model.discriminator.n_scales}
-      reconstruction_loss:
-        _target_: torch.nn.MSELoss
-      reconstruction_loss_weight: 500
-      save_raw: true
-      in_channels: 64
-      out_channels: 1
-      final_act:
-        _target_: torch.nn.Tanh
-      resolution: hr
-      upsample_ratio:
-      - 2
-      - 2
-      - 2
-      postprocess:
-        prediction:
-          _target_: cyto_dl.models.im2im.utils.postprocessing.act_thresh_label.ActThreshLabel
-          rescale_dtype: numpy.uint8
-  discriminator:
-    _target_: cyto_dl.nn.discriminators.MultiScaleDiscriminator
-    n_scales: 1
-    input_nc: 2
-    n_layers: 2
-  optimizer:
-    generator:
-      _partial_: true
-      _target_: torch.optim.Adam
-      lr: 5.0e-05
-      weight_decay: 0.0001
-      betas:
-      - 0.5
-      - 0.99
+    _target_: cyto_dl.models.im2im.GAN
+    save_images_every_n_epochs: 1
+    save_dir: ${paths.output_dir}
+    x_key: ${source_col}
+    backbone:
+        _target_: monai.networks.nets.DynUNet
+        spatial_dims: 3
+        in_channels: 1
+        out_channels: 64
+        strides:
+            - 1
+            - 2
+            - 2
+            - 2
+        kernel_size:
+            - 3
+            - 3
+            - 3
+            - 3
+        upsample_kernel_size:
+            - 2
+            - 2
+            - 2
+            - 2
+        dropout: 0.0
+        res_block: true
+    task_heads:
+        hr:
+            _target_: cyto_dl.nn.head.gan_head_superres.GANHead_resize
+            gan_loss:
+                _target_: cyto_dl.nn.losses.Pix2PixHD
+                scales: ${model.discriminator.n_scales}
+            reconstruction_loss:
+                _target_: torch.nn.MSELoss
+            reconstruction_loss_weight: 500
+            save_raw: true
+            in_channels: 64
+            out_channels: 1
+            final_act:
+                _target_: torch.nn.Tanh
+            resolution: hr
+            upsample_ratio:
+                - 2
+                - 2
+                - 2
+            postprocess:
+                prediction:
+                    _target_: cyto_dl.models.im2im.utils.postprocessing.act_thresh_label.ActThreshLabel
+                    rescale_dtype: numpy.uint8
     discriminator:
-      _partial_: true
-      _target_: torch.optim.Adam
-      lr: 5.0e-05
-      weight_decay: 0.0001
-      betas:
-      - 0.5
-      - 0.99
-  lr_scheduler:
-    generator:
-      _partial_: true
-      _target_: torch.optim.lr_scheduler.ExponentialLR
-      gamma: 0.998
-    discriminator:
-      _partial_: true
-      _target_: torch.optim.lr_scheduler.ExponentialLR
-      gamma: 0.998
-  inference_args:
-    sw_batch_size: 1
-    roi_size: ${data._aux.patch_shape}
-    overlap: 0.25
-    mode: 'gaussian'
+        _target_: cyto_dl.nn.discriminators.MultiScaleDiscriminator
+        n_scales: 1
+        input_nc: 2
+        n_layers: 2
+    optimizer:
+        generator:
+            _partial_: true
+            _target_: torch.optim.Adam
+            lr: 5.0e-05
+            weight_decay: 0.0001
+            betas:
+                - 0.5
+                - 0.99
+        discriminator:
+            _partial_: true
+            _target_: torch.optim.Adam
+            lr: 5.0e-05
+            weight_decay: 0.0001
+            betas:
+                - 0.5
+                - 0.99
+    lr_scheduler:
+        generator:
+            _partial_: true
+            _target_: torch.optim.lr_scheduler.ExponentialLR
+            gamma: 0.998
+        discriminator:
+            _partial_: true
+            _target_: torch.optim.lr_scheduler.ExponentialLR
+            gamma: 0.998
+    inference_args:
+        sw_batch_size: 1
+        roi_size: ${data._aux.patch_shape}
+        overlap: 0.25
+        mode: "gaussian"
 callbacks:
 logger:
 trainer:
-  _target_: lightning.pytorch.Trainer
-  default_root_dir: ${paths.output_dir}
-  min_epochs: 1
-  max_epochs: 1000
-  accelerator: gpu
-  devices:
-  - 0
-  check_val_every_n_epoch: 5
-  deterministic: false
-  detect_anomaly: false
-  precision: 16
-  num_sanity_val_steps: 1
+    _target_: lightning.pytorch.Trainer
+    default_root_dir: ${paths.output_dir}
+    min_epochs: 1
+    max_epochs: 1000
+    accelerator: gpu
+    devices:
+        - 0
+    check_val_every_n_epoch: 5
+    deterministic: false
+    detect_anomaly: false
+    precision: 16
+    num_sanity_val_steps: 1
 paths:
-  root_dir: .
-  data_dir: ${paths.root_dir}/data/
-  log_dir: ${paths.root_dir}/logs/
-  output_dir: ${hydra:runtime.output_dir}
-  work_dir: ${hydra:runtime.cwd}
+    root_dir: .
+    data_dir: ${paths.root_dir}/data/
+    log_dir: ${paths.root_dir}/logs/
+    output_dir: ${hydra:runtime.output_dir}
+    work_dir: ${hydra:runtime.cwd}
 extras:
-  ignore_warnings: true
-  enforce_tags: true
-  print_config: true
-  precision:
-    _target_: torch.set_float32_matmul_precision
-    precision: medium
+    ignore_warnings: true
+    enforce_tags: true
+    print_config: true
+    precision:
+        _target_: torch.set_float32_matmul_precision
+        precision: medium
 source_col: lr
 target_col: hr
 persist_cache: true

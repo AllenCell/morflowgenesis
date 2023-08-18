@@ -4,5 +4,5 @@ ignore:
     - "morflowgenesis/vendor/.*"
 
 coverage:
-  status:
-    patch: off
+    status:
+        patch: off

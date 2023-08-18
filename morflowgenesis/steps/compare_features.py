@@ -1,11 +1,13 @@
-from prefect import  flow
-import numpy as np
-import sklearn.metrics as skmetrics
-from sklearn.utils import resample
-import matplotlib.pyplot as plt
-from sklearn.decomposition import PCA
 import os
+
+import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
+import sklearn.metrics as skmetrics
+from prefect import flow
+from sklearn.decomposition import PCA
+from sklearn.utils import resample
+
 
 def target_vs_prediction_scatter_metrics(x, y, niter=200):
     feats = {}
@@ -64,9 +66,7 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
     return x0, y0, feats
 
 
-def target_vs_prediction_scatter_plot(
-    x, y, feats,  title, cc="k", fs=14
-):
+def target_vs_prediction_scatter_plot(x, y, feats, title, cc="k", fs=14):
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     ax.set_title(title)
     xlh = (np.nanmin(x), np.nanmax(x))
@@ -81,8 +81,8 @@ def target_vs_prediction_scatter_plot(
         linestyle="None",
         label="",
     )
-    plt.ylabel('Pred')
-    plt.xlabel('Label')
+    plt.ylabel("Pred")
+    plt.xlabel("Label")
     plt.axis("equal")
 
     score = feats["r2score"]
@@ -117,7 +117,7 @@ def target_vs_prediction_scatter_plot(
     return fig, ax
 
 
-def perform_PCA(x,y, n_components):
+def perform_PCA(x, y, n_components):
     # dimensionality reduction, 578 -> n_components
     pca = PCA(n_components=n_components)
     cols = x.columns
@@ -127,7 +127,7 @@ def perform_PCA(x,y, n_components):
     x = pd.DataFrame(x)
     y = pd.DataFrame(y)
     new_columns = ["PC" + str(i + 1) for i in range(n_components)]
-    x.columns= new_columns
+    x.columns = new_columns
     y.columns = new_columns
     return x, y
 
@@ -190,30 +190,31 @@ def summary_plot(feats, destdir):
     plt.close(fig)
 
 
-def plot(x,y , destdir):
+def plot(x, y, destdir):
     all_feats = {}
     for name in x.columns:
-        x0, y0, feats = target_vs_prediction_scatter_metrics(x[name], y[name.replace('label', 'pred')], niter=200)
-        fig, ax = target_vs_prediction_scatter_plot(
-            x0, y0, feats, name
+        x0, y0, feats = target_vs_prediction_scatter_metrics(
+            x[name], y[name.replace("label", "pred")], niter=200
         )
+        fig, ax = target_vs_prediction_scatter_plot(x0, y0, feats, name)
         fig.savefig(os.path.join(destdir, f"scatter_{name}.png"))
         plt.close(fig)
         all_feats[name] = feats
-    if len(x.columns)>1:
+    if len(x.columns) > 1:
         summary_plot(all_feats, destdir)
 
+
 @flow(log_prints=True)
-def run_plot(image_object, step_name, output_name,  input_step, features, pca_n_components=10):
-    if  image_object.step_is_run(f'{step_name}_{output_name}'):
-        print(f'Skipping step {step_name}_{output_name} for image {image_object.id}')
+def run_plot(image_object, step_name, output_name, input_step, features, pca_n_components=10):
+    if image_object.step_is_run(f"{step_name}_{output_name}"):
+        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
-    (image_object.working_dir/step_name/output_name).mkdir(exist_ok=True, parents=True)
+    (image_object.working_dir / step_name / output_name).mkdir(exist_ok=True, parents=True)
     features_df = image_object.load_step(input_step)
     for feat in features:
-        label = features_df[[col for col in features_df.columns if 'label' in col and feat in col]]
-        pred = features_df[[col for col in features_df.columns if 'pred' in col and feat in col]]
+        label = features_df[[col for col in features_df.columns if "label" in col and feat in col]]
+        pred = features_df[[col for col in features_df.columns if "pred" in col and feat in col]]
         if label.shape[1] > pca_n_components:
             label, pred = perform_PCA(label, pred, pca_n_components)
         print(label.columns, pred.columns)
-        plot(label, pred, image_object.working_dir/step_name/output_name)
+        plot(label, pred, image_object.working_dir / step_name / output_name)

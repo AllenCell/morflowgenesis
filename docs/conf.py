@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 #
 # morflowgenesis documentation build configuration file, created by
 # sphinx-quickstart on Fri Jun  9 13:47:02 2017.
@@ -60,18 +59,18 @@ templates_path = ["_templates"]
 # You can specify multiple suffix as a list of string:
 #
 source_suffix = {
-        ".rst": "restructuredtext",
-        ".txt": "markdown",
-        ".md": "markdown",
+    ".rst": "restructuredtext",
+    ".txt": "markdown",
+    ".md": "markdown",
 }
 
 # The master toctree document.
 master_doc = "index"
 
 # General information about the project.
-project = u"morflowgenesis"
-copyright = u'2023, AICS'
-author = u"AICS"
+project = "morflowgenesis"
+copyright = "2023, AICS"
+author = "AICS"
 
 # The version info for the project you"re documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -135,15 +134,12 @@ latex_elements = {
     # The paper size ("letterpaper" or "a4paper").
     #
     # "papersize": "letterpaper",
-
     # The font size ("10pt", "11pt" or "12pt").
     #
     # "pointsize": "10pt",
-
     # Additional stuff for the LaTeX preamble.
     #
     # "preamble": "",
-
     # Latex figure (float) alignment
     #
     # "figure_align": "htbp",
@@ -153,9 +149,13 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "morflowgenesis.tex",
-     u"morflowgenesis Documentation",
-     u"Jackson Maxfield Brown", "manual"),
+    (
+        master_doc,
+        "morflowgenesis.tex",
+        "morflowgenesis Documentation",
+        "Jackson Maxfield Brown",
+        "manual",
+    ),
 ]
 
 
@@ -163,11 +163,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [
-    (master_doc, "morflowgenesis",
-     u"morflowgenesis Documentation",
-     [author], 1)
-]
+man_pages = [(master_doc, "morflowgenesis", "morflowgenesis Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------
@@ -176,10 +172,13 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, "morflowgenesis",
-     u"morflowgenesis Documentation",
-     author,
-     "morflowgenesis",
-     "One line description of project.",
-     "Miscellaneous"),
+    (
+        master_doc,
+        "morflowgenesis",
+        "morflowgenesis Documentation",
+        author,
+        "morflowgenesis",
+        "One line description of project.",
+        "Miscellaneous",
+    ),
 ]

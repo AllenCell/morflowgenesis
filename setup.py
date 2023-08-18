@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """The setup script."""
 
@@ -60,7 +59,7 @@ step_workflow_requirements = [
 #     "tqdm",
 # ]
 
-requirements =[]
+requirements = []
 extra_requirements = {
     "setup": setup_requirements,
     "test": test_requirements,
@@ -68,7 +67,7 @@ extra_requirements = {
     "all": [
         *requirements,
         *dev_requirements,
-    ]
+    ],
 }
 
 setup(
@@ -83,11 +82,7 @@ setup(
         "Programming Language :: Python :: 3.11",
     ],
     description="general workflow for morphogenesis projects",
-    entry_points={
-        "run_morflowgenesis": [
-            "morflowgenesis=morflowgenesis.bin.run_workflow:main"
-        ]
-    },
+    entry_points={"run_morflowgenesis": ["morflowgenesis=morflowgenesis.bin.run_workflow:main"]},
     install_requires=requirements,
     license="Allen Institute Software License",
     long_description=readme,
