@@ -5,7 +5,7 @@ from hydra.utils import instantiate
 from prefect import flow
 from prefect.deployments import build_from_flow, run_deployment
 
-
+from morflowgenesis.utils import flatten_dict
 
 
 def _merge_configs(cfg, step_cfg, key):
@@ -32,5 +32,5 @@ def deploy_step(cfg, step_cfg):
         storage=cfg.storage,
         path=cfg.path,
         entrypoint=entrypoint,
-        infra_overrides=infra_overrides,
+        infra_overrides=flatten_dict(infra_overrides),
     )

@@ -7,13 +7,14 @@ from prefect import flow
 from prefect.deployments import build_from_flow, run_deployment
 
 from morflowgenesis.steps.load_workflow_state import get_workflow_state
+from morflowgenesis.utils import flatten_dict
 
 from .deploy_step import deploy_step
 from .run_step import run_step
 
 
 def save_workflow_config(working_dir, cfg):
-    with open(working_dir / "workflow_config.yaml", "w") as f:
+    with open(Path(working_dir) / "workflow_config.yaml", "w") as f:
         OmegaConf.save(config=cfg, f=f)
 
 
@@ -43,7 +44,7 @@ async def main(cfg: DictConfig):
             storage=cfg.storage,
             path=cfg.path,
             entrypoint=cfg.entrypoint,
-            infra_overrides=cfg.infra_overrides,
+            infra_overrides=flatten_dict(cfg.infra_overrides),
         )
 
         deployments = []
