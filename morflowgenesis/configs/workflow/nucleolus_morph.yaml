@@ -22,8 +22,8 @@ infra_overrides:
             #
 
 task_runner:
-  _target_: prefect_dask.task_runners.DaskTaskRunner
-  address: "tcp://dask.a100.int.allencell.org:8786"
+    _target_: prefect_dask.task_runners.DaskTaskRunner
+    address: "tcp://dask.a100.int.allencell.org:8786"
 
 steps:
     - function: morflowgenesis.steps.split_czi.split_czi
@@ -47,12 +47,12 @@ steps:
           config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
       step_type: "list"
       task_runner:
-        _target_: prefect.task_runners.SequentialTaskRunner
+          _target_: prefect.task_runners.SequentialTaskRunner
 
       infra_overrides:
-        image:
-        requests:
-          nvidia.com/gpu: "1"
+          image:
+          requests:
+              nvidia.com/gpu: "1"
 
     - function: morflowgenesis.steps.resize_image.run_resize
       args:

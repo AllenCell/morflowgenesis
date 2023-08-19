@@ -1,6 +1,7 @@
 from copy import copy
 
-def flatten_dict(input_dict, parent_key='', sep='.', special_chars=".\|/;:+{}"):
+
+def flatten_dict(input_dict, parent_key="", sep=".", special_chars=r".\|/;:+{}"):
     flattened_dict = {}
     for key, value in input_dict.items():
         if sep in special_chars:
