@@ -4,6 +4,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from prefect import flow
+from prefect.blocks.core import Block
 from prefect.deployments import build_from_flow, run_deployment
 
 from morflowgenesis.steps.load_workflow_state import get_workflow_state
@@ -17,7 +18,7 @@ def save_workflow_config(working_dir, cfg):
     with open(Path(working_dir) / "workflow_config.yaml", "w") as f:
         OmegaConf.save(config=cfg, f=f)
 
-
+@flow
 async def morflowgenesis(cfg):
     """Sequentially run config-specified steps, starting with the previous workflow state and
     passing output from step n-1 as input to step n."""
@@ -41,7 +42,7 @@ async def main(cfg: DictConfig):
             morflowgenesis,
             deployment_name,
             apply=True,
-            storage=cfg.storage,
+            storage=Block.load("cfg.storage_block"),
             path=cfg.path,
             entrypoint=cfg.entrypoint,
             infra_overrides=flatten_dict(cfg.infra_overrides),

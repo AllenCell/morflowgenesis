@@ -3,6 +3,7 @@ from copy import copy
 from hydra._internal.utils import _locate
 from hydra.utils import instantiate
 from prefect import flow
+from prefect.blocks.core import Block
 from prefect.deployments import build_from_flow, run_deployment
 
 from morflowgenesis.utils import flatten_dict
@@ -29,7 +30,7 @@ def deploy_step(cfg, step_cfg):
         step_flow,
         step_cfg.get("deployment_name", "default"),
         apply=True,
-        storage=cfg.storage,
+        storage=Block.load("cfg.storage_block"),
         path=cfg.path,
         entrypoint=entrypoint,
         infra_overrides=flatten_dict(infra_overrides),

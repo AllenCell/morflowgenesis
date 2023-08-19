@@ -2,7 +2,7 @@ working_dir: //allen/aics/assay-dev/users/Benji/hydra_workflow/workings
 deployment_name: nucleolus_morph
 workpool_name: k3s
 
-storage: git
+storage_block: github/morflowgenesis
 path: morflowgenesis
 entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
 
