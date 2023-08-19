@@ -1,5 +1,4 @@
 import hashlib
-import pickle
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -75,6 +74,4 @@ class ImageObject(BaseModel):
         return step_obj.load_output()
 
     def save(self):
-        # pickle image object
-        with open(self.save_path, "wb") as f:
-            pickle.dump(self, f)
+        Path(self.save_path).write_text(self.json())
