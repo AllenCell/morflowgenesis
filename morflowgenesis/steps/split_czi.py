@@ -31,8 +31,7 @@ def split(img, working_dir, output_name, step_name, file_path, load_kwargs):
 def _validate_list(val):
     if isinstance(val, list):
         return val
-    else:
-        return list(val)
+    return list(val)
 
 
 def split_czi(

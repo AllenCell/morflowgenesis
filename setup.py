@@ -4,7 +4,7 @@
 
 from setuptools import find_packages, setup
 
-with open("README.md") as readme_file:
+with open("README.md") as readme_file:  # noqa: FURB101
     readme = readme_file.read()
 
 setup_requirements = [
