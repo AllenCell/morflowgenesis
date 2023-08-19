@@ -4,7 +4,7 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from prefect import flow
-from prefect.deployments.deployments import build_from_flow, run_deployment
+from prefect.deployments import build_from_flow, run_deployment
 
 from morflowgenesis.steps.load_workflow_state import get_workflow_state
 

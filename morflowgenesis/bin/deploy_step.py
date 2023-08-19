@@ -3,7 +3,9 @@ from copy import copy
 from hydra._internal.utils import _locate
 from hydra.utils import instantiate
 from prefect import flow
-from prefect.deployments.deployments import build_from_flow, run_deployment
+from prefect.deployments import build_from_flow, run_deployment
+
+
 
 
 def _merge_configs(cfg, step_cfg, key):
