@@ -48,6 +48,7 @@ steps:
       step_type: "list"
       task_runner:
           _target_: prefect.task_runners.SequentialTaskRunner
+          address: null
 
       infra_overrides:
           image:
