@@ -7,22 +7,15 @@ from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf, open_dict, read_write
-from prefect import get_run_logger, task
+from prefect import task
 
 from morflowgenesis.utils.image_object import StepOutput
 
-logger = get_run_logger()
-gpu = 0
 
-
-@task(tags=["gpu"])
+@task
 def run_cytodl_task(image_object, step_name, output_name, input_step, config_path, overrides=[]):
-    global gpu
-    overrides.append(f"trainer.devices=[{gpu}]")
-    logger.info(f"GPU: {gpu}")
     # skip if already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):
-        logger.info(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
 
     # get input data path
@@ -31,7 +24,6 @@ def run_cytodl_task(image_object, step_name, output_name, input_step, config_pat
 
     # initialize config with overrides
     config_path = Path(config_path)
-    logger.info(config_path)
     GlobalHydra.instance().clear()
     with initialize_config_dir(version_base="1.2", config_dir=str(config_path.parent.resolve())):
         cfg = compose(config_name=config_path.name, return_hydra_config=True, overrides=overrides)

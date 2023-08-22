@@ -29,7 +29,7 @@ autograd==1.6.2
 autopage==0.5.1
 backcall==0.2.0
 backoff==2.2.1
-backports.zoneinfo==0.2.1
+backports.zoneinfo;python_version<"3.9"
 beautifulsoup4==4.12.2
 bfio==2.3.0
 bleach==6.0.0
@@ -59,7 +59,7 @@ coverage==7.2.7
 croniter==1.4.1
 cryptography==41.0.3
 cycler==0.11.0
-cyto_dl @ git+https://github.com/AllenCellModeling/cyto-dl.git@feature/dict_dataloader
+cyto_dl @ git+ssh://git@github.com/AllenCellModeling/cyto-dl.git@main
 dask==2023.3.1
 dask-jobqueue==0.8.2
 databricks-cli==0.17.7
@@ -301,7 +301,7 @@ text-unidecode==1.3
 texttable==1.6.7
 threadpoolctl==3.2.0
 tifffile==2023.7.10
-timelapsetracking @ git+https://github.com/aics-int/aics-timelapse-tracking.git@496c1441d373b281eefba6cc6f188e1f4cbd020c#egg=timelapsetracking
+timelapsetracking @ git+ssh://git@github.com/aics-int/aics-timelapse-tracking.git@496c1441d373b281eefba6cc6f188e1f4cbd020c#egg=timelapsetracking
 tinycss2==1.2.1
 toml==0.10.2
 tomli==2.0.1

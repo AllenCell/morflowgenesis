@@ -4,7 +4,7 @@ from hydra._internal.utils import _locate
 from hydra.utils import instantiate
 from prefect import flow
 from prefect.blocks.core import Block
-from prefect.deployments import build_from_flow, run_deployment
+from prefect.deployments import run_deployment, Deployment
 
 from morflowgenesis.utils import flatten_dict
 
@@ -22,16 +22,16 @@ def deploy_step(cfg, step_cfg):
     step_flow = flow(step_fn, task_runner=task_runner)
 
     *entrypoint, flow_name = step_cfg["function"].split(".")
-    entrypoint = "/".join(entrypoint.split(".")) + f".py:{flow_name}"
+    entrypoint = "/".join(entrypoint) + f".py:{flow_name}"
 
     infra_overrides = _merge_configs(cfg, step_cfg, "infra_overrides")
 
-    return build_from_flow(
+    return Deployment.build_from_flow(
         step_flow,
         step_cfg.get("deployment_name", "default"),
         apply=True,
-        storage=Block.load("cfg.storage_block"),
-        path=cfg.path,
+        storage=Block.load(cfg["storage_block"]),
+        path=cfg["path"],
         entrypoint=entrypoint,
         infra_overrides=flatten_dict(infra_overrides),
     )

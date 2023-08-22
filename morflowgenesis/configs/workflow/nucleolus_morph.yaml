@@ -2,14 +2,16 @@ working_dir: //allen/aics/assay-dev/users/Benji/hydra_workflow/workings
 deployment_name: nucleolus_morph
 workpool_name: k3s
 
-storage_block: github/morflowgenesis
+deploy: true
+
+storage_block: "github/morflowgenesis-gui-example-block"
 path: morflowgenesis
 entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
 
 infra_overrides:
     env:
         EXTRA_PIP_PACKAGES: "prefect-dask; pip install numpy lz4 pandas dask[distributed]==2023.8.0"
-    #image: "rapidsai/rapidsai-dev:23.06-cuda11.8-devel-ubuntu22.04-py3.10"
+    image: ""
     namespace: "prefect"
     resources:
         limits:
@@ -18,8 +20,6 @@ infra_overrides:
         requests:
             cpu: "1000m"
             memory: "1024Mi"
-            #nvidia.com/gpu: "1"
-            #
 
 task_runner:
     _target_: prefect_dask.task_runners.DaskTaskRunner
@@ -51,7 +51,7 @@ steps:
 
       infra_overrides:
           image:
-          requests:
+          limits:
               nvidia.com/gpu: "1"
 
     - function: morflowgenesis.steps.resize_image.run_resize
@@ -69,6 +69,10 @@ steps:
           input_step: split_czi_20x_raw
           config_path: ./morflowgenesis/configs/step/20x_npm1_to_100x_npm1.yaml
       step_type: "list"
+      infra_overrides:
+          image:
+          limits:
+              nvidia.com/gpu: "1"
 
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
@@ -77,6 +81,10 @@ steps:
           input_step: run_cytodl_100x_npm1
           config_path: ./morflowgenesis/configs/step/100x_npm1_to_100x_npm1_seg.yaml
       step_type: "list"
+      infra_overrides:
+          image:
+          limits:
+              nvidia.com/gpu: "1"
 
     - function: morflowgenesis.steps.tracking.run_tracking
       args:
