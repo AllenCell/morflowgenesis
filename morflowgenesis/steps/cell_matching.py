@@ -1,10 +1,8 @@
 import numpy as np
-from prefect import flow, get_run_logger, task
+import pandas as pd
+from prefect import task
 
 from morflowgenesis.utils.image_object import StepOutput
-
-logger = get_run_logger()
-import pandas as pd
 
 
 def get_start_and_end_pts(roi):
@@ -37,7 +35,7 @@ def iou_from_roi(roi1: str, roi2: str, eps: float = 1e-8):
 def match_cells(image_object, step_name, output_name, pred_step, label_step, iou_thresh=0.9):
     # check if step already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):
-        logger.info(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
+        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
 
     pred_match_to_label = {"pred_cellid": [], "label_cellid": [], "iou": []}

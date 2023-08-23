@@ -2,12 +2,9 @@ import numpy as np
 import pandas as pd
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
-from prefect import flow, get_run_logger, task
-from prefect.task_runners import ConcurrentTaskRunner
+from prefect import task
 
 from morflowgenesis.utils.image_object import StepOutput
-
-logger = get_run_logger()
 
 
 def get_volume(img):
@@ -95,7 +92,7 @@ def calculate_features(
     reference_step=None,
 ):
     if image_object.step_is_run(f"{step_name}_{output_name}"):
-        logger.info(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
+        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
     cell_df = image_object.load_step(input_step)
     if reference_step is not None:

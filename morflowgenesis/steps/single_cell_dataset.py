@@ -6,20 +6,13 @@ from shutil import rmtree
 
 import numpy as np
 import pandas as pd
-from aicsimageio import AICSImage
 from aicsimageio.writers import OmeTiffWriter
-from prefect import flow, get_run_logger, task
-
-# logger = get_run_logger()
-from prefect.task_runners import ConcurrentTaskRunner
+from prefect import task
 from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 
 from morflowgenesis.utils.image_object import StepOutput
-
-# from aicsfiles import FileManagementSystem
-# from aicsfiles.model import FMSFile
 
 
 def upload_file(
@@ -30,23 +23,7 @@ def upload_file(
     prov_algorithm: str,
 ):
     """Upload a file located on the Isilon to FMS."""
-
-    metadata = {
-        "provenance": {
-            "input_files": [prov_input_file_id],
-            "algorithm": prov_algorithm,
-        },
-        "custom_metadata": {
-            "annotations": [
-                {"annotation_id": 153, "values": ["NucMorph"]},  # Program
-            ],
-        },
-    }
-
-    fms = FileManagementSystem(env=fms_env)
-    return fms.upload_file(
-        file_path, file_type="image", file_name=intended_file_name, metadata=metadata
-    )
+    raise NotImplementedError
 
 
 def reshape(img, z_res, xy_res, qcb_res, order=0):

@@ -1,9 +1,7 @@
-from prefect import get_run_logger, task
+from prefect import task
 from skimage.transform import rescale, resize
 
 from morflowgenesis.utils.image_object import StepOutput
-
-logger = get_run_logger()
 
 
 @task
@@ -12,7 +10,7 @@ def run_resize_task(
 ):
     # skip if already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):
-        logger.info(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
+        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
     # image resizing
     img = image_object.load_step(input_step)

@@ -1,11 +1,8 @@
 import pandas as pd
 from aicsimageio import AICSImage
-from prefect import flow, get_run_logger, task
-from prefect.task_runners import ConcurrentTaskRunner
+from prefect import task
 
 from morflowgenesis.utils.image_object import ImageObject, StepOutput
-
-logger = get_run_logger()
 
 
 @task

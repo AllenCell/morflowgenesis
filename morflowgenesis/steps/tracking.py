@@ -2,8 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from prefect import flow, get_run_logger, task
-from prefect.task_runners import ConcurrentTaskRunner
+from prefect import task
 from scipy.ndimage import find_objects
 from timelapsetracking import csv_to_nodes
 from timelapsetracking.tracks import add_connectivity_labels
@@ -88,14 +87,13 @@ def track(regionprops, working_dir, step_name, output_name, edge_thresh_dist=75)
 
 def _do_tracking(image_objects, step_name, output_name):
     # check if any step does not have tracking output
-    logger = get_run_logger()
     run = False
     for obj in image_objects:
         if not obj.step_is_run(f"{step_name}_{output_name}"):
             run = True
             break
     if not run:
-        logger.info(f"Skipping step {step_name}_{output_name}")
+        print(f"Skipping step {step_name}_{output_name}")
         pass
     return run
 
