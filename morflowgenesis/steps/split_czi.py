@@ -45,7 +45,6 @@ def split_czi(
     channels=-1,
     dimension_order_out="ZYX",
 ):
-    print("WHATTTT")
     working_dir = Path(working_dir)
     (working_dir / step_name).mkdir(exist_ok=True, parents=True)
 

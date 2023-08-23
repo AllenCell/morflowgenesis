@@ -10,13 +10,12 @@ from .step_output import StepOutput
 class ImageObject(BaseModel):
     working_dir: Path
     source_path: str
-    save_path: Path
     id: str
     metadata: Optional[Dict] = None
     C: Optional[int] = 0
     T: Optional[int] = 0
     S: Optional[int] = None
-
+    save_path: Path = Path("")
     run_history: List[str] = []
     _steps: Dict[str, StepOutput] = {}
 
@@ -26,6 +25,8 @@ class ImageObject(BaseModel):
         super().__init__(
             working_dir=working_dir,
             source_path=source_path,
+            # save_path=save_path,
+            id=id,
             metadata=metadata,
             C=C,
             T=T,
