@@ -10,12 +10,12 @@ from .step_output import StepOutput
 class ImageObject(BaseModel):
     working_dir: Path
     source_path: str
-    id: str
     metadata: Optional[Dict] = None
     C: Optional[int] = 0
     T: Optional[int] = 0
     S: Optional[int] = None
     save_path: Path = Path("")
+    id: str = ""
     run_history: List[str] = []
     _steps: Dict[str, StepOutput] = {}
 
@@ -23,10 +23,8 @@ class ImageObject(BaseModel):
         self, working_dir, source_path, metadata=None, C=0, T=0, S=None, run_history=[], _steps={}
     ):
         super().__init__(
-            working_dir=working_dir,
+            working_dir=Path(working_dir),
             source_path=source_path,
-            # save_path=save_path,
-            id=id,
             metadata=metadata,
             C=C,
             T=T,
@@ -34,21 +32,9 @@ class ImageObject(BaseModel):
             run_history=run_history,
             _steps=_steps,
         )
-        self.run_history = []
-
-        # generally useful metadata
-        self.source_path = source_path
-        self.C = 0
-        self.T = 0
-        self.S = None
-        # user-defined, workflow-specific metadata
-        self.metadata = metadata
-
         self.id = hashlib.sha224(bytes(source_path + str(metadata), "utf-8")).hexdigest()
-        self.working_dir = Path(working_dir)
         self.save_path = Path(self.working_dir / "_ImageObjectStore" / f"{self.id}.pkl")
         self.save_path.parent.mkdir(exist_ok=True, parents=True)
-        self._steps = {}
 
     def step_is_run(self, step_name):
         # for a step to be considered run, must be in history and output must exist
