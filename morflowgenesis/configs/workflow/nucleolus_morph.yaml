@@ -44,10 +44,7 @@ steps:
           output_name: 20x_nucseg
           input_step: split_czi_20x_raw
           config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
-      step_type: "list"
-      task_runner:
-          _target_: prefect.task_runners.SequentialTaskRunner
-          address: null
+      task_runner: None
       infra_overrides:
           image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
@@ -66,7 +63,7 @@ steps:
           output_name: 100x_npm1
           input_step: split_czi_20x_raw
           config_path: ./morflowgenesis/configs/step/20x_npm1_to_100x_npm1.yaml
-      step_type: "list"
+      task_runner: None
       infra_overrides:
           image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
@@ -78,6 +75,7 @@ steps:
           output_name: 100x_npm1_seg
           input_step: run_cytodl_100x_npm1
           config_path: ./morflowgenesis/configs/step/100x_npm1_to_100x_npm1_seg.yaml
+      task_runner: None
       infra_overrides:
           image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
@@ -98,4 +96,3 @@ steps:
           raw_steps: [run_cytodl_100x_npm1]
           seg_steps: [run_cytodl_100x_npm1_seg, resize_100x_nucseg]
           tracking_step: run_tracking_tracking
-    # step -1: delete intermediate results that aren't needed (e.g. 20x nucseg pred)
