@@ -11,7 +11,7 @@ entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
 infra_overrides:
     env:
         EXTRA_PIP_PACKAGES: "prefect-dask; pip install numpy lz4 pandas dask[distributed]==2023.8.0"
-    image: ""
+    image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect"
     namespace: "prefect"
     resources:
         limits:
@@ -49,9 +49,8 @@ steps:
       task_runner:
           _target_: prefect.task_runners.SequentialTaskRunner
           address: null
-
       infra_overrides:
-          image:
+          image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
               nvidia.com/gpu: "1"
 
@@ -71,7 +70,7 @@ steps:
           config_path: ./morflowgenesis/configs/step/20x_npm1_to_100x_npm1.yaml
       step_type: "list"
       infra_overrides:
-          image:
+          image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
               nvidia.com/gpu: "1"
 
@@ -83,7 +82,7 @@ steps:
           config_path: ./morflowgenesis/configs/step/100x_npm1_to_100x_npm1_seg.yaml
       step_type: "list"
       infra_overrides:
-          image:
+          image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
               nvidia.com/gpu: "1"
 
