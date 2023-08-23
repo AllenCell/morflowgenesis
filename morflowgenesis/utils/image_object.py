@@ -2,8 +2,6 @@ import hashlib
 from pathlib import Path
 from typing import Dict, List, Optional
 
-from aicsimageio import AICSImage
-from aicsimageio.writers import OmeTiffWriter
 from pydantic import BaseModel
 
 from .step_output import StepOutput
@@ -12,6 +10,8 @@ from .step_output import StepOutput
 class ImageObject(BaseModel):
     working_dir: Path
     source_path: str
+    save_path: Path
+    id: str
     metadata: Optional[Dict] = None
     C: Optional[int] = 0
     T: Optional[int] = 0
