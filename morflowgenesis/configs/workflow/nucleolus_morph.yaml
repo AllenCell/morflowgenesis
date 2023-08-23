@@ -37,7 +37,6 @@ steps:
           dimension_order_out: CZYX
           timepoints: [0] #,1,2,3]
           scenes: [P4-F6]
-      step_type: "none"
 
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
@@ -60,7 +59,6 @@ steps:
           output_name: 100x_nucseg
           input_step: run_cytodl_20x_nucseg
           output_shape: [120, 3120, 4620]
-      step_type: "list"
 
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
@@ -80,7 +78,6 @@ steps:
           output_name: 100x_npm1_seg
           input_step: run_cytodl_100x_npm1
           config_path: ./morflowgenesis/configs/step/100x_npm1_to_100x_npm1_seg.yaml
-      step_type: "list"
       infra_overrides:
           image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
@@ -101,6 +98,4 @@ steps:
           raw_steps: [run_cytodl_100x_npm1]
           seg_steps: [run_cytodl_100x_npm1_seg, resize_100x_nucseg]
           tracking_step: run_tracking_tracking
-      step_type: "list"
-
     # step -1: delete intermediate results that aren't needed (e.g. 20x nucseg pred)

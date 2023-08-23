@@ -8,7 +8,7 @@ async def run_step(step_cfg, prev_output):
     results = []
 
     step_fn = step_cfg["function"]
-    step_type = step_cfg["step_type"]
+    step_type = step_cfg.get("step_type", 'list')
     step_args = step_cfg["args"]
 
     if step_type == "gather":
