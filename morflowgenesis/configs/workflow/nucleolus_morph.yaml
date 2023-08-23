@@ -2,6 +2,7 @@ working_dir: //allen/aics/assay-dev/users/Benji/hydra_workflow/workings
 deployment_name: nucleolus_morph
 workpool_name: k3s
 
+debug: True
 deploy: true
 
 storage_block: "github/dev-benji-test"
@@ -30,21 +31,20 @@ steps:
       args:
           czi_path: /allen/aics/assay-dev/MicroscopyData/Frick/2023/20230327/ZSD0/AICS86_day3_nucleolus_movie_interactive-01-1.czi/AICS86_day3_nucleolus_movie_interactive-01-1_AcquisitionBlock1.czi/AICS86_day3_nucleolus_movie_interactive-01-1_AcquisitionBlock1_pt1.czi
           # NPM1, bf, FBL
-          step_name: split_czi
           working_dir: ${working_dir}
           output_name: 20x_raw
           channels: -1
           dimension_order_out: CZYX
           timepoints: [0] #,1,2,3]
           scenes: [P4-F6]
+      step_type: "gather"
 
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
-          step_name: run_cytodl
           output_name: 20x_nucseg
           input_step: split_czi_20x_raw
           config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
-      task_runner: None
+      task_runner: null
       infra_overrides:
           image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
@@ -52,18 +52,16 @@ steps:
 
     - function: morflowgenesis.steps.resize_image.run_resize
       args:
-          step_name: resize
           output_name: 100x_nucseg
           input_step: run_cytodl_20x_nucseg
           output_shape: [120, 3120, 4620]
 
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
-          step_name: run_cytodl
           output_name: 100x_npm1
           input_step: split_czi_20x_raw
           config_path: ./morflowgenesis/configs/step/20x_npm1_to_100x_npm1.yaml
-      task_runner: None
+      task_runner: null
       infra_overrides:
           image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
@@ -71,11 +69,10 @@ steps:
 
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
-          step_name: run_cytodl
           output_name: 100x_npm1_seg
           input_step: run_cytodl_100x_npm1
           config_path: ./morflowgenesis/configs/step/100x_npm1_to_100x_npm1_seg.yaml
-      task_runner: None
+      task_runner: null
       infra_overrides:
           image: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect-gpu"
           limits:
@@ -83,14 +80,12 @@ steps:
 
     - function: morflowgenesis.steps.tracking.run_tracking
       args:
-          step_name: run_tracking
           output_name: tracking
           input_step: resize_100x_nucseg
       step_type: "gather"
 
     - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
       args:
-          step_name: single_cell_dataset
           output_name: single_cell_dataset
           splitting_step: resize_100x_nucseg
           raw_steps: [run_cytodl_100x_npm1]
