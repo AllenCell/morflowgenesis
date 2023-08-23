@@ -40,11 +40,9 @@ class ImageObject(BaseModel):
         self.C = 0
         self.T = 0
         self.S = None
-
         # user-defined, workflow-specific metadata
-        if metadata is not None:
-            for k, v in metadata.items():
-                setattr(self, k, v)
+        self.metadata = metadata
+
         self.id = hashlib.sha224(bytes(source_path + str(metadata), "utf-8")).hexdigest()
         self.working_dir = Path(working_dir)
         self.save_path = Path(self.working_dir / "_ImageObjectStore" / f"{self.id}.pkl")
