@@ -1,5 +1,6 @@
 import json
 from pathlib import Path
+from typing import Literal
 
 import pandas as pd
 from aicsimageio import AICSImage
@@ -11,7 +12,7 @@ class StepOutput(BaseModel):
     working_dir: Path
     step_name: str
     output_name: str
-    output_type: str
+    output_type: Literal["image", "csv"]
     image_id: str
     path: Path = None
 
@@ -38,7 +39,6 @@ class StepOutput(BaseModel):
             return AICSImage(self.path).data.squeeze()
         elif self.output_type == "csv":
             return pd.read_csv(self.path)
-        raise NotImplementedError
 
     def save(self, data, path=None):
         path = path or self.path
@@ -46,4 +46,3 @@ class StepOutput(BaseModel):
             OmeTiffWriter.save(uri=path, data=data)
         elif self.output_type == "csv":
             data.to_csv(path, index=False)
-        raise NotImplementedError
