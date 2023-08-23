@@ -113,3 +113,7 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+
+# hydra
+/outputs
