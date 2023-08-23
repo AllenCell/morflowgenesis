@@ -4,7 +4,7 @@ workpool_name: k3s
 
 deploy: true
 
-storage_block: "github/morflowgenesis-gui-example-block"
+storage_block: "github/dev-benji-test"
 path: morflowgenesis
 entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
 
@@ -22,7 +22,7 @@ infra_overrides:
             memory: "1024Mi"
 
 task_runner:
-    _target_: prefect_dask.task_runners.DaskTaskRunner
+    _target_: prefect_dask.DaskTaskRunner
     address: "tcp://dask.a100.int.allencell.org:8786"
 
 steps:
