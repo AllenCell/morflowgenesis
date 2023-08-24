@@ -1,10 +1,16 @@
+import os
+
 import numpy as np
 import pandas as pd
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
-from prefect import task
+from prefect import flow, task
+from prefect.task_runners import SequentialTaskRunner
+from prefect_dask import DaskTaskRunner
 
 from morflowgenesis.utils.image_object import StepOutput
+
+DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 def get_volume(img):
@@ -81,6 +87,7 @@ def get_matched_features(row_pred, row_label, features, segmentation_columns):
     return pd.DataFrame([data])
 
 
+@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
 def calculate_features(
     image_object,
     step_name,

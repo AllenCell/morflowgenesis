@@ -5,8 +5,12 @@ import numpy as np
 import pandas as pd
 import sklearn.metrics as skmetrics
 from prefect import flow
+from prefect.task_runners import SequentialTaskRunner
+from prefect_dask import DaskTaskRunner
 from sklearn.decomposition import PCA
 from sklearn.utils import resample
+
+DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 def target_vs_prediction_scatter_metrics(x, y, niter=200):
@@ -204,6 +208,7 @@ def plot(x, y, destdir):
         summary_plot(all_feats, destdir)
 
 
+@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
 def run_plot(image_object, step_name, output_name, input_step, features, pca_n_components=10):
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")

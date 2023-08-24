@@ -1,12 +1,17 @@
+import os
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from aicsimageio import AICSImage
 from prefect import flow, task
-from prefect.task_runners import ConcurrentTaskRunner
+from prefect.task_runners import SequentialTaskRunner
+from prefect_dask import DaskTaskRunner
 from skimage.segmentation import find_boundaries
 
 from morflowgenesis.utils.image_object import StepOutput
+
+DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 def make_rgb(img, contour):  # this function returns an RGB image
@@ -77,7 +82,7 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_characteristic, y_characte
     return contact_sheet
 
 
-@flow(task_runner=ConcurrentTaskRunner(), print_logs=True)
+@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
 def run_contact_sheet(
     image_object,
     step_name,

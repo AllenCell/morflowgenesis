@@ -1,8 +1,14 @@
+import os
+
 import pandas as pd
 from aicsimageio import AICSImage
-from prefect import task
+from prefect import flow, task
+from prefect.task_runners import SequentialTaskRunner
+from prefect_dask import DaskTaskRunner
 
 from morflowgenesis.utils.image_object import ImageObject, StepOutput
+
+DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 @task
@@ -25,6 +31,7 @@ def generate_object(
     return obj
 
 
+@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
 def generate_objects(
     image_objects,
     working_dir,

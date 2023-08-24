@@ -1,8 +1,11 @@
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from prefect import task
+from prefect import flow, task
+from prefect.task_runners import SequentialTaskRunner
+from prefect_dask import DaskTaskRunner
 from scipy.ndimage import find_objects
 from timelapsetracking import csv_to_nodes
 from timelapsetracking.tracks import add_connectivity_labels
@@ -10,6 +13,8 @@ from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
 from morflowgenesis.utils.step_output import StepOutput
+
+DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 @task
@@ -98,6 +103,7 @@ def _do_tracking(image_objects, step_name, output_name):
     return run
 
 
+@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
 def run_tracking(image_objects, step_name, output_name, input_step):
     if not _do_tracking(image_objects, step_name, output_name):
         return image_objects
