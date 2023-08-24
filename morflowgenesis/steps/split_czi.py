@@ -1,9 +1,14 @@
+import os
 from pathlib import Path
 
 from aicsimageio import AICSImage
 from prefect import flow, task
+from prefect.task_runners import SequentialTaskRunner
+from prefect_dask import DaskTaskRunner
 
 from morflowgenesis.utils.image_object import ImageObject, StepOutput
+
+DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 def get_data(img, load_kwargs):
@@ -34,6 +39,7 @@ def _validate_list(val):
     return list(val)
 
 
+@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
 def split_czi(
     image_objects,
     czi_path,
