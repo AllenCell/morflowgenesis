@@ -6,13 +6,13 @@ from omegaconf import DictConfig, OmegaConf
 from prefect import flow
 
 # from prefect.blocks.core import Block
-from prefect.deployments import Deployment, run_deployment
+from prefect.deployments import run_deployment
 from prefect.task_runners import SequentialTaskRunner
 
 from morflowgenesis.bin.deploy_step import deploy_step
 from morflowgenesis.bin.run_step import run_step
 from morflowgenesis.steps.load_workflow_state import get_workflow_state
-from morflowgenesis.utils import BlockDeployment, flatten_dict
+from morflowgenesis.utils import BlockDeployment
 
 
 def save_workflow_config(working_dir, cfg):
@@ -46,11 +46,10 @@ def main(_cfg: DictConfig):
             dep = BlockDeployment.build_from_flow(
                 morflowgenesis,
                 deployment_name,
-                apply=False,  # True
-                # storage=Block.load(cfg["storage_block"]),
+                apply=False,
                 path=cfg["path"],
                 entrypoint=cfg["entrypoint"],
-                infra_overrides=flatten_dict(cfg["infra_overrides"]),
+                infra_overrides=cfg["infra_overrides"],
             )
             dep.apply(cfg["pull"])
 
@@ -58,7 +57,7 @@ def main(_cfg: DictConfig):
             deploy_step(cfg, step_cfg)
 
     if not debug:
-        run_deployment(name=f"morflowgenesis/{deployment_name}", parameters=cfg)  # , timeout=0
+        run_deployment(name=f"morflowgenesis/{deployment_name}", parameters=cfg)
     else:
         # run superworkflow locally, better error readouts
         asyncio.run(morflowgenesis(cfg))
