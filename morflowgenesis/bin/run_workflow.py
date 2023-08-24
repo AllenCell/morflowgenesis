@@ -4,21 +4,23 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from prefect import flow
-from prefect.blocks.core import Block
-from prefect.deployments import Deployment, run_deployment
 
-from morflowgenesis.steps.load_workflow_state import get_workflow_state
-from morflowgenesis.utils import flatten_dict
+# from prefect.blocks.core import Block
+from prefect.deployments import Deployment, run_deployment
+from prefect.task_runners import SequentialTaskRunner
 
 from morflowgenesis.bin.deploy_step import deploy_step
 from morflowgenesis.bin.run_step import run_step
+from morflowgenesis.steps.load_workflow_state import get_workflow_state
+from morflowgenesis.utils import BlockDeployment, flatten_dict
 
 
 def save_workflow_config(working_dir, cfg):
     with open(Path(working_dir) / "workflow_config.yaml", "w") as f:
         OmegaConf.save(config=cfg, f=f)
 
-@flow
+
+@flow(log_prints=True, task_runner=SequentialTaskRunner())
 async def morflowgenesis(cfg):
     """Sequentially run config-specified steps, starting with the previous workflow state and
     passing output from step n-1 as input to step n."""
@@ -37,27 +39,31 @@ def main(_cfg: DictConfig):
     cfg = OmegaConf.to_container(_cfg, resolve=True)
     deployment_name = cfg.get("deployment_name", "default")
 
+    debug = cfg.get("debug", False)
+
     if cfg.get("deploy", False):
-        Deployment.build_from_flow(
-            morflowgenesis,
-            deployment_name,
-            apply=True,
-            storage=Block.load(cfg["storage_block"]),
-            path=cfg["path"],
-            entrypoint=cfg["entrypoint"],
-            infra_overrides=flatten_dict(cfg["infra_overrides"]),
-        )
+        if not debug:
+            dep = BlockDeployment.build_from_flow(
+                morflowgenesis,
+                deployment_name,
+                apply=False,  # True
+                # storage=Block.load(cfg["storage_block"]),
+                path=cfg["path"],
+                entrypoint=cfg["entrypoint"],
+                infra_overrides=flatten_dict(cfg["infra_overrides"]),
+            )
+            dep.apply(cfg["pull"])
 
-        deployments = []
         for step_cfg in cfg["steps"]:
-            deployments.append(deploy_step(cfg, step_cfg))
-        asyncio.gather(*deployments)
+            deploy_step(cfg, step_cfg)
 
-    _run_dep = run_deployment(
-        name=f"morflowgenesis/{deployment_name}", parameters=cfg, timeout=0
-    )
+    if not debug:
+        run_deployment(name=f"morflowgenesis/{deployment_name}", parameters=cfg)  # , timeout=0
+    else:
+        # run superworkflow locally, better error readouts
+        asyncio.run(morflowgenesis(cfg))
 
-    asyncio.run(_run_dep)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    # asyncio.run(main())
+    main()

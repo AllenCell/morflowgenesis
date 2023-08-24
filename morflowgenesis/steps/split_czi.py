@@ -78,3 +78,7 @@ def split_czi(
                 print(f"Scene {s} timepoint {t} already run")
     new_image_objects = [im_obj.result() for im_obj in new_image_objects]
     return image_objects + new_image_objects
+
+
+if __name__ == "__main__":
+    split_czi()

@@ -1,6 +1,5 @@
 import asyncio
 
-from hydra._internal.utils import _locate
 from prefect.deployments import run_deployment
 from slugify import slugify
 
@@ -13,17 +12,26 @@ async def run_step(step_cfg, prev_output):
     step_args = step_cfg["args"]
     step_args["step_name"] = step_fn.split(".")[-1]
 
+    flow_name = slugify(step_args["step_name"])
+    deployment_name = slugify(step_cfg.get("deployment_name", "default"))
+    full_deployment_name = f"{flow_name}/{deployment_name}"
+
     if step_type == "gather":
-        step = _locate(step_fn)
-        # return await run_deployment(f"{flow_name}/{deployment_name}", parameters=)
-        return step(prev_output, **step_args)
+        payload = {"image_objects": prev_output, **step_args}
+        out = await run_deployment(
+            full_deployment_name,
+            parameters=payload,
+        )
+        return out.state.result()
     for datum in prev_output:
         payload = {"image_objects": datum, **step_args}
-        flow_name = slugify(payload["step_name"])
-        deployment_name = slugify(step_cfg.get("deployment_name", "default"))
         results.append(
-            run_deployment(f"{flow_name}/{deployment_name}", parameters=payload, timeout=0)
+            run_deployment(
+                full_deployment_name,
+                parameters=payload,
+                timeout=0,
+            )
         )
+    # this isn't actually running stuff
     results = await asyncio.gather(*results)
-
-    return results
+    return [r.state.result() for r in results]
