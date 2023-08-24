@@ -1,6 +1,6 @@
 working_dir: //allen/aics/assay-dev/users/Benji/hydra_workflow/workings
 deployment_name: nucleolus_morph
-workpool_name: k3s
+workpool_name: k8s
 
 debug: True
 deploy: true
@@ -81,13 +81,13 @@ steps:
     - function: morflowgenesis.steps.tracking.run_tracking
       args:
           output_name: tracking
-          input_step: resize_100x_nucseg
+          input_step: run_resize_100x_nucseg
       step_type: "gather"
 
     - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
       args:
           output_name: single_cell_dataset
-          splitting_step: resize_100x_nucseg
+          splitting_step: run_resize_100x_nucseg
           raw_steps: [run_cytodl_100x_npm1]
-          seg_steps: [run_cytodl_100x_npm1_seg, resize_100x_nucseg]
+          seg_steps: [run_cytodl_100x_npm1_seg, run_resize_100x_nucseg]
           tracking_step: run_tracking_tracking
