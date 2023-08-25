@@ -1,33 +1,61 @@
 import os
+import json
+import base64
 
 from dask_kubernetes.classic import make_pod_spec
 from prefect.task_runners import SequentialTaskRunner
 from prefect_dask import DaskTaskRunner
 
 
-def create_task_runner():
-    if os.environ.get("IMAGE") is not None:
-        cluster_kwargs = {
-            "pod_template": make_pod_spec(
-                **{
-                    "image": os.environ["IMAGE"],
-                    "memory_limit": os.getenv("MEMORY_LIMIT", "4G"),
-                    "memory_request": os.getenv("MEMORY_REQUEST", "1G"),
-                    "cpu_limit": os.getenv("CPU_LIMIT", "1000m"),
-                    "cpu_request": os.getenv("CPU_REQUEST", "1000m"),
-                    "env": {"EXTRA_PIP_PACKAGES": "."},
+def encode_dict_to_json_base64(input_dict):
+    json_str = json.dumps(input_dict)
+    json_bytes = json_str.encode('utf-8')
+    return base64.b64encode(json_bytes).decode('utf-8')
+
+
+def decode_base64_json_string(encoded_str):
+    decoded_bytes = base64.b64decode(encoded_str)
+    json_str = decoded_bytes.decode('utf-8')
+    return json.loads(json_str)
+
+
+def make_dask_cluster_kwargs(encoded_str):
+    _dask_kwargs = {
+        "cluster_class": "dask_kubernetes.KubeCluster",
+        "cluster_kwargs": {
+            "pod_template": {
+                "memory_limit": "4Gi",
+                "memory_request": "1Gi",
+                "cpu_limit": "1000m",
+                "cpu_request": "1000m",
+                "env": {
+                    "TZ": "UTC"
                 }
-            ),
+            },
             "deploy_mode": "local",
-            "n_workers": os.environ.get("NUM_DASK_WORKERS", 5),
+            "n_workers": 5,
         }
-        adapt_kwargs = {
-            "minimum": cluster_kwargs["n_workers"],
-            "maximum": os.environ.get("MAX_DASK_WORKERS", 2 * cluster_kwargs["n_workers"]),
-        }
-        return DaskTaskRunner(
-            cluster_class="dask_kubernetes.KubeCluster",
-            cluster_kwargs=cluster_kwargs,
-            adapt_kwargs=adapt_kwargs,
-        )
+    }
+
+    _dask_kwargs["adapt_kwargs"] = {
+        "minimum": _dask_kwargs["cluster_kwargs"]["n_workers"]
+    }
+
+    _user_provided_kwargs = decode_base64_json_string(encoded_str)
+    _dask_kwargs.update(_user_provided_kwargs)
+    _dask_kwargs["cluster_kwargs"]["pod_template"] = make_pod_spec(
+        **_dask_kwargs["cluster_kwargs"]["pod_template"])
+
+    if "maximum" not in _dask_kwargs["adapt_kwargs"]:
+        _dask_kwargs["adapt_kwargs"]["maximum"] = (
+            _dask_kwargs["adapt_kwargs"]["minimum"] * 2)
+
+    return _dask_kwargs
+
+
+def create_task_runner():
+    if os.environ.get("DASK_CLUSTER") is not None:
+        dask_kwargs = make_dask_cluster_kwargs(os.environ["DASK_CLUSTER"])
+        return DaskTaskRunner(**dask_kwargs)
+
     return SequentialTaskRunner()

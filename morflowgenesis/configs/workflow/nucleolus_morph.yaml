@@ -38,9 +38,26 @@ steps:
           timepoints: [0] #,1,2,3]
           scenes: [P4-F6]
       step_type: "gather"
-      infra_overrides:
-          env:
-              IMAGE: "docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/prefect:latest"
+      dask_cluster:
+          cluster_kwargs:
+              pod_template:
+                  image:
+                  extra_pod_config:
+                      volumes:
+                          - name: vast-nfs
+                            nfs:
+                                server: aics.vast01.corp.alleninstitute.org
+                                path: /aics
+                  extra_container_config:
+                      volumeMounts:
+                          - name: vast-nfs
+                            mountPath: /allen/aics
+
+              deploy_mode: local
+              n_workers: 5
+          adapt_kwargs:
+
+
 
     # - function: morflowgenesis.steps.run_cytodl.run_cytodl
     #   args:
