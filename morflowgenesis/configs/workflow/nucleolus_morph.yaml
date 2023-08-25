@@ -1,6 +1,6 @@
 working_dir: //allen/aics/assay-dev/users/Benji/hydra_workflow/workings
 deployment_name: nucleolus_morph
-workpool_name: k8s
+work_pool_name: k8s
 
 debug: True
 deploy: true
@@ -8,7 +8,7 @@ deploy: true
 pull:
     repository: https://github.com/aics-int/morflowgenesis.git
     branch: dev
-    secret_block_name: github-pat
+    secret_block_name: dev-morflowgenesis-benji-pat
 
 path: morflowgenesis
 entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
