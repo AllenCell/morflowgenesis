@@ -15,13 +15,12 @@ def create_task_runner():
                     "memory_request": os.getenv("MEMORY_REQUEST", "1G"),
                     "cpu_limit": os.getenv("CPU_LIMIT", "1000m"),
                     "cpu_request": os.getenv("CPU_REQUEST", "1000m"),
-                    "env": {"EXTRA_PIP_PACKAGES": ""},
+                    "env": {"EXTRA_PIP_PACKAGES": "./morflowgenesis"},
                 }
             ),
             "deploy_mode": "local",
             "n_workers": os.environ.get("NUM_DASK_WORKERS", 5),
         }
-
         adapt_kwargs = {
             "minimum": cluster_kwargs["n_workers"],
             "maximum": os.environ.get("MAX_DASK_WORKERS", 2 * cluster_kwargs["n_workers"]),
