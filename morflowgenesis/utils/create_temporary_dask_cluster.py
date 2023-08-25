@@ -1,5 +1,6 @@
 import os
 
+from dask_kubernetes.classic import make_pod_spec
 from prefect.task_runners import SequentialTaskRunner
 from prefect_dask import DaskTaskRunner
 
@@ -7,14 +8,16 @@ from prefect_dask import DaskTaskRunner
 def create_task_runner():
     if os.environ.get("IMAGE") is not None:
         cluster_kwargs = {
-            "pod_template": {
-                "image": os.environ["IMAGE"],
-                "memory_limit": os.getenv("MEMORY_LIMIT", "4G"),
-                "memory_request": os.getenv("MEMORY_REQUEST", "1G"),
-                "cpu_limit": os.getenv("CPU_LIMIT", "1000m"),
-                "cpu_request": os.getenv("CPU_REQUEST", "1000m"),
-                "env": {"EXTRA_PIP_PACKAGES": ""},
-            },
+            "pod_template": make_pod_spec(
+                **{
+                    "image": os.environ["IMAGE"],
+                    "memory_limit": os.getenv("MEMORY_LIMIT", "4G"),
+                    "memory_request": os.getenv("MEMORY_REQUEST", "1G"),
+                    "cpu_limit": os.getenv("CPU_LIMIT", "1000m"),
+                    "cpu_request": os.getenv("CPU_REQUEST", "1000m"),
+                    "env": {"EXTRA_PIP_PACKAGES": ""},
+                }
+            ),
             "deploy_mode": "local",
             "n_workers": os.environ.get("NUM_DASK_WORKERS", 5),
         }
