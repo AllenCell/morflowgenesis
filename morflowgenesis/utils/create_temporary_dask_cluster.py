@@ -15,7 +15,7 @@ def create_task_runner():
                     "memory_request": os.getenv("MEMORY_REQUEST", "1G"),
                     "cpu_limit": os.getenv("CPU_LIMIT", "1000m"),
                     "cpu_request": os.getenv("CPU_REQUEST", "1000m"),
-                    "env": {"EXTRA_PIP_PACKAGES": "./morflowgenesis"},
+                    "env": {"EXTRA_PIP_PACKAGES": "."},
                 }
             ),
             "deploy_mode": "local",
