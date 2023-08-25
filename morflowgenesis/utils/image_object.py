@@ -20,7 +20,17 @@ class ImageObject(BaseModel):
     _steps: Dict[str, StepOutput] = {}
 
     def __init__(
-        self, working_dir, source_path, metadata=None, C=0, T=0, S=None, run_history=[], _steps={}
+        self,
+        working_dir,
+        source_path,
+        metadata=None,
+        C=0,
+        T=0,
+        S=None,
+        run_history=[],
+        _steps={},
+        save_path: Path = Path(""),
+        id: str = "",
     ):
         super().__init__(
             working_dir=Path(working_dir),
