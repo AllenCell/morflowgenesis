@@ -7,8 +7,8 @@ COPY . /tmp/morflowgenesis
 RUN --mount=type=ssh,id=github \
     mamba install -y -n prefect \
       fortran-compiler blas-devel \
-    && pip install numpy \
-    && pip install -r /tmp/morflowgenesis/requirements.txt --no-cache-dir \
-    && pip install /tmp/morflowgenesis --no-cache-dir \
+    && conda run -n prefect pip install numpy \
+    && conda run -n prefect pip install -r /tmp/morflowgenesis/requirements.txt --no-cache-dir \
+    && conda run -n prefect pip install /tmp/morflowgenesis --no-cache-dir \
     && conda clean -afy \
-    && prefect pip cache purge
+    && conda run -n prefect pip cache purge
