@@ -5,7 +5,7 @@ tags:
     - dev
 train: true
 test: false
-ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nucleolus_transfer_function/npm1/2023-05-09_09-30-22/checkpoints/last.ckpt"
+ckpt_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nucleolus_transfer_function/npm1/2023-05-09_09-30-22/checkpoints/last.ckpt"
 seed: 12345
 data:
     _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader

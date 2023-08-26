@@ -4,7 +4,7 @@ steps:
         function:
             _target_: morflowgenesis.steps.image_object_from_csv.generate_objects
             _partial_: True
-            csv_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/20x_cell_and_nuc_from_bf/subset_skoots/lamin_label/test_subset.csv"
+            csv_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/20x_cell_and_nuc_from_bf/subset_skoots/lamin_label/test_subset.csv"
             working_dir: ${working_dir}
             step_name: generate_objects
             source_column: "raw"

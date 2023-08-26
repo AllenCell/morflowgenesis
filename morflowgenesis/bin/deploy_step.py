@@ -19,7 +19,7 @@ def deploy_step(cfg, step_cfg):
 
     infra_overrides = _merge_configs(cfg, step_cfg, "infra_overrides")
     if "dask_cluster" in step_cfg:
-        encoded_dask_cluster = encode_dict_to_json_base64(step_cfg.dask_cluster)
+        encoded_dask_cluster = encode_dict_to_json_base64(step_cfg["dask_cluster"])
         if "env" not in infra_overrides:
             infra_overrides["env"] = {}
         infra_overrides["env"]["DASK_CLUSTER"] = encoded_dask_cluster
