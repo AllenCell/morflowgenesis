@@ -2,6 +2,8 @@ import os
 import json
 import base64
 
+import dask
+import distributed
 from dask_kubernetes.classic import make_pod_spec
 from prefect.task_runners import SequentialTaskRunner
 from prefect_dask import DaskTaskRunner
@@ -54,6 +56,8 @@ def make_dask_cluster_kwargs(encoded_str):
 
 
 def create_task_runner():
+    dask.config.set({"distributed.diagnostics.nvml": False})
+
     if os.environ.get("DASK_CLUSTER") is not None:
         dask_kwargs = make_dask_cluster_kwargs(os.environ["DASK_CLUSTER"])
         return DaskTaskRunner(**dask_kwargs)
