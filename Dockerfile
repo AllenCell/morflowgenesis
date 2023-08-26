@@ -10,5 +10,6 @@ RUN --mount=type=ssh,id=github \
     && conda run -n prefect pip install numpy \
     && conda run -n prefect pip install -r /tmp/morflowgenesis/requirements.txt --no-cache-dir \
     && conda run -n prefect pip install /tmp/morflowgenesis --no-cache-dir \
+    && conda run -n prefect pip uninstall -y pynvml \
     && conda clean -afy \
     && conda run -n prefect pip cache purge
