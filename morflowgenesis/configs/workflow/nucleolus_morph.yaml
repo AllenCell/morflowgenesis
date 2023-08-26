@@ -52,6 +52,9 @@ steps:
                       volumeMounts:
                           - name: vast-nfs
                             mountPath: /allen/aics
+                      resources:
+                          limits:
+                              nvidia.com/gpu: 0
 
               deploy_mode: local
               n_workers: 5
