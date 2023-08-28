@@ -36,7 +36,7 @@ def _validate_list(val):
     return list(val)
 
 
-@flow(task_runner=create_task_runner())
+@flow(task_runner=create_task_runner(), log_prints=True)
 def split_czi(
     image_objects,
     czi_path,
@@ -63,7 +63,6 @@ def split_czi(
     channels = _validate_list(channels)
 
     already_run = [(im_obj.T, im_obj.S) for im_obj in image_objects]
-
     new_image_objects = []
     for s in scenes:
         for t in timepoints:

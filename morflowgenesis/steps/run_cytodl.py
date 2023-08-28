@@ -8,15 +8,12 @@ from hydra.core.global_hydra import GlobalHydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf, open_dict, read_write
 from prefect import flow
-from prefect.task_runners import SequentialTaskRunner
-from prefect_dask import DaskTaskRunner
 
+from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import StepOutput
 
-DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
-
-@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
+@flow(task_runner=create_task_runner(), log_prints=True)
 def run_cytodl(image_object, step_name, output_name, input_step, config_path, overrides=[]):
     # skip if already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):
