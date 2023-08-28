@@ -8,15 +8,12 @@ import numpy as np
 import pandas as pd
 from aicsimageio.writers import OmeTiffWriter
 from prefect import flow, task
-from prefect.task_runners import SequentialTaskRunner
-from prefect_dask import DaskTaskRunner
 from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 
+from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import StepOutput
-
-DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 def upload_file(
@@ -165,7 +162,7 @@ def mask_images(raw_images, seg_images, label, splitting_column, coords):
     return raw_images, seg_images
 
 
-@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
+@flow(task_runner=create_task_runner(), log_prints=True)
 def single_cell_dataset(
     image_object,
     step_name,

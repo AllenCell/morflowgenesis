@@ -3,12 +3,9 @@ import os
 import numpy as np
 import pandas as pd
 from prefect import flow, task
-from prefect.task_runners import SequentialTaskRunner
-from prefect_dask import DaskTaskRunner
 
+from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import StepOutput
-
-DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 def get_start_and_end_pts(roi):
@@ -38,7 +35,7 @@ def iou_from_roi(roi1: str, roi2: str, eps: float = 1e-8):
     return (intersection + eps) / (union + eps)
 
 
-@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
+@flow(task_runner=create_task_runner(), log_prints=True)
 def match_cells(image_object, step_name, output_name, pred_step, label_step, iou_thresh=0.9):
     # check if step already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):

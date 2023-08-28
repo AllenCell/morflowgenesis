@@ -1,16 +1,13 @@
 import os
 
 from prefect import flow
-from prefect.task_runners import SequentialTaskRunner
-from prefect_dask import DaskTaskRunner
 from skimage.transform import rescale, resize
 
+from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import StepOutput
 
-DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
-
-@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
+@flow(task_runner=create_task_runner(), log_prints=True)
 def run_resize(
     image_object, step_name, output_name, input_step, output_shape=None, scale=None, order=0
 ):

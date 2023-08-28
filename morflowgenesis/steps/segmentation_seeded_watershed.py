@@ -2,15 +2,12 @@ import os
 
 import numpy as np
 from prefect import flow, task
-from prefect.task_runners import SequentialTaskRunner
-from prefect_dask import DaskTaskRunner
 from scipy.ndimage import binary_erosion, find_objects
 from skimage.measure import label
 from skimage.segmentation import watershed
 
+from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import StepOutput
-
-DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
 
 
 def pad_slice(s, padding, constraints):
@@ -68,7 +65,7 @@ def merge_instance_segs(segs, coords, img):
     return img
 
 
-@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
+@flow(task_runner=create_task_runner(), log_prints=True)
 def run_watershed(
     image_object,
     step_name,

@@ -10,7 +10,7 @@ from prefect_dask import DaskTaskRunner
 from sklearn.decomposition import PCA
 from sklearn.utils import resample
 
-DASK_ADDRESS = os.environ.get("DASK_ADDRESS", None)
+from morflowgenesis.utils import create_task_runner
 
 
 def target_vs_prediction_scatter_metrics(x, y, niter=200):
@@ -208,7 +208,7 @@ def plot(x, y, destdir):
         summary_plot(all_feats, destdir)
 
 
-@flow(task_runner=DaskTaskRunner(address=DASK_ADDRESS) if DASK_ADDRESS else SequentialTaskRunner())
+@flow(task_runner=create_task_runner(), log_prints=True)
 def run_plot(image_object, step_name, output_name, input_step, features, pca_n_components=10):
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
@@ -220,5 +220,4 @@ def run_plot(image_object, step_name, output_name, input_step, features, pca_n_c
         pred = features_df[[col for col in features_df.columns if "pred" in col and feat in col]]
         if label.shape[1] > pca_n_components:
             label, pred = perform_PCA(label, pred, pca_n_components)
-        print(label.columns, pred.columns)
         plot(label, pred, image_object.working_dir / step_name / output_name)
