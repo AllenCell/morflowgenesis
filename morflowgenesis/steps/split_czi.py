@@ -59,7 +59,7 @@ def split_czi(
     channels = range(img.dims.C) if channels == -1 else channels
     channels = _validate_list(channels)
 
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in working_dir.glob('*.json')]
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (working_dir/ "_ImageObjectStore").glob('*.json')]
     already_run = [
         (im_obj.metadata.get("T"), im_obj.metadata.get("S")) for im_obj in image_objects
     ]

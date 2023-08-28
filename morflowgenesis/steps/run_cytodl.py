@@ -68,4 +68,3 @@ def run_cytodl(image_object, step_name, output_name, input_step, config_path, ov
 
     image_object.add_step_output(output)
     image_object.save()
-    return image_object
