@@ -15,7 +15,6 @@ async def run_step(step_cfg, prev_output):
     flow_name = slugify(step_args["step_name"])
     deployment_name = slugify(step_cfg.get("deployment_name", "default"))
     full_deployment_name = f"{flow_name}/{deployment_name}"
-
     if step_type == "gather":
         payload = {"image_objects": prev_output, **step_args}
         out = await run_deployment(
@@ -24,7 +23,7 @@ async def run_step(step_cfg, prev_output):
         )
         return out.state.result()
     for datum in prev_output:
-        payload = {"image_objects": datum, **step_args}
+        payload = {"image_object": datum, **step_args}
         results.append(
             run_deployment(
                 full_deployment_name,
@@ -32,6 +31,5 @@ async def run_step(step_cfg, prev_output):
                 timeout=0,
             )
         )
-    # this isn't actually running stuff
     results = await asyncio.gather(*results)
     return [r.state.result() for r in results]
