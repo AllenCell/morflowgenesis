@@ -11,9 +11,6 @@ class ImageObject(BaseModel):
     working_dir: Path
     source_path: str
     metadata: Optional[Dict] = None
-    C: Optional[int] = 0
-    T: Optional[int] = 0
-    S: Optional[int] = None
     save_path: Path = Path("")
     id: str = ""
     _steps: Dict[str, StepOutput] = {}
@@ -23,9 +20,6 @@ class ImageObject(BaseModel):
         working_dir,
         source_path,
         metadata=None,
-        C=0,
-        T=0,
-        S=None,
         _steps={},
         save_path: Path = Path(""),
         id: str = "",
@@ -34,9 +28,6 @@ class ImageObject(BaseModel):
             working_dir=Path(working_dir),
             source_path=source_path,
             metadata=metadata,
-            C=C,
-            T=T,
-            S=S,
             _steps=_steps,
         )
         self.id = hashlib.sha224(bytes(source_path + str(metadata), "utf-8")).hexdigest()
