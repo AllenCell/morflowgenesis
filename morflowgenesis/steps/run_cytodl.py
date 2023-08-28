@@ -10,11 +10,14 @@ from omegaconf import OmegaConf, open_dict, read_write
 from prefect import flow
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import StepOutput
+from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils.image_object import ImageObject
+
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_cytodl(image_object, step_name, output_name, input_step, config_path, overrides=[]):
+    image_object = ImageObject.parse_file(image_object)
     # skip if already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         return image_object

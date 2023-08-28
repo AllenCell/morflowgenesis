@@ -27,8 +27,6 @@ def split(img, working_dir, output_name, step_name, file_path, load_kwargs):
     output.save(data)
     img_obj.add_step_output(output)
     img_obj.save()
-    return img_obj
-
 
 def _validate_list(val):
     if isinstance(val, list):
@@ -36,9 +34,8 @@ def _validate_list(val):
     return list(val)
 
 
-@flow(task_runner=create_task_runner(), log_prints=True, return_state=True)
+@flow(task_runner=create_task_runner(), log_prints=True)
 def split_czi(
-    image_objects,
     czi_path,
     working_dir,
     output_name,
@@ -62,6 +59,7 @@ def split_czi(
     channels = range(img.dims.C) if channels == -1 else channels
     channels = _validate_list(channels)
 
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in working_dir.glob('*.json')]
     already_run = [
         (im_obj.metadata.get("T"), im_obj.metadata.get("S")) for im_obj in image_objects
     ]
@@ -80,8 +78,7 @@ def split_czi(
                 )
             else:
                 print(f"Scene {s} timepoint {t} already run")
-    new_image_objects = [im_obj.result() for im_obj in new_image_objects]
-    return image_objects + new_image_objects
+    [im_obj.result() for im_obj in new_image_objects]
 
 
 if __name__ == "__main__":
