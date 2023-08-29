@@ -5,8 +5,6 @@ from slugify import slugify
 
 
 async def run_step(step_cfg, prev_output):
-    results = []
-
     step_fn = step_cfg["function"]
     step_type = step_cfg.get("step_type", "list")
     step_args = step_cfg["args"]
@@ -16,20 +14,16 @@ async def run_step(step_cfg, prev_output):
     deployment_name = slugify(step_cfg.get("deployment_name", "default"))
     full_deployment_name = f"{flow_name}/{deployment_name}"
     if step_type == "gather":
-        payload = {"image_objects": prev_output, **step_args}
-        out = await run_deployment(
+        await run_deployment(
             full_deployment_name,
-            parameters=payload,
+            parameters=step_args,
         )
-        return out.state.result()
-    for datum in prev_output:
-        payload = {"image_object": datum, **step_args}
-        results.append(
-            run_deployment(
-                full_deployment_name,
-                parameters=payload,
-                timeout=0,
-            )
+    else:
+        await asyncio.gather(
+            *[run_deployment(
+                    full_deployment_name, 
+                    parameters = {"image_object_path": object_path, **step_args}
+                ) 
+                for object_path in prev_output.glob('*.json')
+            ]
         )
-    results = await asyncio.gather(*results)
-    return [r.state.result() for r in results]

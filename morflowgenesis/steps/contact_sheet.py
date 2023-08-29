@@ -8,8 +8,8 @@ from prefect import flow, task
 from skimage.segmentation import find_boundaries
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import StepOutput
-
+from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils.image_object import ImageObject
 
 def make_rgb(img, contour):  # this function returns an RGB image
     rgb = np.stack([img] * 3, axis=-1)
@@ -81,7 +81,7 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_characteristic, y_characte
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_contact_sheet(
-    image_object,
+    image_object_path,
     step_name,
     output_name,
     single_cell_dataset_step,
@@ -92,6 +92,8 @@ def run_contact_sheet(
     raw_channel=0,
     seg_channel=0,
 ):
+    image_object = ImageObject.parse_file(image_object_path)
+
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
@@ -143,4 +145,3 @@ def run_contact_sheet(
     output.save(contact_sheet)
     image_object.add_step_output(output)
     image_object.save()
-    return image_object

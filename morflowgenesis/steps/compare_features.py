@@ -5,12 +5,11 @@ import numpy as np
 import pandas as pd
 import sklearn.metrics as skmetrics
 from prefect import flow
-from prefect.task_runners import SequentialTaskRunner
-from prefect_dask import DaskTaskRunner
 from sklearn.decomposition import PCA
 from sklearn.utils import resample
 
 from morflowgenesis.utils import create_task_runner
+from morflowgenesis.utils.image_object import ImageObject
 
 
 def target_vs_prediction_scatter_metrics(x, y, niter=200):
@@ -209,7 +208,9 @@ def plot(x, y, destdir):
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
-def run_plot(image_object, step_name, output_name, input_step, features, pca_n_components=10):
+def run_plot(image_object_path, step_name, output_name, input_step, features, pca_n_components=10):
+    image_object = ImageObject.parse_file(image_object_path)
+
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object

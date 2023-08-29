@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import numpy as np
@@ -12,12 +11,13 @@ from timelapsetracking.viz_utils import visualize_tracks_2d
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils.image_object import ImageObject
 
 
 @task
 def create_regionprops_csv(obj, input_step):
     inst_seg = obj.get_step(input_step).load_output()
-    timepoint = obj.T
+    timepoint = obj.metadata['T']
     # find centroids and volumes for each instance
     data_table = []
     origin = np.zeros((3,), dtype=int)
@@ -102,6 +102,8 @@ def _do_tracking(image_objects, step_name, output_name):
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_tracking(image_objects, step_name, output_name, input_step):
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (working_dir/ "_ImageObjectStore").glob('*.json')]
+
     if not _do_tracking(image_objects, step_name, output_name):
         return image_objects
 
@@ -115,4 +117,3 @@ def run_tracking(image_objects, step_name, output_name, input_step):
     for obj in image_objects:
         obj.add_step_output(output)
         obj.save()
-    return image_objects

@@ -13,7 +13,8 @@ from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import StepOutput
+from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils.image_object import ImageObject
 
 
 def upload_file(
@@ -164,7 +165,7 @@ def mask_images(raw_images, seg_images, label, splitting_column, coords):
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def single_cell_dataset(
-    image_object,
+    image_object_path,
     step_name,
     output_name,
     splitting_step,
@@ -176,6 +177,8 @@ def single_cell_dataset(
     qcb_res=0.108,
     upload_fms=False,
 ):
+    image_object = ImageObject.parse_file(image_object_path)
+
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
@@ -202,7 +205,7 @@ def single_cell_dataset(
     tracking_df = None
     if tracking_step is not None:
         tracking_df = image_object.load_step(tracking_step)
-        tracking_df = tracking_df[tracking_df.time_index == image_object.T]
+        tracking_df = tracking_df[tracking_df.time_index == image_object.metadata['T']]
 
     results = []
     for lab, coords in enumerate(regions, start=1):
@@ -250,4 +253,3 @@ def single_cell_dataset(
 
     image_object.add_step_output(step_output)
     image_object.save()
-    return image_object

@@ -25,8 +25,6 @@ def generate_object(
         )
         obj.add_step_output(step_output)
     obj.save()
-    return obj
-
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def generate_objects(
@@ -51,5 +49,4 @@ def generate_objects(
                     row, working_dir, step_name, source_column, non_source_columns, metadata_column
                 )
             )
-    new_image_objects = [im_obj.result() for im_obj in new_image_objects]
-    return image_objects + new_image_objects
+    [im_obj.result() for im_obj in new_image_objects]

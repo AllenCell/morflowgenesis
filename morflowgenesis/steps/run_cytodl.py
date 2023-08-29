@@ -16,11 +16,11 @@ from morflowgenesis.utils.image_object import ImageObject
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
-def run_cytodl(image_object, step_name, output_name, input_step, config_path, overrides=[]):
-    image_object = ImageObject.parse_file(image_object)
+def run_cytodl(image_object_path, step_name, output_name, input_step, config_path, overrides=[]):
+    image_object = ImageObject.parse_file(image_object_path)
     # skip if already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):
-        return image_object
+        return
 
     # get input data path
     prev_step_output = image_object.get_step(input_step)

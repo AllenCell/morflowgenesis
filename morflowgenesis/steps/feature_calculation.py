@@ -5,11 +5,11 @@ import pandas as pd
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from prefect import flow, task
-from prefect.task_runners import SequentialTaskRunner
-from prefect_dask import DaskTaskRunner
+
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import StepOutput
+from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils.image_object import ImageObject
 
 
 def get_volume(img):
@@ -88,7 +88,7 @@ def get_matched_features(row_pred, row_label, features, segmentation_columns):
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def calculate_features(
-    image_object,
+    image_object_path,
     step_name,
     output_name,
     input_step,
@@ -97,6 +97,8 @@ def calculate_features(
     matching_step=None,
     reference_step=None,
 ):
+    image_object = ImageObject.parse_file(image_object_path)
+
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
@@ -133,4 +135,3 @@ def calculate_features(
     image_object.add_step_output(output)
     image_object.save()
 
-    return image_object
