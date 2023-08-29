@@ -27,8 +27,8 @@ class StepOutput(BaseModel):
         )
 
         file_extension = ".tif" if output_type == "image" else ".csv"
-        self.path = path or working_dir / step_name / output_name / (image_id + file_extension)
-        Path(self.path).parent.mkdir(exist_ok=True, parents=True)
+        self.path =Path(path or working_dir / step_name / output_name / (image_id + file_extension))
+        self.path.parent.mkdir(exist_ok=True, parents=True)
 
     def __repr__(self):
         return f"StepOutput({self.step_name}, {self.path}, {self.output_name}, {self.output_type})"
