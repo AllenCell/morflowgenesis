@@ -49,7 +49,7 @@ class ImageObject(BaseModel):
 
     def load_step(self, step_name):
         # load output from StepOutput object
-        step_obj = getattr(self, step_name)
+        step_obj = self.steps[step_name]
         return step_obj.load_output()
 
     def save(self):
