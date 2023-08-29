@@ -2,6 +2,7 @@ import os
 
 import pandas as pd
 from aicsimageio import AICSImage
+from pathlib import Path
 from prefect import flow, task
 
 from prefect.task_runners import SequentialTaskRunner
@@ -36,7 +37,7 @@ def generate_objects(
     non_source_columns,
     metadata_column=None,
 ):
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (working_dir/ "_ImageObjectStore").glob('*.json')]
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (Path(working_dir)/ "_ImageObjectStore").glob('*.json')]
 
     """Generate a new image object for each row in the csv file."""
     df = pd.read_csv(csv_path)
