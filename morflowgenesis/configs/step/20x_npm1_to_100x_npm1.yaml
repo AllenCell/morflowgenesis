@@ -10,7 +10,7 @@ seed: 12345
 data:
     _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader
     data:
-    num_workers: 1
+    num_workers: 0
     batch_size: 1
     pin_memory: True
     persistent_workers: False

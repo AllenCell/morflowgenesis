@@ -7,6 +7,7 @@ ckpt_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/
 seed: 12345
 data:
     _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader
+    num_workers: 0
     data:
     transforms:
         _target_: monai.transforms.Compose

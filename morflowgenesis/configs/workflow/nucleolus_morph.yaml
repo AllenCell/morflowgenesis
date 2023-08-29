@@ -54,15 +54,14 @@ dask_cluster:
 
 # default gpu steps
 gpu_step_overrides:
-    image: docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/morflowgenesis:latest
     resources:
         limits:
             cpu: "20000m"
-            memory: "100Gi"
+            memory: "200Gi"
             nvidia.com/gpu: "1"
         requests:
             cpu: "1000m"
-            memory: "50Gi"
+            memory: "150Gi"
             nvidia.com/gpu: "1"
 
 steps:
