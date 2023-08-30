@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import numbers
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from prefect import flow, task
@@ -46,7 +47,7 @@ def get_features(row, features, segmentation_columns):
                 )
                 continue
             feats = FEATURE_EXTRACTION_FUNCTIONS[feat](img)
-            if isinstance(feats, (str, int, float)):
+            if isinstance(feats, numbers.Number):
                 data[f"{feat}_{col}"] = feats
             elif isinstance(feats, dict):
                 for k, v in feats.items():
