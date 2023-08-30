@@ -19,7 +19,7 @@ def get_height(img):
     return z.max() - z.min()
 
 
-def get_shcoeff(img, transform_params=None, lmax=16):
+def get_shcoeff(img, transform_params=None, lmax=16, return_transform =False):
     alignment_2d = True
     if transform_params is not None:
         img = shtools.apply_image_alignment_2d(img, transform_params[-1])
@@ -28,7 +28,9 @@ def get_shcoeff(img, transform_params=None, lmax=16):
     (coeffs, _), (_, _, _, transform_params) = shparam.get_shcoeffs(
         image=img, lmax=lmax, alignment_2d=alignment_2d
     )
-    return coeffs, transform_params
+    if return_transform:
+        return coeffs, transform_params
+    return coeffs
 
 
 FEATURE_EXTRACTION_FUNCTIONS = {"volume": get_volume, "height": get_height, "shcoeff": get_shcoeff}
@@ -68,8 +70,8 @@ def get_matched_features(row_pred, row_label, features, segmentation_columns):
                 )
                 continue
             if feat == "shcoeff":
-                feats_label, transform_params = FEATURE_EXTRACTION_FUNCTIONS[feat](img_label)
-                feats_pred, _ = FEATURE_EXTRACTION_FUNCTIONS[feat](img_pred, transform_params)
+                feats_label, transform_params = FEATURE_EXTRACTION_FUNCTIONS[feat](img_label, return_transform=True)
+                feats_pred = FEATURE_EXTRACTION_FUNCTIONS[feat](img_pred, transform_params)
                 for k, v in feats_label.items():
                     data[f"{feat}_{col}_{k}_label"] = v
                 for k, v in feats_pred.items():
