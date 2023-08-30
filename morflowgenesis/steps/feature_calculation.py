@@ -1,11 +1,8 @@
-import os
-
 import numpy as np
 import pandas as pd
 from aicsimageio import AICSImage
-from aicsshparam import shparam, shtools
+# from aicsshparam import shparam, shtools
 from prefect import flow, task
-
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.step_output import StepOutput
@@ -22,6 +19,7 @@ def get_height(img):
 
 
 def get_shcoeff(img, transform_params=None, lmax=16):
+    raise NotImplementedError
     alignment_2d = True
     if transform_params is not None:
         img = shtools.apply_image_alignment_2d(img, transform_params[-1])
@@ -33,7 +31,7 @@ def get_shcoeff(img, transform_params=None, lmax=16):
     return coeffs, transform_params
 
 
-FEATURE_EXTRACTION_FUNCTIONS = {"volume": get_volume, "height": get_height, "shcoeff": get_shcoeff}
+FEATURE_EXTRACTION_FUNCTIONS = {"volume": get_volume, "height": get_height} #, "shcoeff": get_shcoeff}
 
 
 @task

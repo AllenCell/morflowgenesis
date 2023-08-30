@@ -80,6 +80,7 @@ def run_watershed(
     erosion=None,
     min_seed_size = 1000,
     include_edge = False,
+    padding= 10,
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
@@ -96,7 +97,7 @@ def run_watershed(
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        coords, is_edge = pad_slice(coords, 10, raw.shape)
+        coords, is_edge = pad_slice(coords, padding, raw.shape)
         if not include_edge and is_edge:
             continue
         crop_raw, crop_seg = raw[coords], seg[coords]
