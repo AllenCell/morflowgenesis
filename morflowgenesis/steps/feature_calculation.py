@@ -36,7 +36,6 @@ FEATURE_EXTRACTION_FUNCTIONS = {"volume": get_volume, "height": get_height} #, "
 
 @task
 def get_features(row, features, segmentation_columns):
-    row = row._asdict()
     data = {"CellId": row["Cellid"]}
     for col in segmentation_columns:
         path = row[col]
