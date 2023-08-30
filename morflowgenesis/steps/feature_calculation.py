@@ -36,7 +36,7 @@ FEATURE_EXTRACTION_FUNCTIONS = {"volume": get_volume, "height": get_height} #, "
 
 @task
 def get_features(row, features, segmentation_columns):
-    data = {"CellId": row["Cellid"]}
+    data = {"CellId": row["CellId"]}
     for col in segmentation_columns:
         path = row[col]
         img = AICSImage(path).data.squeeze()
