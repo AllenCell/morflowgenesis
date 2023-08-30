@@ -44,7 +44,6 @@ def generate_objects(
 
     already_run = [im_obj.source_path for im_obj in image_objects]
     new_image_objects = []
-    breakpoint()
     for row in df.itertuples():
         row = row._asdict()
         if row[source_column] not in already_run:
