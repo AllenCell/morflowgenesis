@@ -107,9 +107,9 @@ def run_watershed(
         all_coords.append(coords)
     results = [r.result() for r in results]
 
-    seg = merge_instance_segs(results, all_coords, np.zeros_like(seg))
+    seg = merge_instance_segs(results, all_coords, np.zeros_like(seg).astype(np.uint16))
     output = StepOutput(
-        image_object.output_dir,
+        image_object.working_dir,
         step_name,
         output_name,
         output_type="image",
