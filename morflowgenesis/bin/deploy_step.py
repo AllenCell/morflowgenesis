@@ -1,6 +1,7 @@
 from hydra._internal.utils import _locate
 from morflowgenesis.utils import BlockDeployment, encode_dict_to_json_base64
 
+from slugify import slugify 
 
 def merge_dicts(dict1, dict2):
     for key, value in dict2.items():
@@ -28,7 +29,7 @@ def deploy_step(cfg, step_cfg):
     dep = BlockDeployment.build_from_flow(
         # build from flow args
         step_fn,
-        step_cfg.get("deployment_name", "default"),
+        slugify(cfg.get("deployment_name", "default")),
         apply=False,
         # Deployment kwargs
         path=cfg["path"],

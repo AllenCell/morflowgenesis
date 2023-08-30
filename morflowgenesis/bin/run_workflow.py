@@ -28,6 +28,7 @@ async def morflowgenesis(cfg):
     save_workflow_config(working_dir, cfg)
 
     for step_cfg in cfg["steps"]:
+        step_cfg.update({'deployment_name': cfg.get('deployment_name', 'default')})
         await run_step(step_cfg, working_dir/ "_ImageObjectStore")
 
 
