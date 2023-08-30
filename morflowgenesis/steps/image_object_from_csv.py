@@ -44,6 +44,7 @@ def generate_objects(
 
     already_run = [im_obj.source_path for im_obj in image_objects]
     new_image_objects = []
+    breakpoint()
     for row in df.itertuples():
         row = row._asdict()
         if row[source_column] not in already_run:
@@ -52,4 +53,6 @@ def generate_objects(
                     row, working_dir, step_name, source_column, non_source_columns, metadata_column
                 )
             )
+        else:
+            print(row[source_column], 'already exists')
     [im_obj.result() for im_obj in new_image_objects]
