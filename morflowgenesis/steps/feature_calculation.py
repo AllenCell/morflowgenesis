@@ -52,7 +52,7 @@ def get_features(row, features, segmentation_columns):
             elif isinstance(feats, dict):
                 for k, v in feats.items():
                     data[f"{feat}_{col}_{k}"] = v
-    return [pd.DataFrame(data)]
+    return pd.DataFrame([data])
 
 
 @task
