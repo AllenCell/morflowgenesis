@@ -13,12 +13,15 @@ from morflowgenesis.utils.image_object import ImageObject
 
 def pad_slice(s, padding, constraints):
     # pad slice by padding subject to image size constraints
+    is_edge = False
     new_slice = []
     for slice_part, c in zip(s, constraints):
+        if slice_part.start == 0 or slice_part.stop == c:
+            is_edge = True
         start = max(0, slice_part.start - padding)
         stop = min(c, slice_part.stop + padding)
         new_slice.append(slice(start, stop, None))
-    return tuple(new_slice)
+    return tuple(new_slice), is_edge
 
 
 def get_largest_cc(im):
@@ -75,6 +78,8 @@ def run_watershed(
     seg_input_step,
     mode="centroid",
     erosion=None,
+    min_seed_size = 1000,
+    include_edge = False,
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
@@ -91,9 +96,14 @@ def run_watershed(
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        coords = pad_slice(coords, 10, raw.shape)
+        coords, is_edge = pad_slice(coords, 10, raw.shape)
+        if not include_edge and is_edge:
+            continue
         crop_raw, crop_seg = raw[coords], seg[coords]
-        results.append(run_watershed_task(crop_raw, crop_seg, lab, mode))
+        if np.sum(crop_seg == lab) < min_seed_size:
+            continue
+        
+        results.append(run_watershed_task.submit(crop_raw, crop_seg, lab, mode, erosion))
         all_coords.append(coords)
     results = [r.result() for r in results]
 
