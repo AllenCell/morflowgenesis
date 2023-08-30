@@ -107,7 +107,6 @@ def calculate_features(
     results = []
     for row in cell_df.itertuples():
         row = row._asdict()
-
         if reference_step is None:
             results.append(get_features.submit(row, features, segmentation_columns))
         else:
@@ -117,10 +116,9 @@ def calculate_features(
                 continue
             row_label = reference_df[reference_df["CellId"] == label_cellid.iloc[0]].iloc[0]
             results.append(
-                get_matched_features(row, row_label, features, segmentation_columns)
-            )  # .submit
-    # features_df = pd.concat([r.result() for r in results])
-    features_df = pd.concat(results)
+                get_matched_features.submit(row, row_label, features, segmentation_columns)
+            ) 
+    features_df = pd.concat([r.result() for r in results])
 
     output = StepOutput(
         image_object.working_dir,
