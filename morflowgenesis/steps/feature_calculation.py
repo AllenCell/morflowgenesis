@@ -4,10 +4,12 @@ import numbers
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from prefect import flow, task
+from skimage.measure import label
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
+
 
 
 def get_volume(img):
@@ -17,6 +19,9 @@ def get_volume(img):
 def get_height(img):
     z, _, _ = np.where(img)
     return z.max() - z.min()
+
+def get_n_pieces(img):
+    return len(np.unique(label(img)))-1
 
 
 def get_shcoeff(img, transform_params=None, lmax=16, return_transform =False):
@@ -33,7 +38,7 @@ def get_shcoeff(img, transform_params=None, lmax=16, return_transform =False):
     return coeffs
 
 
-FEATURE_EXTRACTION_FUNCTIONS = {"volume": get_volume, "height": get_height, "shcoeff": get_shcoeff}
+FEATURE_EXTRACTION_FUNCTIONS = {"volume": get_volume, "height": get_height, "shcoeff": get_shcoeff, 'n_pieces': get_n_pieces}
 
 
 @task
