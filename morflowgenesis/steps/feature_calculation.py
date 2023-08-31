@@ -15,14 +15,12 @@ from morflowgenesis.utils.image_object import ImageObject
 def get_volume(img):
     return img.sum()
 
-
 def get_height(img):
     z, _, _ = np.where(img)
     return z.max() - z.min()
 
 def get_n_pieces(img):
     return len(np.unique(label(img)))-1
-
 
 def get_shcoeff(img, transform_params=None, lmax=16, return_transform =False):
     alignment_2d = True
@@ -46,19 +44,22 @@ def get_features(row, features, segmentation_columns):
     data = {"CellId": row["CellId"]}
     for col in segmentation_columns:
         path = row[col]
-        img = AICSImage(path).data.squeeze()
-        for feat in features:
-            if feat not in FEATURE_EXTRACTION_FUNCTIONS:
-                print(
-                    f"Feature {feat} not found. Options are {FEATURE_EXTRACTION_FUNCTIONS.keys()}"
-                )
-                continue
-            feats = FEATURE_EXTRACTION_FUNCTIONS[feat](img)
-            if isinstance(feats, numbers.Number):
-                data[f"{feat}_{col}"] = feats
-            elif isinstance(feats, dict):
-                for k, v in feats.items():
-                    data[f"{feat}_{col}_{k}"] = v
+        img = AICSImage(path)
+        channel_names = img.channel_names 
+        img = img.get_image_dask_data('CZYX', S=0, T=0).compute()
+        for i, name in enumerate(channel_names):
+            for feat in features:
+                if feat not in FEATURE_EXTRACTION_FUNCTIONS:
+                    print(
+                        f"Feature {feat} not found. Options are {FEATURE_EXTRACTION_FUNCTIONS.keys()}"
+                    )
+                    continue
+                feats = FEATURE_EXTRACTION_FUNCTIONS[feat](img[i])
+                if isinstance(feats, numbers.Number):
+                    data[f"{feat}_{col}_{name}"] = feats
+                elif isinstance(feats, dict):
+                    for k, v in feats.items():
+                        data[f"{feat}_{col}_{k}"] = v
     return pd.DataFrame([data])
 
 

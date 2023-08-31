@@ -27,7 +27,7 @@ def upload_file(
     """Upload a file located on the Isilon to FMS."""
     raise NotImplementedError
 
-
+@task
 def reshape(img, z_res, xy_res, qcb_res, order=0):
     return rescale(
         img,
@@ -37,11 +37,11 @@ def reshape(img, z_res, xy_res, qcb_res, order=0):
         # multichannel=False,
     ).astype(np.uint8)
 
-
+@task
 def centroid_from_slice(slicee):
     return [(s.start + s.stop) // 2 for s in slicee]
 
-
+@task
 def roi_from_slice(slicee):
     return ",".join([f"{s.start},{s.stop}" for s in slicee])
 
@@ -144,7 +144,7 @@ def extract_cell(
     df["name_dict"] = json.dumps(name_dict)
     return df
 
-
+@task
 def pad_slice(s, padding, constraints):
     # pad slice by padding subject to image size constraints
     new_slice = []
@@ -154,7 +154,7 @@ def pad_slice(s, padding, constraints):
         new_slice.append(slice(start, stop, None))
     return tuple(new_slice)
 
-
+@task
 def mask_images(raw_images, seg_images, label, splitting_column, coords):
     # use masking segmentation to crop out non-cell regions
     mask = seg_images[splitting_column][coords] == label
@@ -162,6 +162,38 @@ def mask_images(raw_images, seg_images, label, splitting_column, coords):
     seg_images = {k: mask * (v > 0)[coords] for k, v in seg_images.items()}
     return raw_images, seg_images
 
+@task
+def load_images(image_object, splitting_step, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename):
+    '''
+    load images into dictionaries with (optionally) renamed names as keys
+    '''
+    assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
+
+    if seg_steps_rename is None:
+        seg_images = {step_name: image_object.load_step(step_name) for step_name in seg_steps}
+    else:
+        assert len(seg_steps) == len(seg_steps_rename), 'seg_steps and seg_steps_rename must have same length'
+        seg_images = {step_rename: image_object.load_step(step_name) for step_name, step_rename in zip(seg_steps, seg_steps_rename)}
+        # update splitting step as well
+        splitting_step = seg_steps_rename[seg_steps.index(splitting_step)]
+
+    if raw_steps_rename is None:
+        raw_images = {step_name: image_object.load_step(step_name) for step_name in raw_steps}
+    else:
+        assert len(raw_steps) == len(raw_steps_rename), 'seg_steps and seg_steps_rename must have same length'
+        raw_images = {step_rename: image_object.load_step(step_name) for step_name, step_rename in zip(raw_steps, raw_steps_rename)}
+
+    raw_images = {
+        k: rescale_intensity(v, out_range=np.uint8).astype(np.uint8) if v.dtype != np.uint8 else v
+        for k, v in raw_images.items()
+    }
+    # check all images same shape
+    assert (
+        len(set([v.shape for v in raw_images.values()] + [v.shape for v in seg_images.values()]))
+        == 1
+    ), "images are not same shape"
+
+    return raw_images, seg_images, splitting_step
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def single_cell_dataset(
@@ -171,10 +203,13 @@ def single_cell_dataset(
     splitting_step,
     raw_steps,
     seg_steps,
+    raw_steps_rename = None,
+    seg_steps_rename = None,
     tracking_step=None,
     xy_res=0.108,
     z_res=0.29,
     qcb_res=0.108,
+    padding= 10,
     upload_fms=False,
 ):
     image_object = ImageObject.parse_file(image_object_path)
@@ -182,21 +217,8 @@ def single_cell_dataset(
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
-    assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
 
-    # load images
-    seg_images = {step_name: image_object.load_step(step_name) for step_name in seg_steps}
-    raw_images = {step_name: image_object.load_step(step_name) for step_name in raw_steps}
-    raw_images = {
-        k: rescale_intensity(v, out_range=np.uint8).astype(np.uint8) if v.dtype != np.uint8 else v
-        for k, v in raw_images.items()
-    }
-
-    # check all images same shape
-    assert (
-        len(set([v.shape for v in raw_images.values()] + [v.shape for v in seg_images.values()]))
-        == 1
-    ), "images are not same shape"
+    raw_images, seg_images, splitting_step = load_images(image_object, splitting_step, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename)
 
     # find objects in segmentation
     regions = find_objects(seg_images[splitting_step].astype(int))
@@ -211,7 +233,7 @@ def single_cell_dataset(
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        padded_coords = pad_slice(coords, 10, seg_images[splitting_step].shape)
+        padded_coords = pad_slice(coords, padding, seg_images[splitting_step].shape)
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
             raw_images, seg_images, lab, splitting_step, padded_coords

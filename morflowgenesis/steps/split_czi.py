@@ -63,7 +63,6 @@ def _validate_list(val):
     return list(val)
 
 
-
 @flow(task_runner=create_task_runner(), log_prints=True)
 def split_czi(
     czi_path,
@@ -122,17 +121,3 @@ def split_czi(
             else:
                 print(f"Scene {s} timepoint {t} already run")
     [im_obj.result() for im_obj in new_image_objects]
-
-if __name__ == '__main__':
-    path= "//allen/aics/assay-dev/users/Benji/hydra_workflow/workings/_ImageObjectStore/04d52c5f39b53bf6f518ea7f73fe0bb209a1796529d6599bfe8cc30a.json"
-    split_czi(
-        czi_path = '/allen/aics/assay-dev/MicroscopyData/Frick/2023/20230327/ZSD0/AICS86_day3_nucleolus_movie_interactive-01-1.czi/AICS86_day3_nucleolus_movie_interactive-01-1_AcquisitionBlock1.czi/AICS86_day3_nucleolus_movie_interactive-01-1_AcquisitionBlock1_pt1.czi',
-        working_dir= '/allen/aics/assay-dev/users/Benji/hydra_workflow/workings',
-        output_name='20x_raw',
-        step_name='split_czi',
-        scenes=['P4-F6'],
-        timepoints=[0,1],
-        channels=-1,
-        dimension_order_out="CZYX",
-        optical_control_path="//allen/aics/assay-dev/MicroscopyData/Frick/2023/20230327/ZSD0/QC/field_of_rings/20230327_ZSD0_SLG-506_20x_field_of_rings.czi"
-    )
