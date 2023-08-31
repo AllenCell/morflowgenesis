@@ -1,5 +1,3 @@
-import os
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -22,13 +20,13 @@ def make_rgb(img, contour):  # this function returns an RGB image
 @task
 def project_cell(row, raw_channel, seg_channel):
     raw = (
-        AICSImage(row["crop_raw_path"])
+        AICSImage(row["crop_raw_path"].iloc[0])
         .get_image_dask_data("ZYX", C=raw_channel)
         .compute()
         .astype(np.uint8)
     )
     seg = (
-        AICSImage(row["crop_seg_path"])
+        AICSImage(row["crop_seg_path"].iloc[0])
         .get_image_dask_data("ZYX", C=seg_channel)
         .compute()
         .astype(np.uint8)
@@ -45,17 +43,17 @@ def project_cell(row, raw_channel, seg_channel):
     x_project = overlay[:, :, mid_x]
     x_project = np.transpose(x_project, (1, 0, 2))
 
-    buffer = 0
-    out = np.zeros(
-        (
-            z_project.shape[0] + buffer + x_project.shape[0],
-            z_project.shape[1] + buffer + y_project.shape[1],
-            3,
-        )
-    )
+    # Calculate the required output dimensions
+    out_height = y_project.shape[0] + z_project.shape[0]
+    out_width = x_project.shape[1] + z_project.shape[1]
+
+    # Create the output image with the calculated dimensions
+    out = np.zeros((out_height, out_width, 3), dtype=np.uint8)
+
+    # Place projections onto the output image
     out[: y_project.shape[0], : y_project.shape[1]] = y_project  # top left
-    out[-z_project.shape[0] :, : z_project.shape[1]] = z_project  # bottom left
-    out[-x_project.shape[0] :, -x_project.shape[1] :] = x_project  # bottom right
+    out[out_height - z_project.shape[0] :, : z_project.shape[1]] = z_project  # bottom left
+    out[out_height - x_project.shape[0] :, out_width - x_project.shape[1] :] = x_project  # bottom right
 
     return out.astype(np.uint8), row["CellId"]
 
@@ -64,19 +62,15 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_characteristic, y_characte
     fig, ax = plt.subplots(len(x_bins), len(y_bins), figsize=(4 * len(x_bins), 4 * len(y_bins)))
     fig.supxlabel(x_characteristic)
     fig.supylabel(y_characteristic)
-
-    shapes = np.asarray([x.shape for x in results])
-    contact_sheet = np.zeros((len(x_bins) * np.max(shapes, 0), len(y_bins) * np.max(shapes, 1)))
     for x_idx, x_bin in enumerate(x_bins):
         for y_idx, y_bin in enumerate(y_bins):
-            img = results.pop(0)
+            img, cellid = results.pop(0)
             if img is not None:
-                img, cellid = img.result()
                 ax[x_idx, y_idx].imshow(img)
                 ax[x_idx, y_idx].set_aspect("equal")
-                ax[x_idx, y_idx].set_title(cellid)
-
-    return contact_sheet
+                ax[x_idx, y_idx].set_title(cellid.values[0], fontdict={'fontsize':6})
+                ax[x_idx, y_idx].axis('off')
+    return fig
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
@@ -104,10 +98,10 @@ def run_contact_sheet(
 
     # Use qcut to bin the DataFrame by percentiles across both features
     feature_df[f"{x_characteristic}_bin"] = pd.qcut(
-        feature_df[f"{x_characteristic}"], q=quantile_boundaries
+        feature_df[f"{x_characteristic}"], q=quantile_boundaries, duplicates='drop'
     )
     feature_df[f"{y_characteristic}_bin"] = pd.qcut(
-        feature_df[f"{y_characteristic}"], q=quantile_boundaries
+        feature_df[f"{y_characteristic}"], q=quantile_boundaries, duplicates='drop'
     )
 
     results = []
@@ -122,26 +116,27 @@ def run_contact_sheet(
                 )
             ]
             if len(temp) > 0:
-                cell_id = temp["Cell_id"].sample(1)
+                cell_id = temp["CellId"].sample(1).values[0]
                 results.append(
                     project_cell.submit(
-                        cell_df[cell_df["Cell_id"] == cell_id], raw_channel, seg_channel
+                        cell_df[cell_df["CellId"] == cell_id], raw_channel, seg_channel
                     )
                 )
             else:
                 results.append(None)
+    results = [r.result() if r is not None else (None, None) for r in results ]
 
     contact_sheet = assemble_contact_sheet(
         results, x_bins, y_bins, x_characteristic, y_characteristic
     )
 
     output = StepOutput(
-        image_object.output_dir,
+        image_object.working_dir,
         step_name,
         output_name,
         output_type="image",
         image_id=image_object.id,
     )
-    output.save(contact_sheet)
+    contact_sheet.savefig(output.path,dpi= 300)
     image_object.add_step_output(output)
     image_object.save()
