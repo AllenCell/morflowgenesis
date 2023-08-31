@@ -22,7 +22,7 @@ def create_regionprops_csv(obj, input_step):
     data_table = []
     origin = np.zeros((3,), dtype=int)
     field_shape = np.array(inst_seg.shape, dtype=int)
-    regions = find_objects(inst_seg)
+    regions = find_objects(inst_seg.astype(int))
 
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
@@ -58,7 +58,7 @@ def track(regionprops, working_dir, step_name, output_name, edge_thresh_dist=75)
         step_name=step_name,
         output_name=output_name,
         output_type="csv",
-        image_id=None,
+        image_id='',
         path=output_dir / "edges.csv",
     )
 
@@ -96,13 +96,14 @@ def _do_tracking(image_objects, step_name, output_name):
             break
     if not run:
         print(f"Skipping step {step_name}_{output_name}")
-        pass
     return run
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
+# @flow(task_runner=create_task_runner(), log_prints=True)
+@flow(log_prints=True)
 def run_tracking(working_dir, step_name, output_name, input_step):
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (Path(working_dir)/ "_ImageObjectStore").glob('*.json')]
+    working_dir = Path(working_dir)
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (working_dir/ "_ImageObjectStore").glob('*.json')]
 
     if not _do_tracking(image_objects, step_name, output_name):
         return image_objects
