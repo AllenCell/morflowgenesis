@@ -1,6 +1,6 @@
 aicscytoparam==0.1.9
 aicsimageio==4.11.0
-aicspylibczi==3.1.2
+aicspylibczi>3.0.0
 aicsshparam==0.1.7
 aiobotocore==2.4.2
 aiohttp==3.8.5
@@ -39,6 +39,7 @@ bokeh==3.1.1
 boto3==1.24.4
 botocore==1.27.59
 cachetools==5.3.1
+camera-alignment-core==1.0.5
 cellpose-omni==0.9.1
 certifi==2023.7.22
 cffi==1.15.1
@@ -68,7 +69,7 @@ dateutils==0.6.12
 decorator==5.1.1
 deepdiff==6.3.1
 defusedxml==0.7.1
-distributed==2023.8.0
+distributed
 docker==6.1.3
 docutils==0.20.1
 e3nn==0.5.1
@@ -223,7 +224,7 @@ platformdirs==3.10.0
 pluggy==1.2.0
 pooch==1.7.0
 prefect==2.11.2
-prefect-dask==0.2.4
+prefect-dask
 prettytable==3.8.0
 prometheus-client==0.17.1
 prompt-toolkit==3.0.39
@@ -276,7 +277,7 @@ ruamel.yaml==0.17.32
 ruamel.yaml.clib==0.2.7
 s3fs==2023.3.0
 s3transfer==0.6.1
-scikit-image==0.21.0
+scikit-image==0.19.2
 scikit-learn==1.3.0
 scipy==1.10.1
 Send2Trash==1.8.2
