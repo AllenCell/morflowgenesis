@@ -8,27 +8,24 @@ Morflowgenesis is a python package for creating modular and configurable workflo
 ______________________________________________________________________
 
 ## Installation
+```
+python3 -m venv morflowgenesis
+source morflowgenesis/bin/activate
 
-`python3 -m venv morflowgenesis`
-`source morflowgenesis/bin/activate`
-
-` git clone  https://github.com/AllenCell/morflowgenesis.git`
-` cd morflowgenesis`
-` pip install -r requirements.txt`
-` pip install -e .`
-
+git clone  https://github.com/AllenCell/morflowgenesis.git
+cd morflowgenesis
+pip install -r requirements.txt
+pip install -e .
+```
 ## Running Example Workflows
 
-### Setting up a prefect server
+1. Create Personal Access Token on GitHub with access to morflowgenesis repo (if one doesn't exist)
+2. Create a [Secret block](https://prefect.a100.int.allencell.org/blocks/catalog/secret) that has the value of your PAT and copy the name of the block into your config under the `pull:secret_block_name` key. Under `pull`, also specify the name of the branch that you want to pull from. 
+```
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="https://prefect.a100.int.allencell.org/api"
 
-More details [here](https://docs.prefect.io/latest/host/)
-`docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=prefect postgres:latest `
-`prefect server start `
-
-In a new terminal window:
-`prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"`
-
-`python morflowgenesis/bin/run_workflow.py --config-dir morflowgenesis/configs/workflow --config-name nucleolus_morph.yaml`
+python morflowgenesis/bin/run_workflow.py --config-name nucleolus_morph.yaml
+```
 
 ## Development
 
@@ -36,6 +33,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for information related to developing the
 
 ### Developer installation
 
-`pip install -e .[dev]`
+pip install -e .[dev]
 
 ***Free software: Allen Institute Software License***

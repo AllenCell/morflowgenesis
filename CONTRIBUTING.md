@@ -49,6 +49,14 @@ Ready to contribute? Here's how to set up `morflowgenesis` for local development
 
 7. Submit a pull request through the GitHub website.
 
+
+## Notes on testing code during development
+Due to how prefect fetches code during runtime, some local files are used during runtime and some are not. Code that is referenced by a deployment is accessed from github, so if you expect to code run using the Prefect server, your code most be on github. If testing a single step, it is recommended that you test that step in isolation (e.g. by adding a `if __name__ == '__main__'`at the bottom and loading local ImageObjects) instead of running the code through the Prefect server after every change. If you are making use of new packages, you will have to add a docker image using
+```bash
+make docker
+```
+Since the repo is currently private, you will have to use `ssh-keygen` to create an ssh key, add it to your github account, and replace the ssh key path in the make docker script with the path to your ssh key. 
+
 ## Deploying
 
 A reminder for the maintainers on how to deploy.
