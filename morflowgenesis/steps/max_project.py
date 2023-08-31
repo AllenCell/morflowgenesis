@@ -3,7 +3,7 @@ import numpy as np
 from prefect import flow, task
 from skimage.transform import rescale
 from skimage.exposure import rescale_intensity
-from hyda.utils import get_class
+from hydra.utils import get_class
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.step_output import StepOutput
