@@ -55,6 +55,7 @@ def create_task_runner():
     dask.config.set({"distributed.diagnostics.nvml": False})
     if os.environ.get("DASK_CLUSTER") is not None:
         dask_kwargs = make_dask_cluster_kwargs(os.environ["DASK_CLUSTER"])
+        print(dask_kwargs)
         return DaskTaskRunner(**dask_kwargs)
 
     return SequentialTaskRunner()
