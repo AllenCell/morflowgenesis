@@ -102,7 +102,7 @@ def _do_tracking(image_objects, step_name, output_name):
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_tracking(working_dir, step_name, output_name, input_step):
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (working_dir/ "_ImageObjectStore").glob('*.json')]
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (Path(working_dir)/ "_ImageObjectStore").glob('*.json')]
 
     if not _do_tracking(image_objects, step_name, output_name):
         return image_objects
