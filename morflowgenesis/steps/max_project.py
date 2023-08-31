@@ -3,13 +3,11 @@ import numpy as np
 from prefect import flow, task
 from skimage.transform import rescale
 from skimage.exposure import rescale_intensity
+from hyda.utils import get_class
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
-
-
-
 
 @task
 def project_step(image_object, input_step, step_name, output_name, scale, dtype):
@@ -31,15 +29,18 @@ def project_step(image_object, input_step, step_name, output_name, scale, dtype)
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def max_project(
-    image_object_path, step_name, output_name, input_steps, scale=0.25, dtype=np.uint8
+    image_object_path, step_name, output_name, input_steps, scale=0.25, dtype='numpy.uint8'
 ):
-    if scale > 1.0:
-        raise ValueError(f'Scale should be less than 1, got {scale}')
     image_object = ImageObject.parse_file(image_object_path)
     # skip if already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
+    
+    if scale > 1.0:
+        raise ValueError(f'Scale should be less than 1, got {scale}')
+
+    dtype = get_class(dtype)
     
     input_steps = [input_steps] if isinstance(input_steps, str) else input_steps
 
