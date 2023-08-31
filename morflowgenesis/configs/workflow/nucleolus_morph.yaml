@@ -57,11 +57,11 @@ gpu_step_overrides:
     resources:
         limits:
             cpu: "20000m"
-            memory: "200Gi"
+            memory: "100Gi"
             nvidia.com/gpu: "1"
         requests:
             cpu: "1000m"
-            memory: "150Gi"
+            memory: "50Gi"
             nvidia.com/gpu: "1"
 
 steps:
@@ -99,6 +99,11 @@ steps:
       dask_cluster: null
       infra_overrides: ${gpu_step_overrides}
 
+    - function: morflowgenesis.steps.max_project.max_project
+      args:
+        output_name: max_project
+        input_steps: run_cytodl_100x_npm1
+
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
           output_name: 100x_npm1_seg
@@ -109,6 +114,7 @@ steps:
 
     - function: morflowgenesis.steps.tracking.run_tracking
       args:
+          working_dir: ${working_dir}
           output_name: tracking
           input_step: run_resize_100x_nucseg
       step_type: "gather"
@@ -118,5 +124,26 @@ steps:
           output_name: single_cell_dataset
           splitting_step: run_resize_100x_nucseg
           raw_steps: [run_cytodl_100x_npm1]
+          raw_steps_rename: [npm1]
           seg_steps: [run_cytodl_100x_npm1_seg, run_resize_100x_nucseg]
+          seg_steps_rename: [npm1_seg, nuc_seg]
           tracking_step: run_tracking_tracking
+
+    # - function: morflowgenesis.steps.feature_calculation.calculate_features
+    #   args:
+    #     output_name: features
+    #     input_step: single_cell_dataset_single_cell_dataset
+    #     segmentation_columns: [crop_seg_path]
+    #     features:
+    #         - height
+    #         - volume
+    #         - n_pieces
+
+    # - function: morflowgenesis.steps.contact_sheet.run_contact_sheet
+    #   args:
+    #     output_name: contact_sheet
+    #     single_cell_dataset_step: single_cell_dataset_single_cell_dataset
+    #     feature_step: calculate_features_features
+    #     x_characteristic: volume_crop_seg_path
+    #     y_characteristic: height_crop_seg_path
+

@@ -1,5 +1,5 @@
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/workings
-deployment_name: nucleolus_morph
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/validation_wd
+deployment_name: validation
 work_pool_name: k8s
 
 debug: True
@@ -57,11 +57,11 @@ gpu_step_overrides:
     resources:
         limits:
             cpu: "20000m"
-            memory: "200Gi"
+            memory: "100Gi"
             nvidia.com/gpu: "1"
         requests:
             cpu: "1000m"
-            memory: "150Gi"
+            memory: "50Gi"
             nvidia.com/gpu: "1"
 
 steps:
@@ -73,50 +73,66 @@ steps:
         non_source_columns: ["nucseg"]
       step_type: "gather"
 
-    - function: morflowgenesis.steps.run_cytodl.run_cytodl
-      args:
-        output_name: 20x_nucseg
-        input_step: generate_objects_raw
-        config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
-      dask_cluster: null
-      infra_overrids: ${gpu_step_overrides}
+    # - function: morflowgenesis.steps.run_cytodl.run_cytodl
+    #   args:
+    #     output_name: 20x_nucseg
+    #     input_step: generate_objects_raw
+    #     config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
+    #   dask_cluster: null
+    #   infra_overrids: ${gpu_step_overrides}
 
-    - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
-      args:
-        output_name: pred
-        splitting_step: run_cytodl_20x_nucseg
-        raw_steps: []
-        seg_steps: [run_cytodl_20x_nucseg]
+    # - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
+    #   args:
+    #     output_name: pred
+    #     splitting_step: run_cytodl_20x_nucseg
+    #     raw_steps: []
+    #     seg_steps: [run_cytodl_20x_nucseg]
     - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
       args:
         output_name: gt
         splitting_step: generate_objects_nucseg
         raw_steps: []
         seg_steps: [generate_objects_nucseg]
-    - function: morflowgenesis.steps.cell_matching.match_cells
-      args:
-        output_name: matched_cells
-        pred_step: single_cell_dataset_pred
-        label_step: single_cell_dataset_gt
     - function: morflowgenesis.steps.feature_calculation.calculate_features
       args:
-        output_name: matched_features
-        reference_step: single_cell_dataset_gt
-        input_step: single_cell_dataset_pred
-        matching_step: match_cells_matched_cells
+        output_name: features
+        input_step: single_cell_dataset_gt
         segmentation_columns: [crop_seg_path]
         features:
-            - shcoeff
             - volume
             - height
-            - n_pieces
-
-    - function: morflowgenesis.steps.compare_features.run_plot
+    - function: morflowgenesis.steps.contact_sheet.run_contact_sheet
       args:
-        output_name: plot
-        input_step: get_features_matched_features
-        pca_n_components: 10
-        features:
-            - shcoeff
-            - volume
-            - height
+        output_name: gt_contact_sheet
+        single_cell_dataset_step: single_cell_dataset_gt
+        feature_step: calculate_features_features
+        x_characteristic: volume
+        y_characteristic: height
+
+    # - function: morflowgenesis.steps.cell_matching.match_cells
+    #   args:
+    #     output_name: matched_cells
+    #     pred_step: single_cell_dataset_pred
+    #     label_step: single_cell_dataset_gt
+    # - function: morflowgenesis.steps.feature_calculation.calculate_features
+    #   args:
+    #     output_name: matched_features
+    #     reference_step: single_cell_dataset_gt
+    #     input_step: single_cell_dataset_pred
+    #     matching_step: match_cells_matched_cells
+    #     segmentation_columns: [crop_seg_path]
+    #     features:
+    #         - shcoeff
+    #         - volume
+    #         - height
+    #         - n_pieces
+
+    # - function: morflowgenesis.steps.compare_features.run_plot
+    #   args:
+    #     output_name: plot
+    #     input_step: get_features_matched_features
+    #     pca_n_components: 10
+    #     features:
+    #         - shcoeff
+    #         - volume
+    #         - height

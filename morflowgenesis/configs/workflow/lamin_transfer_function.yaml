@@ -1,0 +1,194 @@
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/validation_wd
+deployment_name: lamin_transfer_function_validation
+work_pool_name: k8s
+
+debug: True
+deploy: true
+
+pull:
+    repository: https://github.com/aics-int/morflowgenesis.git
+    branch: dev
+    secret_block_name: dev-morflowgenesis-benji-pat
+
+path: morflowgenesis
+entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
+
+base_image: docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/morflowgenesis:latest
+
+#kubernetes cluster infra overrides
+infra_overrides:
+    #  don't use latest in production
+    image: ${base_image}
+    image_pull_policy: Always
+    namespace: "prefect"
+    resources:
+        limits:
+            cpu: "20000m"
+            memory: "50Gi"
+        requests:
+            cpu: "1000m"
+            memory: "1024Mi"
+
+# dask cluster overrides
+dask_cluster:
+    cluster_kwargs:
+        # dask worker args
+        pod_template:
+            image: ${base_image}
+            extra_pod_config:
+                volumes:
+                    - name: vast-nfs
+                      nfs:
+                          server: aics.vast01.corp.alleninstitute.org
+                          path: /aics
+            extra_container_config:
+                imagePullPolicy: Always
+                volumeMounts:
+                    - name: vast-nfs
+                      mountPath: /allen/aics
+                resources:
+                    limits:
+                        nvidia.com/gpu: 0
+        deploy_mode: local
+        n_workers: 5
+
+# default gpu steps
+gpu_step_overrides:
+    resources:
+        limits:
+            cpu: "20000m"
+            memory: "100Gi"
+            nvidia.com/gpu: "1"
+        requests:
+            cpu: "1000m"
+            memory: "50Gi"
+            nvidia.com/gpu: "1"
+
+steps:
+    - function: morflowgenesis.steps.image_object_from_csv.generate_objects
+      args:
+        csv_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/nucleus_transfer_function/new_08_18/test.csv"
+        working_dir: ${working_dir}
+        source_column: "lr"
+        non_source_columns: ["hr"]
+      step_type: "gather"
+
+    # run transfer function
+    - function: morflowgenesis.steps.run_cytodl.run_cytodl
+      args:
+        output_name: 100x_lamin
+        input_step: generate_objects_lr
+        config_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nucleus_transfer_function/new_data/2023-08-22_16-57-28/.hydra/config_validate.yaml"
+      dask_cluster: null
+      infra_overrides: ${gpu_step_overrides}
+      
+    # run segmentation from 20x
+    - function: morflowgenesis.steps.run_cytodl.run_cytodl
+      args:
+        output_name: 100x_lamin_seg
+        input_step: generate_objects_lr
+        config_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/cellnucmorph_end_to_end/nuc_from_lamin_less_aug_large/2023-05-09_16-51-59/.hydra/config_validation.yaml"
+      dask_cluster: null
+      infra_overrides: ${gpu_step_overrides}
+
+    # watershed on transfer function lamin
+    - function: morflowgenesis.steps.segmentation_seeded_watershed.run_watershed
+      args:
+        output_name: real_lamin
+        raw_input_step: generate_objects_hr
+        seg_input_step: run_cytodl_100x_lamin_seg
+        mode: 'erosion'
+        erosion: 5
+
+    # watershed on tf lamin 
+    - function: morflowgenesis.steps.segmentation_seeded_watershed.run_watershed
+      args:
+        output_name: tf_lamin
+        raw_input_step: run_cytodl_100x_lamin
+        seg_input_step: run_cytodl_100x_lamin_seg
+        mode: 'erosion'
+        erosion: 5
+
+    # extract segs on tf lamin
+    - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
+      args:
+        output_name: tf_lamin
+        splitting_step: run_watershed_tf_lamin
+        raw_steps: [run_cytodl_100x_lamin]
+        seg_steps: [run_watershed_tf_lamin]
+
+    # # extract segs from 20x
+    # - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
+    #   args:
+    #     output_name: 20x_pred
+    #     splitting_step: run_cytodl_100x_lamin_seg
+    #     raw_steps: [run_cytodl_100x_lamin]
+    #     seg_steps: [run_cytodl_100x_lamin_seg]
+
+    # # extract ground truth
+    # - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
+    #   args:
+    #     output_name: gt
+    #     splitting_step: 
+    #     raw_steps: [generate_objects_hr]
+    #     seg_steps: [run_watershed_real_lamin]
+
+    # - function: morflowgenesis.steps.feature_calculation.calculate_features
+    #   args:
+    #     output_name: gt
+    #     input_step: single_cell_dataset_gt
+    #     segmentation_columns: [crop_seg_path]
+    #     features:
+    #         - volume
+    #         - height
+
+    - function: morflowgenesis.steps.feature_calculation.calculate_features
+      args:
+        output_name: tf_lamin
+        input_step: single_cell_dataset_tf_lamin
+        segmentation_columns: [crop_seg_path]
+        features:
+            - height_crop_seg_path
+            - volume_crop_seg_path
+
+    - function: morflowgenesis.steps.max_project.max_project
+      args:
+        output_name: max_project
+        input_steps: run_cytodl_100x_lamin
+
+
+    # - function: morflowgenesis.steps.contact_sheet.run_contact_sheet
+    #   args:
+    #     output_name: pred_contact_sheet
+    #     single_cell_dataset_step: single_cell_dataset_tf_lamin
+    #     feature_step: calculate_features_tf_lamin
+    #     x_characteristic: volume
+    #     y_characteristic: height
+
+    # - function: morflowgenesis.steps.cell_matching.match_cells
+    #   args:
+    #     output_name: matched_cells
+    #     pred_step: single_cell_dataset_pred
+    #     label_step: single_cell_dataset_gt
+    # - function: morflowgenesis.steps.feature_calculation.calculate_features
+    #   args:
+    #     output_name: matched_features
+    #     reference_step: single_cell_dataset_gt
+    #     input_step: single_cell_dataset_pred
+    #     matching_step: match_cells_matched_cells
+    #     segmentation_columns: [crop_seg_path]
+    #     features:
+    #         - shcoeff
+    #         - volume
+    #         - height
+    #         - n_pieces
+
+    # - function: morflowgenesis.steps.compare_features.run_plot
+    #   args:
+    #     output_name: plot
+    #     input_step: get_features_matched_features
+    #     pca_n_components: 10
+    #     features:
+    #         - shcoeff
+    #         - volume
+    #         - height
