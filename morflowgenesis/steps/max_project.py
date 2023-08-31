@@ -13,6 +13,7 @@ from morflowgenesis.utils.image_object import ImageObject
 def project_step(image_object, input_step, step_name, output_name, scale, dtype):
     # image resizing
     img = image_object.load_step(input_step)
+
     img = np.max(img, 0)
     img = rescale(img, scale, order=0, preserve_range=True)
     img= rescale_intensity(img, out_range=dtype).astype(dtype)
@@ -25,6 +26,7 @@ def project_step(image_object, input_step, step_name, output_name, scale, dtype)
         image_id=image_object.id,
     )
     output.save(img)
+    return output
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
