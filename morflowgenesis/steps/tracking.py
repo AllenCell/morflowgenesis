@@ -101,7 +101,7 @@ def _do_tracking(image_objects, step_name, output_name):
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
-def run_tracking(image_objects, step_name, output_name, input_step):
+def run_tracking(working_dir, step_name, output_name, input_step):
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in (working_dir/ "_ImageObjectStore").glob('*.json')]
 
     if not _do_tracking(image_objects, step_name, output_name):
@@ -113,7 +113,7 @@ def run_tracking(image_objects, step_name, output_name, input_step):
         tasks.append(create_regionprops_csv.submit(obj, input_step))
     regionprops = pd.concat([task.result() for task in tasks])
 
-    output = track(regionprops, image_objects[0].working_dir, step_name, output_name)
+    output = track(regionprops, working_dir, step_name, output_name)
     for obj in image_objects:
         obj.add_step_output(output)
         obj.save()
