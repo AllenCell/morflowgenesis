@@ -229,34 +229,42 @@ def single_cell_dataset(
         tracking_df = image_object.load_step(tracking_step)
         tracking_df = tracking_df[tracking_df.time_index == image_object.metadata['T']]
 
-    results = []
+    crop_images = []
+    padded_coords = []
+
     for lab, coords in enumerate(regions, start=1):
-        if coords is None:
-            continue
-        padded_coords = pad_slice(coords, padding, seg_images[splitting_step].shape)
-        # do cropping serially to avoid memory blow up
-        crop_raw_images, crop_seg_images = mask_images(
-            raw_images, seg_images, lab, splitting_step, padded_coords, mask=mask
-        )
-        results.append(
-            extract_cell.submit(
-                image_object,
-                output_name,
-                crop_raw_images,
-                crop_seg_images,
-                padded_coords,
-                coords,
-                lab,
-                raw_steps,
-                seg_steps,
-                qcb_res,
-                z_res,
-                xy_res,
-                upload_fms=False,
-                dataset_name="morphogenesis",
-                tracking_df=None,
-            )
-        )
+        padded_coords.append(pad_slice(coords, padding, seg_images[splitting_step].shape))
+        crop_images.append(mask_images.submit(raw_images, seg_images, lab, splitting_step, padded_coords[-1], mask=mask))
+    crop_images = [im.result() for im in crop_images]
+
+    # results = []
+    # for lab, coords in enumerate(regions, start=1):
+    #     if coords is None:
+    #         continue
+    #     padded_coords = pad_slice(coords, padding, seg_images[splitting_step].shape)
+    #     # do cropping serially to avoid memory blow up
+    #     crop_raw_images, crop_seg_images = mask_images(
+    #         raw_images, seg_images, lab, splitting_step, padded_coords, mask=mask
+    #     )
+    #     results.append(
+    #         extract_cell.submit(
+    #             image_object,
+    #             output_name,
+    #             crop_raw_images,
+    #             crop_seg_images,
+    #             padded_coords,
+    #             coords,
+    #             lab,
+    #             raw_steps,
+    #             seg_steps,
+    #             qcb_res,
+    #             z_res,
+    #             xy_res,
+    #             upload_fms=False,
+    #             dataset_name="morphogenesis",
+    #             tracking_df=None,
+    #         )
+    #     )
 
     df = pd.concat([r.result() for r in results])
     csv_output_path = (
