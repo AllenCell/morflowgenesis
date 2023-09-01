@@ -7,7 +7,7 @@ deploy: true
 
 pull:
     repository: https://github.com/aics-int/morflowgenesis.git
-    branch: dev
+    branch: dev_benji
     secret_block_name: dev-morflowgenesis-benji-pat
 
 path: morflowgenesis
@@ -80,7 +80,7 @@ steps:
           output_name: 20x_raw
           channels: -1
           dimension_order_out: CZYX
-          timepoints: [0,1,2]
+          timepoints: [0] #,1,2]
           scenes: [P4-F6]
       step_type: "gather"
 

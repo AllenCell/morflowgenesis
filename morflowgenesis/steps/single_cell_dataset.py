@@ -229,12 +229,14 @@ def single_cell_dataset(
         tracking_df = image_object.load_step(tracking_step)
         tracking_df = tracking_df[tracking_df.time_index == image_object.metadata['T']]
 
-    crop_images = []
     padded_coords = []
-
     for lab, coords in enumerate(regions, start=1):
-        padded_coords.append(pad_slice(coords, padding, seg_images[splitting_step].shape))
-        crop_images.append(mask_images.submit(raw_images, seg_images, lab, splitting_step, padded_coords[-1], mask=mask))
+        padded_coords.append(pad_slice.submit(coords, padding, seg_images[splitting_step].shape))
+    padded_coords = [pc.result() for pc in padded_coords]
+
+    crop_images = []
+    for lab, coords in enumerate(padded_coords, start=1):
+        crop_images.append(mask_images.submit(raw_images, seg_images, lab, splitting_step, coords, mask=mask))
     crop_images = [im.result() for im in crop_images]
 
     # results = []
@@ -266,20 +268,20 @@ def single_cell_dataset(
     #         )
     #     )
 
-    df = pd.concat([r.result() for r in results])
-    csv_output_path = (
-        image_object.working_dir / "single_cell_dataset" / output_name / f"{image_object.id}.csv"
-    )
+    # df = pd.concat([r.result() for r in results])
+    # csv_output_path = (
+    #     image_object.working_dir / "single_cell_dataset" / output_name / f"{image_object.id}.csv"
+    # )
 
-    step_output = StepOutput(
-        image_object.working_dir,
-        step_name,
-        output_name,
-        output_type="csv",
-        image_id=image_object.id,
-        path=csv_output_path,
-    )
-    step_output.save(df)
+    # step_output = StepOutput(
+    #     image_object.working_dir,
+    #     step_name,
+    #     output_name,
+    #     output_type="csv",
+    #     image_id=image_object.id,
+    #     path=csv_output_path,
+    # )
+    # step_output.save(df)
 
-    image_object.add_step_output(step_output)
-    image_object.save()
+    # image_object.add_step_output(step_output)
+    # image_object.save()
