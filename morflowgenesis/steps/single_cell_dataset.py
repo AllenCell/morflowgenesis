@@ -230,14 +230,44 @@ def single_cell_dataset(
         tracking_df = tracking_df[tracking_df.time_index == image_object.metadata['T']]
 
     padded_coords = []
+    unpadded_coords = []
+    labs = []
     for lab, coords in enumerate(regions, start=1):
+        if coords is None:
+            continue
         padded_coords.append(pad_slice.submit(coords, padding, seg_images[splitting_step].shape))
+        unpadded_coords.append(coords)
+        labs.apend(lab)
     padded_coords = [pc.result() for pc in padded_coords]
 
     crop_images = []
-    for lab, coords in enumerate(padded_coords, start=1):
+    for lab, coords in zip(labs, padded_coords):
         crop_images.append(mask_images.submit(raw_images, seg_images, lab, splitting_step, coords, mask=mask))
     crop_images = [im.result() for im in crop_images]
+
+
+    results = []
+    for padded_coord, unpadded_coord, crop_img, lab in zip(padded_coords, unpadded_coords, crop_images, labs):
+        crop_raw_images, crop_seg_images = crop_img
+        results.append(
+            extract_cell.submit(
+                image_object,
+                output_name,
+                crop_raw_images,
+                crop_seg_images,
+                padded_coord,
+                unpadded_coord,
+                lab,
+                raw_steps,
+                seg_steps,
+                qcb_res,
+                z_res,
+                xy_res,
+                upload_fms=False,
+                dataset_name="morphogenesis",
+                tracking_df=tracking_df,
+            )
+        )
 
     # results = []
     # for lab, coords in enumerate(regions, start=1):
@@ -268,20 +298,20 @@ def single_cell_dataset(
     #         )
     #     )
 
-    # df = pd.concat([r.result() for r in results])
-    # csv_output_path = (
-    #     image_object.working_dir / "single_cell_dataset" / output_name / f"{image_object.id}.csv"
-    # )
+    df = pd.concat([r.result() for r in results])
+    csv_output_path = (
+        image_object.working_dir / "single_cell_dataset" / output_name / f"{image_object.id}.csv"
+    )
 
-    # step_output = StepOutput(
-    #     image_object.working_dir,
-    #     step_name,
-    #     output_name,
-    #     output_type="csv",
-    #     image_id=image_object.id,
-    #     path=csv_output_path,
-    # )
-    # step_output.save(df)
+    step_output = StepOutput(
+        image_object.working_dir,
+        step_name,
+        output_name,
+        output_type="csv",
+        image_id=image_object.id,
+        path=csv_output_path,
+    )
+    step_output.save(df)
 
-    # image_object.add_step_output(step_output)
-    # image_object.save()
+    image_object.add_step_output(step_output)
+    image_object.save()
