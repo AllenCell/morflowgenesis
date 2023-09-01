@@ -237,7 +237,7 @@ def single_cell_dataset(
             continue
         padded_coords.append(pad_slice.submit(coords, padding, seg_images[splitting_step].shape))
         unpadded_coords.append(coords)
-        labs.apend(lab)
+        labs.append(lab)
     padded_coords = [pc.result() for pc in padded_coords]
 
     crop_images = []
