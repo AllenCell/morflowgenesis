@@ -13,7 +13,7 @@ pull:
 path: morflowgenesis
 entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
 
-base_image: docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/morflowgenesis:latest
+base_image: docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/morflowgenesis:v0.0.1
 
 #kubernetes cluster infra overrides
 infra_overrides:
@@ -24,10 +24,22 @@ infra_overrides:
     resources:
         limits:
             cpu: "20000m"
-            memory: "50Gi"
+            memory: "100Gi"
         requests:
             cpu: "1000m"
-            memory: "1024Mi"
+            memory: "10Gi"
+
+# default gpu steps, added to infra overrides
+gpu_step_overrides:
+    resources:
+        limits:
+            cpu: "8000m"
+            memory: "100Gi"
+            nvidia.com/gpu: "1"
+        requests:
+            cpu: "1000m"
+            memory: "50Gi"
+            nvidia.com/gpu: "1"
 
 # dask cluster overrides
 dask_cluster:
@@ -48,32 +60,27 @@ dask_cluster:
                       mountPath: /allen/aics
                 resources:
                     limits:
+                        cpu: "4000m"
+                        memory: "40Gi"
                         nvidia.com/gpu: 0
+                    requests:
+                        cpu: "1000m"
+                        memory: "10Gi"
         deploy_mode: local
         n_workers: 5
 
-# default gpu steps
-gpu_step_overrides:
-    resources:
-        limits:
-            cpu: "20000m"
-            memory: "100Gi"
-            nvidia.com/gpu: "1"
-        requests:
-            cpu: "1000m"
-            memory: "50Gi"
-            nvidia.com/gpu: "1"
 
 steps:
     - function: morflowgenesis.steps.split_czi.split_czi
       args:
           czi_path: /allen/aics/assay-dev/MicroscopyData/Frick/2023/20230327/ZSD0/AICS86_day3_nucleolus_movie_interactive-01-1.czi/AICS86_day3_nucleolus_movie_interactive-01-1_AcquisitionBlock1.czi/AICS86_day3_nucleolus_movie_interactive-01-1_AcquisitionBlock1_pt1.czi
+          optical_control_path: "//allen/aics/assay-dev/MicroscopyData/Frick/2023/20230327/ZSD0/QC/field_of_rings/20230327_ZSD0_SLG-506_20x_field_of_rings.czi"
           # NPM1, bf, FBL
           working_dir: ${working_dir}
           output_name: 20x_raw
           channels: -1
           dimension_order_out: CZYX
-          timepoints: [0, 1] #,1,2,3]
+          timepoints: [0,1,2]
           scenes: [P4-F6]
       step_type: "gather"
 
@@ -89,7 +96,7 @@ steps:
       args:
           output_name: 100x_nucseg
           input_step: run_cytodl_20x_nucseg
-          output_shape: [120, 3120, 4620]
+          output_shape: [120, 3000, 4500]
 
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
@@ -128,6 +135,9 @@ steps:
           seg_steps: [run_cytodl_100x_npm1_seg, run_resize_100x_nucseg]
           seg_steps_rename: [npm1_seg, nuc_seg]
           tracking_step: run_tracking_tracking
+          mask: False
+
+
 
     # - function: morflowgenesis.steps.feature_calculation.calculate_features
     #   args:

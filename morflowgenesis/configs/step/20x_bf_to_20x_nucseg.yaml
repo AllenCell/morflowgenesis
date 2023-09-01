@@ -122,7 +122,7 @@ trainer:
     min_epochs: 1
     max_epochs: 1000
     accelerator: gpu
-    devices: 1
+    devices: [0]
     check_val_every_n_epoch: 10
     deterministic: false
     detect_anomaly: false
