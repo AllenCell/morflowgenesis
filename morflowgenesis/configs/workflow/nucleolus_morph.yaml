@@ -24,7 +24,7 @@ infra_overrides:
     resources:
         limits:
             cpu: "20000m"
-            memory: "100Gi"
+            memory: "200Gi"
         requests:
             cpu: "1000m"
             memory: "10Gi"
@@ -34,7 +34,7 @@ gpu_step_overrides:
     resources:
         limits:
             cpu: "8000m"
-            memory: "100Gi"
+            memory: "200Gi"
             nvidia.com/gpu: "1"
         requests:
             cpu: "1000m"
@@ -61,7 +61,7 @@ dask_cluster:
                 resources:
                     limits:
                         cpu: "4000m"
-                        memory: "40Gi"
+                        memory: "200Gi"
                         nvidia.com/gpu: 0
                     requests:
                         cpu: "1000m"
