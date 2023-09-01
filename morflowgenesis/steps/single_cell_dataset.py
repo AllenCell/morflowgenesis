@@ -27,7 +27,6 @@ def upload_file(
     """Upload a file located on the Isilon to FMS."""
     raise NotImplementedError
 
-@task
 def reshape(img, z_res, xy_res, qcb_res, order=0):
     return rescale(
         img,
@@ -37,11 +36,9 @@ def reshape(img, z_res, xy_res, qcb_res, order=0):
         # multichannel=False,
     ).astype(np.uint8)
 
-@task
 def centroid_from_slice(slicee):
     return [(s.start + s.stop) // 2 for s in slicee]
 
-@task
 def roi_from_slice(slicee):
     return ",".join([f"{s.start},{s.stop}" for s in slicee])
 
