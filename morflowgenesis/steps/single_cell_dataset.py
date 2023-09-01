@@ -155,11 +155,13 @@ def pad_slice(s, padding, constraints):
     return tuple(new_slice)
 
 @task
-def mask_images(raw_images, seg_images, label, splitting_column, coords):
+def mask_images(raw_images, seg_images, label, splitting_column, coords, mask=True):
     # use masking segmentation to crop out non-cell regions
-    mask = seg_images[splitting_column][coords] == label
+    if mask:
+        mask_img = seg_images[splitting_column][coords] == label
+    
     raw_images = {k: v[coords] for k, v in raw_images.items()}
-    seg_images = {k: mask * (v > 0)[coords] for k, v in seg_images.items()}
+    seg_images = {k: mask_img * (v > 0)[coords] if mask else ( v > 0)[coords] for k, v in seg_images.items()}
     return raw_images, seg_images
 
 @task
@@ -210,6 +212,7 @@ def single_cell_dataset(
     z_res=0.29,
     qcb_res=0.108,
     padding= 10,
+    mask=True,
     upload_fms=False,
 ):
     image_object = ImageObject.parse_file(image_object_path)
@@ -236,7 +239,7 @@ def single_cell_dataset(
         padded_coords = pad_slice(coords, padding, seg_images[splitting_step].shape)
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
-            raw_images, seg_images, lab, splitting_step, padded_coords
+            raw_images, seg_images, lab, splitting_step, padded_coords, mask=mask
         )
         results.append(
             extract_cell.submit(
