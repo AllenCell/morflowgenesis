@@ -152,47 +152,40 @@ def pad_slice(s, padding, constraints):
     return tuple(new_slice)
 
 @task
-def mask_images(raw_images, seg_images, label, splitting_column, coords, mask=True):
-    # use masking segmentation to crop out non-cell regions
+def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, coords, mask=True):
+    '''
+    Turn multich image into single cell dicts
+    '''
+    raw_images = {name: raw_images[idx][coords] for idx, name in enumerate(raw_images)}
+    seg_images = {name: seg_images[idx][coords] for idx, name in enumerate(seg_images)}
     if mask:
-        mask_img = seg_images[splitting_column][coords] == label
-    
-    raw_images = {k: v[coords] for k, v in raw_images.items()}
-    seg_images = {k: mask_img * (v > 0)[coords] if mask else ( v > 0)[coords] for k, v in seg_images.items()}
+        # use masking segmentation to crop out non-cell regions
+        mask_img = seg_images[splitting_ch][coords] == lab
+        raw_images = {k: mask_img * v for k, v in raw_images.items()}
     return raw_images, seg_images
 
 @task
 def load_images(image_object, splitting_step, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename):
     '''
-    load images into dictionaries with (optionally) renamed names as keys
+    load into multichannel images
     '''
     assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
+    seg_images = np.stack([image_object.load_step(step_name) for step_name in seg_steps])
+    raw_images = [image_object.load_step(step_name) for step_name in raw_steps]
+    raw_images = np.stack([rescale_intensity(im, out_range=np.uint8).astype(np.uint8)for im in raw_images])
 
-    if seg_steps_rename is None:
-        seg_images = {step_name: image_object.load_step(step_name) for step_name in seg_steps}
-    else:
-        assert len(seg_steps) == len(seg_steps_rename), 'seg_steps and seg_steps_rename must have same length'
-        seg_images = {step_rename: image_object.load_step(step_name) for step_name, step_rename in zip(seg_steps, seg_steps_rename)}
-        # update splitting step as well
-        splitting_step = seg_steps_rename[seg_steps.index(splitting_step)]
+    splitting_ch = seg_steps.index(splitting_step)
 
-    if raw_steps_rename is None:
-        raw_images = {step_name: image_object.load_step(step_name) for step_name in raw_steps}
-    else:
-        assert len(raw_steps) == len(raw_steps_rename), 'seg_steps and seg_steps_rename must have same length'
-        raw_images = {step_rename: image_object.load_step(step_name) for step_name, step_rename in zip(raw_steps, raw_steps_rename)}
+    assert seg_steps_rename is None or len(seg_steps) == len(seg_steps_rename), 'seg_steps and seg_steps_rename must have same length'
+    assert raw_steps_rename is None or len(raw_steps) == len(raw_steps_rename), 'raw_steps and raw_steps_rename must have same length'
 
-    raw_images = {
-        k: rescale_intensity(v, out_range=np.uint8).astype(np.uint8) if v.dtype != np.uint8 else v
-        for k, v in raw_images.items()
-    }
+    seg_steps = seg_steps_rename or seg_steps
+    raw_steps = raw_steps_rename or raw_steps
+
     # check all images same shape
-    assert (
-        len(set([v.shape for v in raw_images.values()] + [v.shape for v in seg_images.values()]))
-        == 1
-    ), "images are not same shape"
+    assert (raw_images.shape[-3:] == seg_images.shape[-3:]), "images are not same shape"
 
-    return raw_images, seg_images, splitting_step
+    return raw_images, seg_images, raw_steps, seg_steps, splitting_ch
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def single_cell_dataset(
@@ -218,10 +211,12 @@ def single_cell_dataset(
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
 
-    raw_images, seg_images, splitting_step = load_images(image_object, splitting_step, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename)
-
+    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(image_object, splitting_step, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename)
+    print(raw_images.shape, seg_images.shape)
+    print(raw_steps, seg_steps)
+    print(splitting_ch)
     # find objects in segmentation
-    regions = find_objects(seg_images[splitting_step].astype(int))
+    regions = find_objects(seg_images[splitting_ch].astype(int))
 
     # load timepoint's tracking data if available
     tracking_df = None
@@ -229,34 +224,23 @@ def single_cell_dataset(
         tracking_df = image_object.load_step(tracking_step)
         tracking_df = tracking_df[tracking_df.time_index == image_object.metadata['T']]
 
-    padded_coords = []
-    unpadded_coords = []
-    labs = []
+    results = []
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        padded_coords.append(pad_slice.submit(coords, padding, seg_images[splitting_step].shape))
-        unpadded_coords.append(coords)
-        labs.append(lab)
-    padded_coords = [pc.result() for pc in padded_coords]
-
-    crop_images = []
-    for lab, coords in zip(labs, padded_coords):
-        crop_images.append(mask_images.submit(raw_images, seg_images, lab, splitting_step, coords, mask=mask))
-    crop_images = [im.result() for im in crop_images]
-
-
-    results = []
-    for padded_coord, unpadded_coord, crop_img, lab in zip(padded_coords, unpadded_coords, crop_images, labs):
-        crop_raw_images, crop_seg_images = crop_img
+        padded_coords = pad_slice(coords, padding, seg_images[splitting_ch].shape)
+        # do cropping serially to avoid memory blow up
+        crop_raw_images, crop_seg_images = mask_images(
+            raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, padded_coords, mask=mask
+        )
         results.append(
             extract_cell.submit(
                 image_object,
                 output_name,
                 crop_raw_images,
                 crop_seg_images,
-                padded_coord,
-                unpadded_coord,
+                padded_coords,
+                coords,
                 lab,
                 raw_steps,
                 seg_steps,
@@ -265,38 +249,9 @@ def single_cell_dataset(
                 xy_res,
                 upload_fms=False,
                 dataset_name="morphogenesis",
-                tracking_df=tracking_df,
+                tracking_df=None,
             )
         )
-
-    # results = []
-    # for lab, coords in enumerate(regions, start=1):
-    #     if coords is None:
-    #         continue
-    #     padded_coords = pad_slice(coords, padding, seg_images[splitting_step].shape)
-    #     # do cropping serially to avoid memory blow up
-    #     crop_raw_images, crop_seg_images = mask_images(
-    #         raw_images, seg_images, lab, splitting_step, padded_coords, mask=mask
-    #     )
-    #     results.append(
-    #         extract_cell.submit(
-    #             image_object,
-    #             output_name,
-    #             crop_raw_images,
-    #             crop_seg_images,
-    #             padded_coords,
-    #             coords,
-    #             lab,
-    #             raw_steps,
-    #             seg_steps,
-    #             qcb_res,
-    #             z_res,
-    #             xy_res,
-    #             upload_fms=False,
-    #             dataset_name="morphogenesis",
-    #             tracking_df=None,
-    #         )
-    #     )
 
     df = pd.concat([r.result() for r in results])
     csv_output_path = (
