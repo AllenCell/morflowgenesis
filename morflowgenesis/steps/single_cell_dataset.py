@@ -43,6 +43,13 @@ def roi_from_slice(slicee):
     return ",".join([f"{s.start},{s.stop}" for s in slicee])
 
 
+def get_renamed_image_paths(image_object, steps, rename_steps):
+    assert len(rename_steps) == len(steps),'Renaming field must be None or match 1:1 with the original names.'
+    return {
+        rename_steps[steps.index(step_name)]+'_path': image_object.get_step(step_name).path for step_name in steps
+    }
+
+
 @task
 def extract_cell(
     image_object,
@@ -60,6 +67,8 @@ def extract_cell(
     upload_fms=False,
     dataset_name="morphogenesis",
     tracking_df=None,
+    seg_steps_rename=None,
+    raw_steps_rename=None,
 ):
     # prepare metadata for csv
     roi = roi_from_slice(roi)
@@ -90,11 +99,13 @@ def extract_cell(
                 "edge_cell": tracking_df.edge_cell.iloc[0],
             }
         )
+    raw_steps_rename = raw_steps_rename or raw_steps
+    raw_img_paths = get_renamed_image_paths(image_object, raw_steps, raw_steps_rename)
+    seg_steps_rename = seg_steps_rename or seg_steps
+    seg_img_paths = get_renamed_image_paths(image_object, seg_steps, seg_steps_rename)
 
-    img_paths = {
-        step_name: image_object.get_step(step_name).path for step_name in raw_steps + seg_steps
-    }
-    df.update(img_paths)
+    df.update(raw_img_paths)
+    df.update(seg_img_paths)
     df = pd.DataFrame([df])
 
     # remove cell folder if it exists
@@ -103,14 +114,15 @@ def extract_cell(
         rmtree(thiscell_path)
     Path(thiscell_path).mkdir(parents=True, exist_ok=True)
 
-    # anisotropic resize
-    raw_images = {k: reshape(v, z_res, xy_res, qcb_res, order=3) for k, v in raw_images.items()}
-    seg_images = {k: reshape(v, z_res, xy_res, qcb_res, order=0) for k, v in seg_images.items()}
+    # anisotropic resize and rename dict keys
+    raw_images = {raw_steps_rename[raw_steps.index(k)]: reshape(v, z_res, xy_res, qcb_res, order=3) for k, v in raw_images.items()}
+    seg_images = {seg_steps_rename[seg_steps.index(k)]: reshape(v, z_res, xy_res, qcb_res, order=0) for k, v in seg_images.items()}
 
     # save out raw and segmentation single cell images
     name_dict = {}
     for output_type, data in zip(["raw", "seg"], [raw_images, seg_images]):
         fns = sorted(data.keys())
+
         # possible that there is no raw or segmented image available for this cell
         if len(fns) == 0:
             continue
@@ -144,7 +156,7 @@ def extract_cell(
 @task
 def pad_slice(s, padding, constraints):
     # pad slice by padding subject to image size constraints
-    new_slice = []
+    new_slice = [slice(None,None)]
     for slice_part, c in zip(s, constraints):
         start = max(0, slice_part.start - padding)
         stop = min(c, slice_part.stop + padding)
@@ -159,6 +171,7 @@ def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch,
     # crop
     raw_images = raw_images[coords]
     seg_images = seg_images[coords]
+    seg_images[splitting_ch] = seg_images[splitting_ch] == lab
 
     # split into dict
     raw_images = {name: raw_images[idx] for idx, name in enumerate(raw_steps)}
@@ -166,12 +179,12 @@ def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch,
     #mask
     if mask:
         # use masking segmentation to crop out non-cell regions
-        mask_img = seg_images[splitting_ch] == lab
+        mask_img = seg_images[splitting_ch]
         raw_images = {k: mask_img * v for k, v in raw_images.items()}
     return raw_images, seg_images
 
 @task
-def load_images(image_object, splitting_step, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename):
+def load_images(image_object, splitting_step, seg_steps, raw_steps):
     '''
     load into multichannel images
     '''
@@ -181,12 +194,6 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps, seg_steps_re
     raw_images = np.stack([rescale_intensity(im, out_range=np.uint8).astype(np.uint8)for im in raw_images])
 
     splitting_ch = seg_steps.index(splitting_step)
-
-    assert seg_steps_rename is None or len(seg_steps) == len(seg_steps_rename), 'seg_steps and seg_steps_rename must have same length'
-    assert raw_steps_rename is None or len(raw_steps) == len(raw_steps_rename), 'raw_steps and raw_steps_rename must have same length'
-
-    seg_steps = seg_steps_rename or seg_steps
-    raw_steps = raw_steps_rename or raw_steps
 
     # check all images same shape
     assert (raw_images.shape[-3:] == seg_images.shape[-3:]), "images are not same shape"
@@ -217,10 +224,7 @@ def single_cell_dataset(
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
 
-    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(image_object, splitting_step, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename)
-    print(raw_images.shape, seg_images.shape)
-    print(raw_steps, seg_steps)
-    print(splitting_ch)
+    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(image_object, splitting_step, seg_steps, raw_steps)
     # find objects in segmentation
     regions = find_objects(seg_images[splitting_ch].astype(int))
 
@@ -245,7 +249,7 @@ def single_cell_dataset(
                 output_name,
                 crop_raw_images,
                 crop_seg_images,
-                padded_coords,
+                padded_coords[1:], #remove channel slicing
                 coords,
                 lab,
                 raw_steps,
@@ -256,6 +260,8 @@ def single_cell_dataset(
                 upload_fms=False,
                 dataset_name="morphogenesis",
                 tracking_df=None,
+                seg_steps_rename=seg_steps_rename,
+                raw_steps_rename=raw_steps_rename
             )
         )
 
@@ -275,4 +281,4 @@ def single_cell_dataset(
     step_output.save(df)
 
     image_object.add_step_output(step_output)
-    image_object.save()
+    # image_object.save()
