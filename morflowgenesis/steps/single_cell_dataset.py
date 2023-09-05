@@ -172,15 +172,15 @@ def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch,
     raw_images = raw_images[coords]
     seg_images = seg_images[coords]
     seg_images[splitting_ch] = seg_images[splitting_ch] == lab
+    if mask:
+        # use masking segmentation to crop out non-cell regions
+        mask_img = seg_images[splitting_ch]
+        raw_images *= mask_img
 
     # split into dict
     raw_images = {name: raw_images[idx] for idx, name in enumerate(raw_steps)}
     seg_images = {name: seg_images[idx] for idx, name in enumerate(seg_steps)}
-    #mask
-    if mask:
-        # use masking segmentation to crop out non-cell regions
-        mask_img = seg_images[splitting_ch]
-        raw_images = {k: mask_img * v for k, v in raw_images.items()}
+
     return raw_images, seg_images
 
 @task
