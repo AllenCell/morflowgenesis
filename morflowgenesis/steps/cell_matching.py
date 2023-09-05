@@ -1,11 +1,10 @@
-import os
-
 import numpy as np
 import pandas as pd
 from prefect import flow, task
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import StepOutput
+from morflowgenesis.utils.image_object import ImageObject
+from morflowgenesis.utils.step_output import StepOutput
 
 
 def get_start_and_end_pts(roi):
@@ -36,7 +35,8 @@ def iou_from_roi(roi1: str, roi2: str, eps: float = 1e-8):
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
-def match_cells(image_object, step_name, output_name, pred_step, label_step, iou_thresh=0.9):
+def match_cells(image_object_path, step_name, output_name, pred_step, label_step, iou_thresh=0.9):
+    image_object = ImageObject.parse_file(image_object_path)
     # check if step already run
     if image_object.step_is_run(f"{step_name}_{output_name}"):
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
