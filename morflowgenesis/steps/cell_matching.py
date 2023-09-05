@@ -42,24 +42,28 @@ def match_cells(image_object_path, step_name, output_name, pred_step, label_step
         print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
         return image_object
 
-    pred_match_to_label = {"pred_cellid": [], "label_cellid": [], "iou": []}
     pred_df = image_object.load_step(pred_step)
     label_df = image_object.load_step(label_step)
+
     # match each pred cell to best ground truth cell where match exceeds iou_thresh
+    results= [] 
     for pred_row in pred_df.itertuples():
-        best_iou = -np.inf
-        best_cellid = None
         for label_row in label_df.itertuples():
-            iou = iou_from_roi(str_to_array(pred_row.roi), str_to_array(label_row.roi))
-            # update best iou
-            if iou > best_iou:
-                best_iou = iou
-                best_cellid = label_row.CellId
-        # record a match if best iou exceeds threshold
-        if best_iou > iou_thresh:
-            pred_match_to_label["pred_cellid"].append(pred_row.CellId)
-            pred_match_to_label["label_cellid"].append(best_cellid)
-            pred_match_to_label["iou"].append(best_iou)
+            results.append(iou_from_roi.submit(str_to_array(pred_row.roi), str_to_array(label_row.roi)))
+    results = np.asarray([r.result() for r in results])
+    results = np.reshape(results, (len(pred_df), len(label_df)))
+
+    # find best labeled cell for each predicted cell
+    best_iou, best_iou_idx = np.max(results, 1), np.argmax(results, 1)
+
+    pred_match_to_label = pd.DataFrame({"pred_cellid": pred_df.CellId.values, 
+                           "label_cellid": label_df.CellId[best_iou_idx].values, 
+                           "iou": best_iou})
+    # remove low iou matches
+    pred_match_to_label = pred_match_to_label[pred_match_to_label['iou']>iou_thresh]
+
+    #remove non-bijective matches
+    pred_match_to_label.drop_duplicates(subset = ['pred_cellid', 'label_cellid'],keep=False)
 
     step_output = StepOutput(
         image_object.working_dir,
