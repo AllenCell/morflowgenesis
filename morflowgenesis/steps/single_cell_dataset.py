@@ -11,6 +11,7 @@ from prefect import flow, task
 from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
+from skimage.measure import label
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.step_output import StepOutput
@@ -42,12 +43,16 @@ def centroid_from_slice(slicee):
 def roi_from_slice(slicee):
     return ",".join([f"{s.start},{s.stop}" for s in slicee])
 
-
 def get_renamed_image_paths(image_object, steps, rename_steps):
     assert len(rename_steps) == len(steps),'Renaming field must be None or match 1:1 with the original names.'
     return {
         rename_steps[steps.index(step_name)]+'_path': image_object.get_step(step_name).path for step_name in steps
     }
+
+def get_largest_cc(im):
+    im = label(im)
+    largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
+    return im == largest_cc
 
 
 @task
@@ -164,7 +169,7 @@ def pad_slice(s, padding, constraints):
     return tuple(new_slice)
 
 @task
-def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, coords, mask=True):
+def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, coords, mask=True, keep_lcc = False):
     '''
     Turn multich image into single cell dicts
     '''
@@ -176,6 +181,8 @@ def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch,
         # use masking segmentation to crop out non-cell regions in segmentations
         mask_img = seg_images[splitting_ch]
         seg_images *= mask_img
+    if keep_lcc:
+        seg_images = [get_largest_cc(seg_images[ch]) for ch in seg_images.shape[0]]
 
     # split into dict
     raw_images = {name: raw_images[idx] for idx, name in enumerate(raw_steps)}
@@ -216,6 +223,7 @@ def single_cell_dataset(
     qcb_res=0.108,
     padding= 10,
     mask=True,
+    lcc = False,
     upload_fms=False,
 ):
     image_object = ImageObject.parse_file(image_object_path)
@@ -241,7 +249,7 @@ def single_cell_dataset(
         padded_coords = pad_slice(coords, padding, seg_images[splitting_ch].shape)
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
-            raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, padded_coords, mask=mask
+            raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, padded_coords, mask=mask, lcc=lcc
         )
         results.append(
             extract_cell.submit(
