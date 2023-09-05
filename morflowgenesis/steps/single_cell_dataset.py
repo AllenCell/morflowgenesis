@@ -182,7 +182,7 @@ def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch,
         mask_img = seg_images[splitting_ch]
         seg_images *= mask_img
     if keep_lcc:
-        seg_images = [get_largest_cc(seg_images[ch]) for ch in seg_images.shape[0]]
+        seg_images = [get_largest_cc(seg_images[ch]) for ch in range(seg_images.shape[0])]
 
     # split into dict
     raw_images = {name: raw_images[idx] for idx, name in enumerate(raw_steps)}
