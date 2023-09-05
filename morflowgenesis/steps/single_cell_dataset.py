@@ -173,9 +173,9 @@ def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch,
     seg_images = seg_images[coords]
     seg_images[splitting_ch] = seg_images[splitting_ch] == lab
     if mask:
-        # use masking segmentation to crop out non-cell regions
+        # use masking segmentation to crop out non-cell regions in segmentations
         mask_img = seg_images[splitting_ch]
-        raw_images *= mask_img
+        seg_images *= mask_img
 
     # split into dict
     raw_images = {name: raw_images[idx] for idx, name in enumerate(raw_steps)}
@@ -281,4 +281,4 @@ def single_cell_dataset(
     step_output.save(df)
 
     image_object.add_step_output(step_output)
-    # image_object.save()
+    image_object.save()
