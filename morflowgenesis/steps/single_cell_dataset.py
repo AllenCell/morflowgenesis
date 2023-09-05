@@ -223,7 +223,7 @@ def single_cell_dataset(
     qcb_res=0.108,
     padding= 10,
     mask=True,
-    lcc = False,
+    keep_lcc = False,
     upload_fms=False,
 ):
     image_object = ImageObject.parse_file(image_object_path)
@@ -249,7 +249,7 @@ def single_cell_dataset(
         padded_coords = pad_slice(coords, padding, seg_images[splitting_ch].shape)
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
-            raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, padded_coords, mask=mask, lcc=lcc
+            raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, padded_coords, mask=mask, keep_lcc=keep_lcc
         )
         results.append(
             extract_cell.submit(
