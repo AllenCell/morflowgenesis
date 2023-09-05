@@ -34,7 +34,7 @@ def generate_objects(
     step_name,
     csv_path,
     source_column,
-    non_source_columns,
+    non_source_columns=[],
     metadata_column=None,
 ):
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in (Path(working_dir)/ "_ImageObjectStore").glob('*.json')]
