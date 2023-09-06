@@ -9,16 +9,15 @@ from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
 
+
 def make_rgb(img, contour):  # this function returns an RGB image
     rgb = np.stack([img] * 3, axis=-1)
-    rgb[contour > 0, 0] = 255  # red channel
-    rgb[contour > 0, 1] = 0  # green channel
-    rgb[contour > 0, 2] = 255  # blue channel
+    for ch in range(contour.shape[0]):
+        rgb[contour[ch] > 0, ch] = 255
     return rgb
 
-
 @task
-def project_cell(row, raw_channel, seg_channel):
+def project_cell(row, raw_channel, seg_channels):
     raw = (
         AICSImage(row["crop_raw_path"].iloc[0])
         .get_image_dask_data("ZYX", C=raw_channel)
@@ -27,13 +26,14 @@ def project_cell(row, raw_channel, seg_channel):
     )
     seg = (
         AICSImage(row["crop_seg_path"].iloc[0])
-        .get_image_dask_data("ZYX", C=seg_channel)
+        .get_image_dask_data("ZYX", C=seg_channels)
         .compute()
         .astype(np.uint8)
     )
-    seg = find_boundaries(seg, mode="inner")
 
-    z, y, x = np.where(seg > 0)
+    seg = [find_boundaries(seg[ch], mode="inner") for ch in range(seg.shape[0])]
+
+    _, z, y, x = np.where(seg > 0)
     mid_z, mid_y, mid_x = int(np.median(z)), int(np.median(y)), int(np.median(x))
 
     overlay = make_rgb(raw, seg)
@@ -74,6 +74,75 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_characteristic, y_characte
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
+def segmentation_contact_sheet(
+    image_object_path,
+    step_name,
+    output_name,
+    single_cell_dataset_step,
+    feature_step,
+    x_characteristic,
+    y_characteristic,
+    n_bins=10,
+    raw_channel=0,
+    seg_channels=[0],
+):
+    image_object = ImageObject.parse_file(image_object_path)
+
+    if image_object.step_is_run(f"{step_name}_{output_name}"):
+        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
+        return image_object
+
+    cell_df = image_object.load_step(single_cell_dataset_step)
+    feature_df = image_object.load_step(feature_step)
+
+    quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]
+
+    # Use qcut to bin the DataFrame by percentiles across both features
+    feature_df[f"{x_characteristic}_bin"] = pd.qcut(
+        feature_df[f"{x_characteristic}_label"], q=quantile_boundaries, duplicates='drop'
+    )
+    feature_df[f"{y_characteristic}_bin"] = pd.qcut(
+        feature_df[f"{y_characteristic}_label"], q=quantile_boundaries, duplicates='drop'
+    )
+    x_bins = feature_df[f"{x_characteristic}_bin"].unique()
+    y_bins = feature_df[f"{y_characteristic}_bin"].unique()
+
+    results = []
+    for x_bin in x_bins:
+        for y_bin in y_bins:
+            temp = feature_df[
+                np.logical_and(
+                    feature_df[f"{x_characteristic}_bin"] == x_bin,
+                    feature_df[f"{y_characteristic}_bin"] == y_bin,
+                )
+            ]
+            if len(temp) > 0:
+                cell_id = temp["CellId"].sample(1).values[0]
+                results.append(
+                    project_cell.submit(
+                        cell_df[cell_df["CellId"] == cell_id], raw_channel, seg_channels
+                    )
+                )
+            else:
+                results.append(None)
+    results = [r.result() if r is not None else (None, None) for r in results ]
+
+    contact_sheet = assemble_contact_sheet(
+        results, x_bins, y_bins, x_characteristic, y_characteristic
+    )
+    
+    output = StepOutput(
+        image_object.working_dir,
+        step_name,
+        output_name,
+        output_type="image",
+        image_id=image_object.id,
+    )
+    contact_sheet.savefig(output.path,dpi= 300)
+    image_object.add_step_output(output)
+    # image_object.save()
+
+@flow(task_runner=create_task_runner(), log_prints=True)
 def run_contact_sheet(
     image_object_path,
     step_name,
@@ -85,6 +154,7 @@ def run_contact_sheet(
     n_bins=10,
     raw_channel=0,
     seg_channel=0,
+    grouping_column = None,
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
@@ -103,40 +173,61 @@ def run_contact_sheet(
     feature_df[f"{y_characteristic}_bin"] = pd.qcut(
         feature_df[f"{y_characteristic}"], q=quantile_boundaries, duplicates='drop'
     )
-
-    results = []
     x_bins = feature_df[f"{x_characteristic}_bin"].unique()
     y_bins = feature_df[f"{y_characteristic}_bin"].unique()
-    for x_bin in x_bins:
-        for y_bin in y_bins:
-            temp = feature_df[
-                np.logical_and(
-                    feature_df[f"{x_characteristic}_bin"] == x_bin,
-                    feature_df[f"{y_characteristic}_bin"] == y_bin,
-                )
-            ]
-            if len(temp) > 0:
-                cell_id = temp["CellId"].sample(1).values[0]
-                results.append(
-                    project_cell.submit(
-                        cell_df[cell_df["CellId"] == cell_id], raw_channel, seg_channel
+
+    grouped_dfs = [cell_df]
+    if grouping_column is not None:
+        grouped_dfs = [cell_df[cell_df[grouping_column] == cat] for cat in cell_df.grouping_column.unique()]
+
+    for gdf in grouped_dfs:
+        results = []
+        for x_bin in x_bins:
+            for y_bin in y_bins:
+                temp = feature_df[
+                    np.logical_and(
+                        feature_df[f"{x_characteristic}_bin"] == x_bin,
+                        feature_df[f"{y_characteristic}_bin"] == y_bin,
                     )
-                )
-            else:
-                results.append(None)
-    results = [r.result() if r is not None else (None, None) for r in results ]
+                ]
+                if len(temp) > 0:
+                    cell_id = temp["CellId"].sample(1).values[0]
+                    results.append(
+                        project_cell.submit(
+                            gdf[gdf["CellId"] == cell_id], raw_channel, seg_channel
+                        )
+                    )
+                else:
+                    results.append(None)
+        results = [r.result() if r is not None else (None, None) for r in results ]
 
-    contact_sheet = assemble_contact_sheet(
-        results, x_bins, y_bins, x_characteristic, y_characteristic
-    )
-
-    output = StepOutput(
-        image_object.working_dir,
-        step_name,
-        output_name,
-        output_type="image",
-        image_id=image_object.id,
-    )
-    contact_sheet.savefig(output.path,dpi= 300)
-    image_object.add_step_output(output)
+        contact_sheet = assemble_contact_sheet(
+            results, x_bins, y_bins, x_characteristic, y_characteristic
+        )
+        
+        group_name = '' if grouping_column is None else f'_{gdf[grouping_column].iloc[0]}'
+        output = StepOutput(
+            image_object.working_dir,
+            step_name,
+            output_name+group_name,
+            output_type="image",
+            image_id=image_object.id,
+        )
+        contact_sheet.savefig(output.path,dpi= 300)
+        image_object.add_step_output(output)
     image_object.save()
+
+if __name__ == '__main__':
+    segmentation_contact_sheet(
+        image_object_path="//allen/aics/assay-dev/users/Benji/CurrentProjects/seg_quality_across_colonies/replicate/_ImageObjectStore/bf93a59aa13c845c037006b7196061c208f0bff8eef4a8ae6892638b.json",
+        step_name='contact',
+        output_name='contact',
+        single_cell_dataset_step='single_cell_dataset_movie',
+        reference_step='single_cell_dataset_watershed',
+        feature_step='calculate_features_features',
+        x_characteristic='volume_crop_seg_path',
+        y_characteristic='height_crop_seg_path',
+        n_bins=5,
+        raw_channel=0,
+        seg_channel=0,
+    )
