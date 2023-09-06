@@ -9,6 +9,7 @@ from prefect import flow
 from prefect.deployments import run_deployment
 from prefect.server.schemas.states import StateType
 from prefect.task_runners import SequentialTaskRunner
+from slugify import slugify
 
 from morflowgenesis.bin.deploy_step import deploy_step
 from morflowgenesis.bin.run_step import run_step
@@ -41,7 +42,7 @@ async def morflowgenesis(cfg):
 @hydra.main(version_base="1.3", config_path="../configs/workflow", config_name="config.yaml")
 def main(_cfg: DictConfig):
     cfg = OmegaConf.to_container(_cfg, resolve=True)
-    deployment_name = cfg.get("deployment_name", "default")
+    deployment_name = slugify(cfg.get("deployment_name", "default"))
 
     debug = cfg.get("debug", False)
 
@@ -54,6 +55,7 @@ def main(_cfg: DictConfig):
                 path=cfg["path"],
                 entrypoint=cfg["entrypoint"],
                 infra_overrides=cfg["infra_overrides"],
+                work_pool_name=cfg.get("work_pool_name"),
             )
             dep.apply(cfg["pull"])
 
@@ -61,12 +63,10 @@ def main(_cfg: DictConfig):
             deploy_step(deepcopy(cfg), step_cfg)
 
     if not debug:
-        run_deployment(name=f"morflowgenesis/{deployment_name}", parameters=cfg)
+        asyncio.run(run_deployment(name=f"morflowgenesis/{deployment_name}", parameters=cfg))
     else:
         # run superworkflow locally, better error readouts
         asyncio.run(morflowgenesis(cfg))
 
-
 if __name__ == "__main__":
-    # asyncio.run(main())
     main()
