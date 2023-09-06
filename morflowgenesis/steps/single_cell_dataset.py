@@ -127,7 +127,6 @@ def extract_cell(
     name_dict = {}
     for output_type, data in zip(["raw", "seg"], [raw_images, seg_images]):
         fns = sorted(data.keys())
-
         # possible that there is no raw or segmented image available for this cell
         if len(fns) == 0:
             continue
@@ -174,21 +173,18 @@ def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch,
     Turn multich image into single cell dicts
     '''
     # crop
-    raw_images = raw_images[coords]
-    seg_images = seg_images[coords]
-    seg_images[splitting_ch] = seg_images[splitting_ch] == lab
+    raw_crop = raw_images[coords].copy()
+    seg_crop = seg_images[coords].copy()
+    seg_crop[splitting_ch] = seg_crop[splitting_ch] == lab
     if mask:
         # use masking segmentation to crop out non-cell regions in segmentations
-        mask_img = seg_images[splitting_ch]
-        seg_images *= mask_img
+        mask_img = seg_crop[splitting_ch]
+        seg_crop *= mask_img
     if keep_lcc:
-        seg_images = [get_largest_cc(seg_images[ch]) for ch in range(seg_images.shape[0])]
+        seg_crop = [get_largest_cc(seg_crop[ch]) for ch in range(seg_crop.shape[0])]
 
     # split into dict
-    raw_images = {name: raw_images[idx] for idx, name in enumerate(raw_steps)}
-    seg_images = {name: seg_images[idx] for idx, name in enumerate(seg_steps)}
-
-    return raw_images, seg_images
+    return {name: raw_crop[idx] for idx, name in enumerate(raw_steps)}, {name: seg_crop[idx] for idx, name in enumerate(seg_steps)}
 
 @task
 def load_images(image_object, splitting_step, seg_steps, raw_steps):
@@ -290,3 +286,7 @@ def single_cell_dataset(
 
     image_object.add_step_output(step_output)
     image_object.save()
+
+
+if __name__ == '__main__':
+    single_cell_dataset(raw_steps=['generate_objects_raw'], seg_steps=['generate_objects_seg', 'run_watershed_watershed'], output_name="movie", seg_steps_rename=['movie', 'watershed'], mask=False, keep_lcc=True, splitting_step="run_watershed_watershed",step_name='test',image_object_path='//allen/aics/assay-dev/users/Benji/CurrentProjects/seg_quality_across_colonies/replicate/_ImageObjectStore/bf93a59aa13c845c037006b7196061c208f0bff8eef4a8ae6892638b.json')
