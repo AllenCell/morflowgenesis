@@ -26,13 +26,12 @@ def project_cell(row, raw_channel, seg_channels):
     )
     seg = (
         AICSImage(row["crop_seg_path"].iloc[0])
-        .get_image_dask_data("ZYX", C=seg_channels)
+        .get_image_dask_data("CZYX", C=seg_channels)
         .compute()
         .astype(np.uint8)
     )
 
-    seg = [find_boundaries(seg[ch], mode="inner") for ch in range(seg.shape[0])]
-
+    seg = np.stack([find_boundaries(seg[ch], mode="inner") for ch in range(seg.shape[0])])
     _, z, y, x = np.where(seg > 0)
     mid_z, mid_y, mid_x = int(np.median(z)), int(np.median(y)), int(np.median(x))
 
@@ -58,8 +57,9 @@ def project_cell(row, raw_channel, seg_channels):
     return out.astype(np.uint8), row["CellId"]
 
 
-def assemble_contact_sheet(results, x_bins, y_bins, x_characteristic, y_characteristic):
+def assemble_contact_sheet(results, x_bins, y_bins, x_characteristic, y_characteristic, title='Contact Sheet'):
     fig, ax = plt.subplots(len(x_bins), len(y_bins), figsize=(4 * len(x_bins), 4 * len(y_bins)))
+    fig.suptitle(title)
     fig.supxlabel(x_characteristic)
     fig.supylabel(y_characteristic)
     for x_idx, x_bin in enumerate(x_bins):
@@ -99,10 +99,10 @@ def segmentation_contact_sheet(
 
     # Use qcut to bin the DataFrame by percentiles across both features
     feature_df[f"{x_characteristic}_bin"] = pd.qcut(
-        feature_df[f"{x_characteristic}_label"], q=quantile_boundaries, duplicates='drop'
+        feature_df[f"{x_characteristic}"], q=quantile_boundaries, duplicates='drop'
     )
     feature_df[f"{y_characteristic}_bin"] = pd.qcut(
-        feature_df[f"{y_characteristic}_label"], q=quantile_boundaries, duplicates='drop'
+        feature_df[f"{y_characteristic}"], q=quantile_boundaries, duplicates='drop'
     )
     x_bins = feature_df[f"{x_characteristic}_bin"].unique()
     y_bins = feature_df[f"{y_characteristic}_bin"].unique()
@@ -127,8 +127,11 @@ def segmentation_contact_sheet(
                 results.append(None)
     results = [r.result() if r is not None else (None, None) for r in results ]
 
+    channel_names = AICSImage(cell_df['crop_seg_path'].iloc[0]).channel_names
+    colors = ['Red', 'Green', 'Blue']
+    title = 'Contact Sheet: ' + ', '.join([f'{col}: {name}' for col, name in zip(colors, channel_names)])
     contact_sheet = assemble_contact_sheet(
-        results, x_bins, y_bins, x_characteristic, y_characteristic
+        results, x_bins, y_bins, x_characteristic, y_characteristic, title=title
     )
     
     output = StepOutput(
@@ -217,17 +220,7 @@ def run_contact_sheet(
         image_object.add_step_output(output)
     image_object.save()
 
+
+
 if __name__ == '__main__':
-    segmentation_contact_sheet(
-        image_object_path="//allen/aics/assay-dev/users/Benji/CurrentProjects/seg_quality_across_colonies/replicate/_ImageObjectStore/bf93a59aa13c845c037006b7196061c208f0bff8eef4a8ae6892638b.json",
-        step_name='contact',
-        output_name='contact',
-        single_cell_dataset_step='single_cell_dataset_movie',
-        reference_step='single_cell_dataset_watershed',
-        feature_step='calculate_features_features',
-        x_characteristic='volume_crop_seg_path',
-        y_characteristic='height_crop_seg_path',
-        n_bins=5,
-        raw_channel=0,
-        seg_channel=0,
-    )
+    segmentation_contact_sheet(y_characteristic="height_crop_seg_path_crop_seg_movie", feature_step="calculate_features_movie", x_characteristic="volume_crop_seg_path_crop_seg_movie", output_name="movie", single_cell_dataset_step="single_cell_dataset_movie",step_name='test',image_object_path='//allen/aics/assay-dev/users/Benji/CurrentProjects/seg_quality_across_colonies/replicate/_ImageObjectStore/bf93a59aa13c845c037006b7196061c208f0bff8eef4a8ae6892638b.json', seg_channels=[0,1])
