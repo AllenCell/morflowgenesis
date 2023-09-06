@@ -1,18 +1,16 @@
-import os
-
 import pandas as pd
 from aicsimageio import AICSImage
 from pathlib import Path
 from prefect import flow, task
 
-from prefect.task_runners import SequentialTaskRunner
 from morflowgenesis.utils.image_object import ImageObject
 from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils.create_temporary_dask_cluster import create_task_runner
 
 
 @task
 def generate_object(
-    row, working_dir, step_name, source_column, non_source_columns, metadata_column=None
+   existing_ids, row, working_dir, step_name, source_column, non_source_columns, metadata_column=None
 ):
     source_img = AICSImage(row[source_column])
     # add metadata
@@ -21,6 +19,10 @@ def generate_object(
         metadata.update(row.get(metadata_column))
 
     obj = ImageObject(working_dir, row[source_column], metadata)
+    if obj.id in existing_ids:
+        print(f'ID {obj.id} already exists. Skipping...')
+        return
+    
     for col in [source_column] + non_source_columns:
         step_output = StepOutput(
             working_dir, step_name, col, "image", image_id=obj.id, path=row[col]
@@ -28,7 +30,7 @@ def generate_object(
         obj.add_step_output(step_output)
     obj.save()
 
-@flow(task_runner=SequentialTaskRunner(), log_prints=True)
+@flow(task_runner=create_task_runner(), log_prints=True)
 def generate_objects(
     working_dir,
     step_name,
@@ -37,21 +39,17 @@ def generate_objects(
     non_source_columns=[],
     metadata_column=None,
 ):
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (Path(working_dir)/ "_ImageObjectStore").glob('*.json')]
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (Path(working_dir)/ "_ImageObjectStore").glob('*')]
 
     """Generate a new image object for each row in the csv file."""
     df = pd.read_csv(csv_path)
 
-    already_run = [im_obj.source_path for im_obj in image_objects]
+    existing_ids = [im_obj.id for im_obj in image_objects]
     new_image_objects = []
     for row in df.itertuples():
-        row = row._asdict()
-        if row[source_column] not in already_run:
-            new_image_objects.append(
-                generate_object.submit(
-                    row, working_dir, step_name, source_column, non_source_columns, metadata_column
-                )
+        new_image_objects.append(
+            generate_object.submit(
+               existing_ids, row._asdict(), working_dir, step_name, source_column, non_source_columns, metadata_column
             )
-        else:
-            print(row[source_column], 'already exists')
+        )
     [im_obj.result() for im_obj in new_image_objects]
