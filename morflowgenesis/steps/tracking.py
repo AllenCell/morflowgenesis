@@ -99,22 +99,19 @@ def _do_tracking(image_objects, step_name, output_name):
     return run
 
 
-# @flow(task_runner=create_task_runner(), log_prints=True)
-@flow(log_prints=True)
+@flow(task_runner=create_task_runner(), log_prints=True)
 def run_tracking(working_dir, step_name, output_name, input_step):
     working_dir = Path(working_dir)
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in (working_dir/ "_ImageObjectStore").glob('*.json')]
 
-    if not _do_tracking(image_objects, step_name, output_name):
-        return image_objects
+    if _do_tracking(image_objects, step_name, output_name):
+        # create centroid/volume csv
+        tasks = []
+        for obj in image_objects:
+            tasks.append(create_regionprops_csv.submit(obj, input_step))
+        regionprops = pd.concat([task.result() for task in tasks])
 
-    # create centroid/volume csv
-    tasks = []
-    for obj in image_objects:
-        tasks.append(create_regionprops_csv.submit(obj, input_step))
-    regionprops = pd.concat([task.result() for task in tasks])
-
-    output = track(regionprops, working_dir, step_name, output_name)
-    for obj in image_objects:
-        obj.add_step_output(output)
-        obj.save()
+        output = track(regionprops, working_dir, step_name, output_name)
+        for obj in image_objects:
+            obj.add_step_output(output)
+            obj.save()
