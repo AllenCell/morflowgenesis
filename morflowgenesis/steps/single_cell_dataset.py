@@ -224,10 +224,6 @@ def single_cell_dataset(
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
-
     raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(image_object, splitting_step, seg_steps, raw_steps)
     # find objects in segmentation
     regions = find_objects(seg_images[splitting_ch].astype(int))

@@ -104,9 +104,6 @@ def calculate_features(
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
     cell_df = image_object.load_step(input_step)
     if reference_step is not None:
         reference_df = image_object.load_step(reference_step)

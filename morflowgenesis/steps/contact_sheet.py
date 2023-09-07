@@ -161,10 +161,6 @@ def run_contact_sheet(
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
-
     cell_df = image_object.load_step(single_cell_dataset_step)
     feature_df = image_object.load_step(feature_step)
     quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]

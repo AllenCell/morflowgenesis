@@ -17,7 +17,6 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
     r2 = []
     avg_ratio = []
     dist_ratio = []
-    deviation = []
     log = np.isnan(x) | np.isnan(y)
 
     if len(list(x.shape)) > 1:
@@ -32,13 +31,11 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
 
     r2full = skmetrics.r2_score(y_true=x0, y_pred=y0)
 
-    avg_full = np.mean((y0 / x0) - 1) * 100
     avg_full = np.median(100 * (y0 / x0 - 1))
 
     minmax = np.percentile(x0, 99) - np.percentile(x0, 1)
     dist_full = np.median(100 * ((y0 - x0) / minmax))
 
-    deviation_full = np.median(y0 - x0)
 
     for _ in range(niter):
         xr, yr, xrefr = resample(x0, y0, xref0, replace=True)
@@ -48,7 +45,6 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
 
         minmax = np.percentile(xrefr, 99) - np.percentile(xrefr, 1)
         dist_ratio.append(np.median(100 * ((yr - xr) / minmax)))
-        deviation.append(np.median(yr - xr))
 
     feats["r2score"] = r2full
     feats["r2score_l"] = r2full - np.percentile(r2, 5)
@@ -61,10 +57,6 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
     feats["ratio_dist"] = dist_full
     feats["ratio_dist_l"] = dist_full - np.percentile(dist_ratio, 5)
     feats["ratio_dist_h"] = np.percentile(dist_ratio, 95) - dist_full
-
-    feats["deviation"] = deviation_full
-    feats["deviation_l"] = deviation_full - np.percentile(deviation, 5)
-    feats["deviation_h"] = np.percentile(deviation, 95) - deviation_full
 
     return x0, y0, feats
 

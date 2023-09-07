@@ -12,11 +12,7 @@ def run_resize(
     image_object_path, step_name, output_name, input_step, output_shape=None, scale=None, order=0
 ):
     image_object = ImageObject.parse_file(image_object_path)
-
-    # skip if already run
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
+    
     # image resizing
     img = image_object.load_step(input_step)
     input_dtype = img.dtype

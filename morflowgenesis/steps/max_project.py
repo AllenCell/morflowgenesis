@@ -34,10 +34,6 @@ def max_project(
     image_object_path, step_name, output_name, input_steps, scale=0.25, dtype='numpy.uint8'
 ):
     image_object = ImageObject.parse_file(image_object_path)
-    # skip if already run
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
     
     if scale > 1.0:
         raise ValueError(f'Scale should be less than 1, got {scale}')

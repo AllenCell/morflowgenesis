@@ -84,10 +84,6 @@ def run_watershed(
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
-
     raw = image_object.load_step(raw_input_step)
     seg = image_object.load_step(seg_input_step)
     regions = find_objects(seg.astype(int))
