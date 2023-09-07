@@ -7,21 +7,14 @@ from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
 from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf, open_dict, read_write
-from prefect import flow
+from prefect import flow, task
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
 
-
-
-@flow(task_runner=create_task_runner(), log_prints=True)
-def run_cytodl(image_object_path, step_name, output_name, input_step, config_path, overrides=[]):
-    image_object = ImageObject.parse_file(image_object_path)
-    # skip if already run
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        return
-
+@task 
+def generate_config(image_object, step_name, output_name,input_step,config_path, overrides):
     # get input data path
     prev_step_output = image_object.get_step(input_step)
     data_path = prev_step_output.path
@@ -50,7 +43,19 @@ def run_cytodl(image_object_path, step_name, output_name, input_step, config_pat
 
         HydraConfig.instance().set_config(cfg)
         OmegaConf.set_readonly(cfg.hydra, None)
-        evaluate(cfg)
+    return cfg, save_dir
+
+@task(retries=3, retry_delay_seconds=[10,60,120])
+def run_evaluate(cfg):
+    evaluate(cfg)
+
+
+@flow(task_runner=create_task_runner(), log_prints=True)
+def run_cytodl(image_object_path, step_name, output_name, input_step, config_path, overrides=[]):
+    image_object = ImageObject.parse_file(image_object_path)
+
+    cfg, save_dir = generate_config(image_object, step_name, output_name,input_step, config_path, overrides)
+    run_evaluate(cfg)
 
     # find where cytodl saves out image
     out_image_path = list((save_dir / "predict_images").glob("*"))[0]
@@ -68,3 +73,5 @@ def run_cytodl(image_object_path, step_name, output_name, input_step, config_pat
 
     image_object.add_step_output(output)
     image_object.save()
+
+
