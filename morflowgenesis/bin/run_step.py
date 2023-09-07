@@ -1,14 +1,38 @@
 import asyncio
 
 from prefect.deployments import run_deployment
+from prefect import flow, task
+from prefect.task_runners import ConcurrentTaskRunner
 from slugify import slugify
 
+from morflowgenesis.utils import ImageObject
 
-async def run_step(step_cfg, prev_output):
+
+@task
+def _is_run(path, step_name, output_name):
+    image_object = ImageObject.parse_file(path)
+    # check if step already run
+    if image_object.step_is_run(f"{step_name}_{output_name}"):
+        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
+        return 
+    return path
+
+@flow(task_runner = ConcurrentTaskRunner, log_prints=True)
+def get_objects_to_run(working_dir, step_name, output_name):
+    objects_to_run = []
+    for object_path in working_dir.glob('*.json'):
+        objects_to_run.append(_is_run.submit(object_path, step_name, output_name))
+    objects_to_run = [obj.result() for obj in objects_to_run]
+    objects_to_run = [obj for obj in objects_to_run if obj is not None]
+    return objects_to_run
+
+
+async def run_step(step_cfg, object_store_path):
     step_fn = step_cfg["function"]
     step_type = step_cfg.get("step_type", "list")
     step_args = step_cfg["args"]
     step_args["step_name"] = step_fn.split(".")[-1]
+
     flow_name = slugify(step_args["step_name"])
     deployment_name = slugify(step_cfg.get("deployment_name", "default"))
     full_deployment_name = f"{flow_name}/{deployment_name}"
@@ -20,12 +44,14 @@ async def run_step(step_cfg, prev_output):
         return [out]
  
     else:
+        # checking which objects to run here prevents overhead on the cluster and excess job creation.
+        objects_to_run = get_objects_to_run(object_store_path, step_args['step_name'], step_args['output_name'])
         out = await asyncio.gather(
             *[run_deployment(
                     full_deployment_name, 
                     parameters = {"image_object_path": object_path, **step_args}
                 ) 
-                for object_path in prev_output.glob('*.json')
+                for object_path in objects_to_run
             ]
         )
         return out
