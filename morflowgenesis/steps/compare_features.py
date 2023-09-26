@@ -1,11 +1,12 @@
 import os
+import re
+from typing import List
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn.metrics as skmetrics
 from prefect import flow
-from sklearn.decomposition import PCA
 from sklearn.utils import resample
 
 from morflowgenesis.utils import create_task_runner
@@ -36,7 +37,6 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
     minmax = np.percentile(x0, 99) - np.percentile(x0, 1)
     dist_full = np.median(100 * ((y0 - x0) / minmax))
 
-
     for _ in range(niter):
         xr, yr, xrefr = resample(x0, y0, xref0, replace=True)
         r2.append(skmetrics.r2_score(y_true=xr, y_pred=yr))
@@ -61,7 +61,9 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
     return x0, y0, feats
 
 
-def target_vs_prediction_scatter_plot(x, y, feats, title, cc="k", fs=14):
+def target_vs_prediction_scatter_plot(
+    x, y, feats, title, xlabel="Label", ylabel="Pred", cc="k", fs=14
+):
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     ax.set_title(title)
     xlh = (np.nanmin(x), np.nanmax(x))
@@ -76,8 +78,8 @@ def target_vs_prediction_scatter_plot(x, y, feats, title, cc="k", fs=14):
         linestyle="None",
         label="",
     )
-    plt.ylabel("Pred")
-    plt.xlabel("Label")
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
     plt.axis("equal")
 
     score = feats["r2score"]
@@ -110,21 +112,6 @@ def target_vs_prediction_scatter_plot(x, y, feats, title, cc="k", fs=14):
         transform=ax.transAxes,
     )
     return fig, ax
-
-
-def perform_PCA(x, y, n_components):
-    # dimensionality reduction, 578 -> n_components
-    pca = PCA(n_components=n_components)
-    cols = x.columns
-    x = pca.fit_transform(x)
-    y.columns = cols
-    y = pca.transform(y)
-    x = pd.DataFrame(x)
-    y = pd.DataFrame(y)
-    new_columns = ["PC" + str(i + 1) for i in range(n_components)]
-    x.columns = new_columns
-    y.columns = new_columns
-    return x, y
 
 
 def summary_plot(feats, destdir):
@@ -181,36 +168,47 @@ def summary_plot(feats, destdir):
     ax[0].set_xlabel("$R^2$")
     ax[1].set_xlabel("% bias")
     plt.tight_layout()
-    fig.savefig(os.path.join(destdir, "PC_summary.png"), transparent=True)
     plt.close(fig)
+    return fig
 
 
-def plot(x, y, destdir):
+def plot(x, y, destdir, xlabel, ylabel):
     all_feats = {}
-    for name in x.columns:
-        x0, y0, feats = target_vs_prediction_scatter_metrics(
-            x[name], y[name.replace("label", "pred")], niter=200
+    for i, name in enumerate(x.columns):
+        x0, y0, feats = target_vs_prediction_scatter_metrics(x.iloc[:, i], y.iloc[:, i], niter=200)
+        fig, ax = target_vs_prediction_scatter_plot(
+            x0, y0, feats, name, xlabel=xlabel, ylabel=ylabel
         )
-        fig, ax = target_vs_prediction_scatter_plot(x0, y0, feats, name)
-        fig.savefig(os.path.join(destdir, f"scatter_{name}.png"))
+        fig.savefig(os.path.join(destdir, f"scatter_{name}_{xlabel}_vs_{ylabel}.png"))
         plt.close(fig)
         all_feats[name] = feats
     if len(x.columns) > 1:
-        summary_plot(all_feats, destdir)
+        summary = summary_plot(all_feats, destdir)
+        summary.savefig(
+            os.path.join(destdir, f"{xlabel}_vs_{ylabel}_summary.png"), transparent=True
+        )
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def run_plot(image_object_path, step_name, output_name, input_step, features, pca_n_components=10):
-    image_object = ImageObject.parse_file(image_object_path)
+@flow(log_prints=True)  # task_runner=create_task_runner(),
+def run_plot(image_object_paths, step_name, output_name, input_step, label, pred):
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
+    (image_objects[0].working_dir / step_name / output_name).mkdir(exist_ok=True, parents=True)
 
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
-    (image_object.working_dir / step_name / output_name).mkdir(exist_ok=True, parents=True)
-    features_df = image_object.load_step(input_step)
-    for feat in features:
-        label = features_df[[col for col in features_df.columns if "label" in col and feat in col]]
-        pred = features_df[[col for col in features_df.columns if "pred" in col and feat in col]]
-        if label.shape[1] > pca_n_components:
-            label, pred = perform_PCA(label, pred, pca_n_components)
-        plot(label, pred, image_object.working_dir / step_name / output_name)
+    features_df = pd.concat([obj.load_step(input_step) for obj in image_objects])
+
+    label_features = features_df[
+        [col for col in features_df.columns if re.search(label["regex"], col)]
+    ]
+
+    for pred_filter in pred:
+        pred_features = features_df[
+            [col for col in features_df.columns if re.search(pred_filter["regex"], col)]
+        ]
+
+        plot(
+            label_features,
+            pred_features,
+            image_objects[0].working_dir / step_name / output_name,
+            xlabel=label["name"],
+            ylabel=pred_filter["name"],
+        )
