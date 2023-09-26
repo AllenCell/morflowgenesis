@@ -6,8 +6,8 @@ from prefect import flow, task
 from skimage.segmentation import find_boundaries
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
+from morflowgenesis.utils.step_output import StepOutput
 
 
 def make_rgb(img, contour):  # this function returns an RGB image
@@ -15,6 +15,7 @@ def make_rgb(img, contour):  # this function returns an RGB image
     for ch in range(contour.shape[0]):
         rgb[contour[ch] > 0, ch] = 255
     return rgb
+
 
 @task
 def project_cell(row, raw_channel, seg_channels):
@@ -52,12 +53,16 @@ def project_cell(row, raw_channel, seg_channels):
     # Place projections onto the output image
     out[: y_project.shape[0], : y_project.shape[1]] = y_project  # top left
     out[out_height - z_project.shape[0] :, : z_project.shape[1]] = z_project  # bottom left
-    out[out_height - x_project.shape[0] :, out_width - x_project.shape[1] :] = x_project  # bottom right
+    out[
+        out_height - x_project.shape[0] :, out_width - x_project.shape[1] :
+    ] = x_project  # bottom right
 
     return out.astype(np.uint8), row["CellId"]
 
 
-def assemble_contact_sheet(results, x_bins, y_bins, x_characteristic, y_characteristic, title='Contact Sheet'):
+def assemble_contact_sheet(
+    results, x_bins, y_bins, x_characteristic, y_characteristic, title="Contact Sheet"
+):
     fig, ax = plt.subplots(len(x_bins), len(y_bins), figsize=(4 * len(x_bins), 4 * len(y_bins)))
     fig.suptitle(title)
     fig.supxlabel(x_characteristic)
@@ -68,14 +73,14 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_characteristic, y_characte
             if img is not None:
                 ax[x_idx, y_idx].imshow(img)
                 ax[x_idx, y_idx].set_aspect("equal")
-                ax[x_idx, y_idx].set_title(cellid.values[0], fontdict={'fontsize':6})
-                ax[x_idx, y_idx].axis('off')
+                ax[x_idx, y_idx].set_title(cellid.values[0], fontdict={"fontsize": 6})
+                ax[x_idx, y_idx].axis("off")
     return fig
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def segmentation_contact_sheet(
-    image_object_path,
+    image_object_paths,
     step_name,
     output_name,
     single_cell_dataset_step,
@@ -86,23 +91,23 @@ def segmentation_contact_sheet(
     raw_channel=0,
     seg_channels=[0],
 ):
-    image_object = ImageObject.parse_file(image_object_path)
+    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
 
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
-
-    cell_df = image_object.load_step(single_cell_dataset_step)
-    feature_df = image_object.load_step(feature_step)
+    cell_df = pd.concat(
+        [image_object.load_step(single_cell_dataset_step) for image_object in image_objects]
+    )
+    feature_df = pd.concat(
+        [image_object.load_step(feature_step) for image_object in image_objects]
+    )
 
     quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]
 
     # Use qcut to bin the DataFrame by percentiles across both features
     feature_df[f"{x_characteristic}_bin"] = pd.qcut(
-        feature_df[f"{x_characteristic}"], q=quantile_boundaries, duplicates='drop'
+        feature_df[f"{x_characteristic}"], q=quantile_boundaries, duplicates="drop"
     )
     feature_df[f"{y_characteristic}_bin"] = pd.qcut(
-        feature_df[f"{y_characteristic}"], q=quantile_boundaries, duplicates='drop'
+        feature_df[f"{y_characteristic}"], q=quantile_boundaries, duplicates="drop"
     )
     x_bins = feature_df[f"{x_characteristic}_bin"].unique()
     y_bins = feature_df[f"{y_characteristic}_bin"].unique()
@@ -125,25 +130,29 @@ def segmentation_contact_sheet(
                 )
             else:
                 results.append(None)
-    results = [r.result() if r is not None else (None, None) for r in results ]
+    results = [r.result() if r is not None else (None, None) for r in results]
 
-    channel_names = AICSImage(cell_df['crop_seg_path'].iloc[0]).channel_names
-    colors = ['Red', 'Green', 'Blue']
-    title = 'Contact Sheet: ' + ', '.join([f'{col}: {name}' for col, name in zip(colors, channel_names)])
+    channel_names = AICSImage(cell_df["crop_seg_path"].iloc[0]).channel_names
+    colors = ["Red", "Green", "Blue"]
+    title = "Contact Sheet: " + ", ".join(
+        [f"{col}: {name}" for col, name in zip(colors, channel_names)]
+    )
     contact_sheet = assemble_contact_sheet(
         results, x_bins, y_bins, x_characteristic, y_characteristic, title=title
     )
-    
+
     output = StepOutput(
-        image_object.working_dir,
+        image_objects[0].working_dir,
         step_name,
         output_name,
         output_type="image",
-        image_id=image_object.id,
+        image_id=f"contact_sheet_{x_characteristic}_vs_{y_characteristic}",
     )
-    contact_sheet.savefig(output.path,dpi= 300)
-    image_object.add_step_output(output)
-    # image_object.save()
+    contact_sheet.savefig(output.path, dpi=300)
+    for image_object in image_objects:
+        image_object.add_step_output(output)
+        image_object.save()
+
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_contact_sheet(
@@ -151,13 +160,13 @@ def run_contact_sheet(
     step_name,
     output_name,
     single_cell_dataset_step,
-    feature_step,
-    x_characteristic,
-    y_characteristic,
+    feature_step=None,
+    x_characteristic=None,
+    y_characteristic=None,
     n_bins=10,
     raw_channel=0,
     seg_channel=0,
-    grouping_column = None,
+    grouping_column=None,
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
@@ -167,17 +176,19 @@ def run_contact_sheet(
 
     # Use qcut to bin the DataFrame by percentiles across both features
     feature_df[f"{x_characteristic}_bin"] = pd.qcut(
-        feature_df[f"{x_characteristic}"], q=quantile_boundaries, duplicates='drop'
+        feature_df[f"{x_characteristic}"], q=quantile_boundaries, duplicates="drop"
     )
     feature_df[f"{y_characteristic}_bin"] = pd.qcut(
-        feature_df[f"{y_characteristic}"], q=quantile_boundaries, duplicates='drop'
+        feature_df[f"{y_characteristic}"], q=quantile_boundaries, duplicates="drop"
     )
     x_bins = feature_df[f"{x_characteristic}_bin"].unique()
     y_bins = feature_df[f"{y_characteristic}_bin"].unique()
 
     grouped_dfs = [cell_df]
     if grouping_column is not None:
-        grouped_dfs = [cell_df[cell_df[grouping_column] == cat] for cat in cell_df.grouping_column.unique()]
+        grouped_dfs = [
+            cell_df[cell_df[grouping_column] == cat] for cat in cell_df.grouping_column.unique()
+        ]
 
     for gdf in grouped_dfs:
         results = []
@@ -198,25 +209,20 @@ def run_contact_sheet(
                     )
                 else:
                     results.append(None)
-        results = [r.result() if r is not None else (None, None) for r in results ]
+        results = [r.result() if r is not None else (None, None) for r in results]
 
         contact_sheet = assemble_contact_sheet(
             results, x_bins, y_bins, x_characteristic, y_characteristic
         )
-        
-        group_name = '' if grouping_column is None else f'_{gdf[grouping_column].iloc[0]}'
+
+        group_name = "" if grouping_column is None else f"_{gdf[grouping_column].iloc[0]}"
         output = StepOutput(
             image_object.working_dir,
             step_name,
-            output_name+group_name,
+            output_name + group_name,
             output_type="image",
             image_id=image_object.id,
         )
-        contact_sheet.savefig(output.path,dpi= 300)
+        contact_sheet.savefig(output.path, dpi=300)
         image_object.add_step_output(output)
     image_object.save()
-
-
-
-if __name__ == '__main__':
-    segmentation_contact_sheet(y_characteristic="height_crop_seg_path_crop_seg_movie", feature_step="calculate_features_movie", x_characteristic="volume_crop_seg_path_crop_seg_movie", output_name="movie", single_cell_dataset_step="single_cell_dataset_movie",step_name='test',image_object_path='//allen/aics/assay-dev/users/Benji/CurrentProjects/seg_quality_across_colonies/replicate/_ImageObjectStore/bf93a59aa13c845c037006b7196061c208f0bff8eef4a8ae6892638b.json', seg_channels=[0,1])
