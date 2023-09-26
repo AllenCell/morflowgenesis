@@ -3,7 +3,6 @@ import json
 import os
 
 import dask
-import distributed
 from dask_kubernetes.classic import make_pod_spec
 from prefect.task_runners import SequentialTaskRunner
 from prefect_dask import DaskTaskRunner
@@ -26,9 +25,10 @@ def make_dask_cluster_kwargs(encoded_str):
         "cluster_class": "dask_kubernetes.KubeCluster",
         "cluster_kwargs": {
             "pod_template": {
-                "memory_limit": "4Gi",
-                "memory_request": "1Gi",
-                "cpu_limit": "1000m",
+                "gpu_limit": 0,
+                "memory_limit": "50Gi",
+                "memory_request": "10Gi",
+                "cpu_limit": "4000m",
                 "cpu_request": "1000m",
                 "env": {"TZ": "UTC"},
             },
@@ -41,9 +41,10 @@ def make_dask_cluster_kwargs(encoded_str):
 
     _user_provided_kwargs = decode_base64_json_string(encoded_str)
     _dask_kwargs.update(_user_provided_kwargs)
-    _dask_kwargs["cluster_kwargs"]["pod_template"] = make_pod_spec(
-        **_dask_kwargs["cluster_kwargs"]["pod_template"]
-    )
+    if _dask_kwargs["cluster_class"] == "dask_kubernetes.KubeCluster":
+        _dask_kwargs["cluster_kwargs"]["pod_template"] = make_pod_spec(
+            **_dask_kwargs["cluster_kwargs"]["pod_template"]
+        )
 
     if "maximum" not in _dask_kwargs["adapt_kwargs"]:
         _dask_kwargs["adapt_kwargs"]["maximum"] = _dask_kwargs["adapt_kwargs"]["minimum"] * 2
@@ -55,7 +56,6 @@ def create_task_runner():
     dask.config.set({"distributed.diagnostics.nvml": False})
     if os.environ.get("DASK_CLUSTER") is not None:
         dask_kwargs = make_dask_cluster_kwargs(os.environ["DASK_CLUSTER"])
-        print(dask_kwargs)
         return DaskTaskRunner(**dask_kwargs)
 
     return SequentialTaskRunner()
