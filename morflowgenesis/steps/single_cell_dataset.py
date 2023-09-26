@@ -10,12 +10,12 @@ from aicsimageio.writers import OmeTiffWriter
 from prefect import flow, task
 from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
-from skimage.transform import rescale
 from skimage.measure import label
+from skimage.transform import rescale
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
+from morflowgenesis.utils.step_output import StepOutput
 
 
 def upload_file(
@@ -28,6 +28,7 @@ def upload_file(
     """Upload a file located on the Isilon to FMS."""
     raise NotImplementedError
 
+
 def reshape(img, z_res, xy_res, qcb_res, order=0):
     return rescale(
         img,
@@ -37,17 +38,24 @@ def reshape(img, z_res, xy_res, qcb_res, order=0):
         # multichannel=False,
     ).astype(np.uint8)
 
+
 def centroid_from_slice(slicee):
     return [(s.start + s.stop) // 2 for s in slicee]
+
 
 def roi_from_slice(slicee):
     return ",".join([f"{s.start},{s.stop}" for s in slicee])
 
+
 def get_renamed_image_paths(image_object, steps, rename_steps):
-    assert len(rename_steps) == len(steps),'Renaming field must be None or match 1:1 with the original names.'
+    assert len(rename_steps) == len(
+        steps
+    ), "Renaming field must be None or match 1:1 with the original names."
     return {
-        rename_steps[steps.index(step_name)]+'_path': image_object.get_step(step_name).path for step_name in steps
+        rename_steps[steps.index(step_name)] + "_path": image_object.get_step(step_name).path
+        for step_name in steps
     }
+
 
 def get_largest_cc(im):
     im = label(im)
@@ -89,6 +97,7 @@ def extract_cell(
         "centroid_x": centroid[2],
         "centroid_y": centroid[1],
         "centroid_z": centroid[0],
+        "label_img": lab,
     }
     if tracking_df is not None:
         tracking_df = tracking_df[tracking_df.label_image == lab]
@@ -97,7 +106,6 @@ def extract_cell(
                 "frame": tracking_df.time_index.iloc[0],
                 "track_id": tracking_df.track_id.iloc[0],
                 "lineage_id": tracking_df.lineage_id.iloc[0],
-                "label_img": tracking_df.label_img.iloc[0],
                 "is_outlier": tracking_df.is_outlier.iloc[0],
                 "parent": tracking_df.parent.iloc[0],
                 "daughter": tracking_df.daughter.iloc[0],
@@ -120,8 +128,14 @@ def extract_cell(
     Path(thiscell_path).mkdir(parents=True, exist_ok=True)
 
     # anisotropic resize and rename dict keys
-    raw_images = {raw_steps_rename[raw_steps.index(k)]: reshape(v, z_res, xy_res, qcb_res, order=3) for k, v in raw_images.items()}
-    seg_images = {seg_steps_rename[seg_steps.index(k)]: reshape(v, z_res, xy_res, qcb_res, order=0) for k, v in seg_images.items()}
+    raw_images = {
+        raw_steps_rename[raw_steps.index(k)]: reshape(v, z_res, xy_res, qcb_res, order=3)
+        for k, v in raw_images.items()
+    }
+    seg_images = {
+        seg_steps_rename[seg_steps.index(k)]: reshape(v, z_res, xy_res, qcb_res, order=0)
+        for k, v in seg_images.items()
+    }
 
     # save out raw and segmentation single cell images
     name_dict = {}
@@ -157,21 +171,31 @@ def extract_cell(
     df["name_dict"] = json.dumps(name_dict)
     return df
 
+
 @task
 def pad_slice(s, padding, constraints):
     # pad slice by padding subject to image size constraints
-    new_slice = [slice(None,None)]
+    new_slice = [slice(None, None)]
     for slice_part, c in zip(s, constraints):
         start = max(0, slice_part.start - padding)
         stop = min(c, slice_part.stop + padding)
         new_slice.append(slice(start, stop, None))
     return tuple(new_slice)
 
+
 @task
-def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, coords, mask=True, keep_lcc = False):
-    '''
-    Turn multich image into single cell dicts
-    '''
+def mask_images(
+    raw_images,
+    seg_images,
+    raw_steps,
+    seg_steps,
+    lab,
+    splitting_ch,
+    coords,
+    mask=True,
+    keep_lcc=False,
+):
+    """Turn multich image into single cell dicts."""
     # crop
     raw_crop = raw_images[coords].copy()
     seg_crop = seg_images[coords].copy()
@@ -184,24 +208,38 @@ def mask_images(raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch,
         seg_crop = [get_largest_cc(seg_crop[ch]) for ch in range(seg_crop.shape[0])]
 
     # split into dict
-    return {name: raw_crop[idx] for idx, name in enumerate(raw_steps)}, {name: seg_crop[idx] for idx, name in enumerate(seg_steps)}
+    return {name: raw_crop[idx] for idx, name in enumerate(raw_steps)}, {
+        name: seg_crop[idx] for idx, name in enumerate(seg_steps)
+    }
+
 
 @task
 def load_images(image_object, splitting_step, seg_steps, raw_steps):
-    '''
-    load into multichannel images
-    '''
+    """load into multichannel images."""
     assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
-    seg_images = np.stack([image_object.load_step(step_name) for step_name in seg_steps])
+    seg_images = [image_object.load_step(step_name) for step_name in seg_steps]
     raw_images = [image_object.load_step(step_name) for step_name in raw_steps]
-    raw_images = np.stack([rescale_intensity(im, out_range=np.uint8).astype(np.uint8)for im in raw_images])
+
+    # some cytodl models produce models off by 1 pix due to resizing/rounding errors
+    minimum_shape = np.min([im.shape for im in seg_images + raw_images], axis=0)
+    print(
+        f"Resizing images from shapes {[im.shape for im in seg_images + raw_images]} to {minimum_shape}"
+    )
+    minimum_shape_slice = tuple(slice(0, s) for s in minimum_shape)
+    seg_images = np.stack([im[minimum_shape_slice] for im in seg_images])
+
+    raw_images = [im[minimum_shape_slice] for im in raw_images]
+    raw_images = np.stack(
+        [rescale_intensity(im, out_range=np.uint8).astype(np.uint8) for im in raw_images]
+    )
 
     splitting_ch = seg_steps.index(splitting_step)
 
     # check all images same shape
-    assert (raw_images.shape[-3:] == seg_images.shape[-3:]), "images are not same shape"
+    assert raw_images.shape[-3:] == seg_images.shape[-3:], "images are not same shape"
 
     return raw_images, seg_images, raw_steps, seg_steps, splitting_ch
+
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def single_cell_dataset(
@@ -211,20 +249,22 @@ def single_cell_dataset(
     splitting_step,
     raw_steps,
     seg_steps,
-    raw_steps_rename = None,
-    seg_steps_rename = None,
+    raw_steps_rename=None,
+    seg_steps_rename=None,
     tracking_step=None,
     xy_res=0.108,
     z_res=0.29,
     qcb_res=0.108,
-    padding= 10,
+    padding=10,
     mask=True,
-    keep_lcc = False,
+    keep_lcc=False,
     upload_fms=False,
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
-    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(image_object, splitting_step, seg_steps, raw_steps)
+    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(
+        image_object, splitting_step, seg_steps, raw_steps
+    )
     # find objects in segmentation
     regions = find_objects(seg_images[splitting_ch].astype(int))
 
@@ -232,7 +272,7 @@ def single_cell_dataset(
     tracking_df = None
     if tracking_step is not None:
         tracking_df = image_object.load_step(tracking_step)
-        tracking_df = tracking_df[tracking_df.time_index == image_object.metadata['T']]
+        tracking_df = tracking_df[tracking_df.time_index == image_object.metadata["T"]]
 
     results = []
     for lab, coords in enumerate(regions, start=1):
@@ -241,7 +281,15 @@ def single_cell_dataset(
         padded_coords = pad_slice(coords, padding, seg_images[splitting_ch].shape)
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
-            raw_images, seg_images, raw_steps, seg_steps, lab, splitting_ch, padded_coords, mask=mask, keep_lcc=keep_lcc
+            raw_images,
+            seg_images,
+            raw_steps,
+            seg_steps,
+            lab,
+            splitting_ch,
+            padded_coords,
+            mask=mask,
+            keep_lcc=keep_lcc,
         )
         results.append(
             extract_cell.submit(
@@ -249,7 +297,7 @@ def single_cell_dataset(
                 output_name,
                 crop_raw_images,
                 crop_seg_images,
-                padded_coords[1:], #remove channel slicing
+                padded_coords[1:],  # remove channel slicing
                 coords,
                 lab,
                 raw_steps,
@@ -261,7 +309,7 @@ def single_cell_dataset(
                 dataset_name="morphogenesis",
                 tracking_df=None,
                 seg_steps_rename=seg_steps_rename,
-                raw_steps_rename=raw_steps_rename
+                raw_steps_rename=raw_steps_rename,
             )
         )
 
@@ -282,7 +330,3 @@ def single_cell_dataset(
 
     image_object.add_step_output(step_output)
     image_object.save()
-
-
-if __name__ == '__main__':
-    single_cell_dataset(raw_steps=['generate_objects_raw'], seg_steps=['generate_objects_seg', 'run_watershed_watershed'], output_name="movie", seg_steps_rename=['movie', 'watershed'], mask=False, keep_lcc=True, splitting_step="run_watershed_watershed",step_name='test',image_object_path='//allen/aics/assay-dev/users/Benji/CurrentProjects/seg_quality_across_colonies/replicate/_ImageObjectStore/bf93a59aa13c845c037006b7196061c208f0bff8eef4a8ae6892638b.json')
