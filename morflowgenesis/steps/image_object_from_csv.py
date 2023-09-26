@@ -1,16 +1,23 @@
+from pathlib import Path
+
 import pandas as pd
 from aicsimageio import AICSImage
-from pathlib import Path
 from prefect import flow, task
 
+from morflowgenesis.utils.create_temporary_dask_cluster import create_task_runner
 from morflowgenesis.utils.image_object import ImageObject
 from morflowgenesis.utils.step_output import StepOutput
-from morflowgenesis.utils.create_temporary_dask_cluster import create_task_runner
 
 
 @task
 def generate_object(
-   existing_ids, row, working_dir, step_name, source_column, non_source_columns, metadata_column=None
+    existing_ids,
+    row,
+    working_dir,
+    step_name,
+    source_column,
+    non_source_columns,
+    metadata_column=None,
 ):
     source_img = AICSImage(row[source_column])
     # add metadata
@@ -20,15 +27,16 @@ def generate_object(
 
     obj = ImageObject(working_dir, row[source_column], metadata)
     if obj.id in existing_ids:
-        print(f'ID {obj.id} already exists. Skipping...')
+        print(f"ID {obj.id} already exists. Skipping...")
         return
-    
+
     for col in [source_column] + non_source_columns:
         step_output = StepOutput(
             working_dir, step_name, col, "image", image_id=obj.id, path=row[col]
         )
         obj.add_step_output(step_output)
     obj.save()
+
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def generate_objects(
@@ -39,7 +47,10 @@ def generate_objects(
     non_source_columns=[],
     metadata_column=None,
 ):
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (Path(working_dir)/ "_ImageObjectStore").glob('*')]
+    image_objects = [
+        ImageObject.parse_file(obj_path)
+        for obj_path in (Path(working_dir) / "_ImageObjectStore").glob("*")
+    ]
 
     """Generate a new image object for each row in the csv file."""
     df = pd.read_csv(csv_path)
@@ -49,7 +60,14 @@ def generate_objects(
     for row in df.itertuples():
         new_image_objects.append(
             generate_object.submit(
-               existing_ids, row._asdict(), working_dir, step_name, source_column, non_source_columns, metadata_column
+                existing_ids,
+                row._asdict(),
+                working_dir,
+                step_name,
+                source_column,
+                non_source_columns,
+                metadata_column,
             )
         )
+
     [im_obj.result() for im_obj in new_image_objects]

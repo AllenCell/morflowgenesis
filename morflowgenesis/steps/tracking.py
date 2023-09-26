@@ -1,3 +1,4 @@
+import time
 from pathlib import Path
 
 import numpy as np
@@ -10,16 +11,29 @@ from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
+from morflowgenesis.utils.step_output import StepOutput
 
 
 @task
 def create_regionprops_csv(obj, input_step):
+    t0 = time.time()
     inst_seg = obj.get_step(input_step).load_output()
-    timepoint = obj.metadata['T']
+    timepoint = obj.metadata["T"]
     # find centroids and volumes for each instance
-    data_table = []
+    data_table = pd.DataFrame(
+        columns=[
+            "CellLabel",
+            "Timepoint",
+            "Centroid_z",
+            "Centroid_y",
+            "Centroid_x",
+            "Volume",
+            "Edge_Cell",
+            "img_shape",
+        ]
+    )
+
     origin = np.zeros((3,), dtype=int)
     field_shape = np.array(inst_seg.shape, dtype=int)
     regions = find_objects(inst_seg.astype(int))
@@ -35,19 +49,22 @@ def create_regionprops_csv(obj, input_step):
         )
 
         centroid = [(s.start + s.stop) // 2 for s in coords]
-        row = {
-            "CellLabel": lab,
-            "Timepoint": timepoint,
-            "Centroid_z": centroid[0],
-            "Centroid_y": centroid[1],
-            "Centroid_x": centroid[2],
-            "Volume": np.sum(inst_seg[coords] == lab),
-            "Edge_Cell": is_edge,
-            "img_shape": field_shape,
-        }
-        data_table.append(row)
-
-    return pd.DataFrame(data_table)
+        row = pd.DataFrame(
+            [
+                {
+                    "CellLabel": lab,
+                    "Timepoint": timepoint,
+                    "Centroid_z": centroid[0],
+                    "Centroid_y": centroid[1],
+                    "Centroid_x": centroid[2],
+                    "Volume": np.sum(inst_seg[coords] == lab),
+                    "Edge_Cell": is_edge,
+                    "img_shape": field_shape,
+                }
+            ]
+        )
+        data_table = pd.concat([data_table, row])
+    return data_table
 
 
 @task
@@ -58,7 +75,7 @@ def track(regionprops, working_dir, step_name, output_name, edge_thresh_dist=75)
         step_name=step_name,
         output_name=output_name,
         output_type="csv",
-        image_id='',
+        image_id="",
         path=output_dir / "edges.csv",
     )
 
@@ -102,7 +119,10 @@ def _do_tracking(image_objects, step_name, output_name):
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_tracking(working_dir, step_name, output_name, input_step):
     working_dir = Path(working_dir)
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in (working_dir/ "_ImageObjectStore").glob('*.json')]
+    image_objects = [
+        ImageObject.parse_file(obj_path)
+        for obj_path in (working_dir / "_ImageObjectStore").glob("*.json")
+    ]
 
     if _do_tracking(image_objects, step_name, output_name):
         # create centroid/volume csv

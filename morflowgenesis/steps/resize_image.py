@@ -4,15 +4,16 @@ from prefect import flow
 from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
+from morflowgenesis.utils.step_output import StepOutput
+
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_resize(
     image_object_path, step_name, output_name, input_step, output_shape=None, scale=None, order=0
 ):
     image_object = ImageObject.parse_file(image_object_path)
-    
+
     # image resizing
     img = image_object.load_step(input_step)
     input_dtype = img.dtype
