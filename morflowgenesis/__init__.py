@@ -1,8 +1,6 @@
-# -*- coding: utf-8 -*-
-
 """Top-level package for morflowgenesis."""
 
-__author__ = "Jackson Maxfield Brown"
+__author__ = "AICS"
 __email__ = "benjamin.morris@alleninstitute.org"
 # Do not edit this string manually, always use bumpversion
 # Details in CONTRIBUTING.md
