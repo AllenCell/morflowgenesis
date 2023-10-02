@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import re
 from pathlib import Path
 from shutil import rmtree
 
@@ -220,6 +221,17 @@ def mask_images(
 @task
 def load_images(image_object, splitting_step, seg_steps, raw_steps):
     """load into multichannel images."""
+    available_steps = list(image_object.steps.keys())
+    for i in range(len(seg_steps)):
+        if '*' in seg_steps[i]:
+            found_steps = [step for step in available_steps if re.search(seg_steps[i], step)]
+            if found_steps is not None:
+                del seg_steps[i]
+                seg_steps += found_steps
+            else:
+                raise ValueError(f'Regex search for seg_name `{seg_steps[i]}` did not find any matches. If regex search is not intended, remove `*` from seg_name')
+
+
     assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
     seg_images = [image_object.load_step(step_name) for step_name in seg_steps]
     raw_images = [image_object.load_step(step_name) for step_name in raw_steps]

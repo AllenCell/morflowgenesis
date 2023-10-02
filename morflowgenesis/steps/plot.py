@@ -1,4 +1,5 @@
 import os
+import re
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -187,12 +188,26 @@ def run_plot(image_object_paths, step_name, output_name, input_step,features, la
     label_features = features_df.xs(label['segmentation_name'], level='Name')[features]
 
     for pred_filter in pred:
-        save_dir = image_objects[0].working_dir / step_name / pred_filter['segmentation_name']
-        save_dir.mkdir(exist_ok=True, parents=True)
-        plot(
-            label_features,
-            features_df.xs(pred_filter['segmentation_name'], level='Name')[features],
-            save_dir,
-            xlabel=label["description"],
-            ylabel=pred_filter["description"],
-        )
+        if '*' in pred_filter['segmentation_name']:
+            available_levels = features_df.index.get_level_values('Name').unique().values
+            for level in available_levels:
+                if re.search(pred_filter['segmentation_name'], level):
+                    save_dir = image_objects[0].working_dir / step_name / level
+                    save_dir.mkdir(exist_ok=True, parents=True)
+                    plot(
+                        label_features,
+                        features_df.xs(level, level='Name')[features],
+                        save_dir,
+                        xlabel=label["description"],
+                        ylabel=f"{pred_filter['description']} {level}",
+                    )
+        else:
+            save_dir = image_objects[0].working_dir / step_name / pred_filter['segmentation_name']
+            save_dir.mkdir(exist_ok=True, parents=True)
+            plot(
+                label_features,
+                features_df.xs(pred_filter['segmentation_name'], level='Name')[features],
+                save_dir,
+                xlabel=label["description"],
+                ylabel=pred_filter["description"],
+            )
