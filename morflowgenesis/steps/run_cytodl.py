@@ -2,6 +2,7 @@ import os
 import shutil
 from pathlib import Path
 
+import mlflow
 from cyto_dl.eval import evaluate
 from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
@@ -15,10 +16,39 @@ from morflowgenesis.utils.step_output import StepOutput
 
 
 @task
-def generate_config(image_object, step_name, output_name, input_step, config_path, overrides):
+def download_mlflow_model(
+    run_id: str,
+    save_path: str,
+    checkpoint_path="checkpoints/val/loss/best.ckpt",
+    tracking_uri: str = "https://mlflow.a100.int.allencell.org",
+):
+    mlflow.set_tracking_uri(tracking_uri)
+    mlflow.artifacts.download_artifacts(
+        run_id=run_id, tracking_uri=tracking_uri, artifact_path=checkpoint_path, dst_path=save_path
+    )
+    return save_path / checkpoint_path
+
+
+@task
+def generate_config(
+    image_object,
+    step_name,
+    output_name,
+    input_step,
+    overrides,
+    config_path,
+    run_id=None,
+    checkpoint_path="checkpoints/val/loss/best.ckpt",
+):
     # get input data path
     prev_step_output = image_object.get_step(input_step)
     data_path = prev_step_output.path
+
+    mlflow_ckpt_path = None
+    if run_id is not None:
+        save_path = image_object.working_dir / run_id
+        save_path.mkdir(exist_ok=True, parents=True)
+        mlflow_ckpt_path = download_mlflow_model(run_id, save_path, checkpoint_path)
 
     # initialize config with overrides
     config_path = Path(config_path)
@@ -38,9 +68,12 @@ def generate_config(image_object, step_name, output_name, input_step, config_pat
                 cfg.hydra.job.id = 0
 
         # TODO make load/save path overrides work on default cytodl configs
-        cfg["data"]["data"] = [{cfg.source_col: str(data_path)}]
+        cfg["data"]["data"] = [{cfg.model.x_key: str(data_path)}]
         save_dir = image_object.working_dir / step_name / output_name / image_object.id
         cfg["model"]["save_dir"] = str(save_dir)
+
+        if mlflow_ckpt_path is not None:
+            cfg["ckpt_path"] = mlflow_ckpt_path
 
         HydraConfig.instance().set_config(cfg)
         OmegaConf.set_readonly(cfg.hydra, None)
