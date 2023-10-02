@@ -1,5 +1,3 @@
-import os
-
 from prefect import flow
 from skimage.transform import rescale, resize
 

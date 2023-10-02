@@ -139,4 +139,3 @@ def run_watershed(
     output.save(seg)
     image_object.add_step_output(output)
     image_object.save()
-

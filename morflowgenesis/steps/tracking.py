@@ -34,7 +34,6 @@ def create_regionprops_csv(obj, input_step):
         ]
     )
 
-    origin = np.zeros((3,), dtype=int)
     field_shape = np.array(inst_seg.shape, dtype=int)
     regions = find_objects(inst_seg.astype(int))
 
@@ -44,9 +43,7 @@ def create_regionprops_csv(obj, input_step):
         min_coors = np.asarray([s.start for s in coords])
         max_coors = np.asarray([s.stop for s in coords])
 
-        is_edge = np.any(
-            np.logical_or(np.equal(min_coors, origin), np.equal(max_coors, field_shape))
-        )
+        is_edge = np.any(np.logical_or(min_coors == 0, max_coors == field_shape))
 
         centroid = [(s.start + s.stop) // 2 for s in coords]
         row = pd.DataFrame(
