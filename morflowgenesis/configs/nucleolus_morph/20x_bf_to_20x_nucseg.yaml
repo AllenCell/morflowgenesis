@@ -72,13 +72,13 @@ model:
                 dim: 3
             save_raw: true
             dense: true
-            # postprocess:
-            #     prediction:
-            #         _target_: cyto_dl.models.im2im.utils.skoots.SkootsCluster
-            #         skel_threshold: -1.5
-            #         semantic_threshold: -7
-            #         distance_threshold: 8
-            #         min_size: 0
+            postprocess:
+                prediction:
+                    _target_: cyto_dl.models.im2im.utils.skoots.SkootsCluster
+                    skel_threshold: -1.5
+                    semantic_threshold: -7
+                    distance_threshold: 8
+                    min_size: 0
         nucseg:
             _target_: cyto_dl.nn.ResBlocksHead
             in_channels: 128

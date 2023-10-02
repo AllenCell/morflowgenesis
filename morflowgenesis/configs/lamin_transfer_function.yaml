@@ -2,8 +2,7 @@ working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/validation_wd
 deployment_name: lamin_transfer_function_validation
 work_pool_name: k8s
 
-debug: True
-deploy: true
+local_run: True
 
 pull:
     repository: https://github.com/aics-int/morflowgenesis.git
@@ -31,6 +30,8 @@ infra_overrides:
 
 # dask cluster overrides
 dask_cluster:
+    adapt:
+        maximum: 200
     cluster_kwargs:
         # dask worker args
         pod_template:
@@ -67,55 +68,55 @@ gpu_step_overrides:
 steps:
     - function: morflowgenesis.steps.image_object_from_csv.generate_objects
       args:
-        csv_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/nucleus_transfer_function/new_08_18/test.csv"
-        working_dir: ${working_dir}
-        source_column: "lr"
-        non_source_columns: ["hr"]
+          csv_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/nucleus_transfer_function/new_08_18/test.csv"
+          working_dir: ${working_dir}
+          source_column: "lr"
+          non_source_columns: ["hr"]
       step_type: "gather"
 
     # run transfer function
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
-        output_name: 100x_lamin
-        input_step: generate_objects_lr
-        config_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nucleus_transfer_function/new_data/2023-08-22_16-57-28/.hydra/config_validate.yaml"
+          output_name: 100x_lamin
+          input_step: generate_objects_lr
+          config_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nucleus_transfer_function/new_data/2023-08-22_16-57-28/.hydra/config_validate.yaml"
       dask_cluster: null
       infra_overrides: ${gpu_step_overrides}
-      
+
     # run segmentation from 20x
     - function: morflowgenesis.steps.run_cytodl.run_cytodl
       args:
-        output_name: 100x_lamin_seg
-        input_step: generate_objects_lr
-        config_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/cellnucmorph_end_to_end/nuc_from_lamin_less_aug_large/2023-05-09_16-51-59/.hydra/config_validation.yaml"
+          output_name: 100x_lamin_seg
+          input_step: generate_objects_lr
+          config_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/cellnucmorph_end_to_end/nuc_from_lamin_less_aug_large/2023-05-09_16-51-59/.hydra/config_validation.yaml"
       dask_cluster: null
       infra_overrides: ${gpu_step_overrides}
 
     # watershed on transfer function lamin
     - function: morflowgenesis.steps.segmentation_seeded_watershed.run_watershed
       args:
-        output_name: real_lamin
-        raw_input_step: generate_objects_hr
-        seg_input_step: run_cytodl_100x_lamin_seg
-        mode: 'erosion'
-        erosion: 5
+          output_name: real_lamin
+          raw_input_step: generate_objects_hr
+          seg_input_step: run_cytodl_100x_lamin_seg
+          mode: "erosion"
+          erosion: 5
 
-    # watershed on tf lamin 
+    # watershed on tf lamin
     - function: morflowgenesis.steps.segmentation_seeded_watershed.run_watershed
       args:
-        output_name: tf_lamin
-        raw_input_step: run_cytodl_100x_lamin
-        seg_input_step: run_cytodl_100x_lamin_seg
-        mode: 'erosion'
-        erosion: 5
+          output_name: tf_lamin
+          raw_input_step: run_cytodl_100x_lamin
+          seg_input_step: run_cytodl_100x_lamin_seg
+          mode: "erosion"
+          erosion: 5
 
     # extract segs on tf lamin
     - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
       args:
-        output_name: tf_lamin
-        splitting_step: run_watershed_tf_lamin
-        raw_steps: [run_cytodl_100x_lamin]
-        seg_steps: [run_watershed_tf_lamin]
+          output_name: tf_lamin
+          splitting_step: run_watershed_tf_lamin
+          raw_steps: [run_cytodl_100x_lamin]
+          seg_steps: [run_watershed_tf_lamin]
 
     # # extract segs from 20x
     # - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
@@ -129,7 +130,7 @@ steps:
     # - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
     #   args:
     #     output_name: gt
-    #     splitting_step: 
+    #     splitting_step:
     #     raw_steps: [generate_objects_hr]
     #     seg_steps: [run_watershed_real_lamin]
 
@@ -144,18 +145,17 @@ steps:
 
     - function: morflowgenesis.steps.feature_calculation.calculate_features
       args:
-        output_name: tf_lamin
-        input_step: single_cell_dataset_tf_lamin
-        segmentation_columns: [crop_seg_path]
-        features:
-            - height_crop_seg_path
-            - volume_crop_seg_path
+          output_name: tf_lamin
+          input_step: single_cell_dataset_tf_lamin
+          segmentation_columns: [crop_seg_path]
+          features:
+              - height_crop_seg_path
+              - volume_crop_seg_path
 
     - function: morflowgenesis.steps.max_project.max_project
       args:
-        output_name: max_project
-        input_steps: run_cytodl_100x_lamin
-
+          output_name: max_project
+          input_steps: run_cytodl_100x_lamin
 
     # - function: morflowgenesis.steps.contact_sheet.run_contact_sheet
     #   args:
@@ -183,7 +183,7 @@ steps:
     #         - height
     #         - n_pieces
 
-    # - function: morflowgenesis.steps.compare_features.run_plot
+    # - function: morflowgenesis.steps.plot.run_plot
     #   args:
     #     output_name: plot
     #     input_step: get_features_matched_features

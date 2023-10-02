@@ -43,8 +43,8 @@ async def morflowgenesis(cfg):
             check_state(result, step_cfg)
 
 
-# default config is morflowgenesis/configs/workflow/config.yaml
-@hydra.main(version_base="1.3", config_path="../configs/workflow", config_name="config.yaml")
+# default config is morflowgenesis/configs/workflow_config.yaml
+@hydra.main(version_base="1.3", config_path="../configs/", config_name="workflow_config.yaml")
 def main(_cfg: DictConfig):
     cfg = OmegaConf.to_container(_cfg, resolve=True)
 

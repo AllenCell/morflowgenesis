@@ -8,18 +8,18 @@ seed: 12345
 data:
     _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader
     num_workers: 0
-    data: 
+    data:
     transforms:
         - _target_: monai.transforms.LoadImaged
           keys: ${source_col}
           reader:
-            - _target_: cyto_dl.image.io.MonaiBioReader
-              dimension_order_out: CZYX
+              - _target_: cyto_dl.image.io.MonaiBioReader
+                dimension_order_out: CZYX
         - _target_: monai.transforms.ToTensord
           keys: ${source_col}
         - _target_: monai.transforms.NormalizeIntensityd
           keys:
-            - ${source_col}
+              - ${source_col}
     _aux:
         patch_shape:
             - 32
