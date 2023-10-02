@@ -74,6 +74,7 @@ def extract_cell(
     lab,
     raw_steps,
     seg_steps,
+    is_edge,
     qcb_res,
     z_res,
     xy_res,
@@ -98,6 +99,7 @@ def extract_cell(
         "centroid_y": centroid[1],
         "centroid_z": centroid[0],
         "label_img": lab,
+        "edge_cell": is_edge,
     }
     if tracking_df is not None:
         tracking_df = tracking_df[tracking_df.label_image == lab]
@@ -140,13 +142,12 @@ def extract_cell(
     # save out raw and segmentation single cell images
     name_dict = {}
     for output_type, data in zip(["raw", "seg"], [raw_images, seg_images]):
-        fns = sorted(data.keys())
+        channel_names = sorted(data.keys())
         # possible that there is no raw or segmented image available for this cell
-        if len(fns) == 0:
+        if len(channel_names) == 0:
             continue
         # stack segmentation/raw images into multichannel image
-        imgs = np.asarray([data[k] for k in fns])
-        channel_names = [f"crop_{output_type}_{c}" for c in fns]
+        imgs = np.asarray([data[k] for k in channel_names])
         save_path = thiscell_path / f"{output_type}.tiff"
         OmeTiffWriter().save(
             uri=save_path, data=imgs, dimension_order="CZYX", channel_names=channel_names
@@ -175,12 +176,15 @@ def extract_cell(
 @task
 def pad_slice(s, padding, constraints):
     # pad slice by padding subject to image size constraints
+    is_edge = False
     new_slice = [slice(None, None)]
     for slice_part, c in zip(s, constraints):
+        if slice_part.start == 0 or slice_part.stop >= c:
+            is_edge = True
         start = max(0, slice_part.start - padding)
         stop = min(c, slice_part.stop + padding)
         new_slice.append(slice(start, stop, None))
-    return tuple(new_slice)
+    return tuple(new_slice), is_edge
 
 
 @task
@@ -278,7 +282,7 @@ def single_cell_dataset(
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        padded_coords = pad_slice(coords, padding, seg_images[splitting_ch].shape)
+        padded_coords, is_edge = pad_slice(coords, padding, seg_images[splitting_ch].shape)
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
             raw_images,
@@ -302,6 +306,7 @@ def single_cell_dataset(
                 lab,
                 raw_steps,
                 seg_steps,
+                is_edge,
                 qcb_res,
                 z_res,
                 xy_res,
