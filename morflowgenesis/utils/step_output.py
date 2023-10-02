@@ -1,6 +1,5 @@
-import json
 from pathlib import Path
-from typing import Literal
+from typing import List, Literal, Optional, Union
 
 import pandas as pd
 from aicsimageio import AICSImage
@@ -15,8 +14,11 @@ class StepOutput(BaseModel):
     output_type: Literal["image", "csv"]
     image_id: str
     path: Path = None
+    index_col: Optional[Union[List, str]] = None
 
-    def __init__(self, working_dir, step_name, output_name, output_type, image_id, path=None):
+    def __init__(
+        self, working_dir, step_name, output_name, output_type, image_id, path=None, index_col=None
+    ):
         super().__init__(
             working_dir=working_dir,
             step_name=step_name,
@@ -24,6 +26,7 @@ class StepOutput(BaseModel):
             output_type=output_type,
             image_id=image_id,
             path=path,
+            index_col=index_col,
         )
 
         file_extension = ".tif" if output_type == "image" else ".csv"
@@ -40,11 +43,11 @@ class StepOutput(BaseModel):
         if self.output_type == "image":
             return AICSImage(self.path).data.squeeze()
         elif self.output_type == "csv":
-            return pd.read_csv(self.path)
+            return pd.read_csv(self.path, index_col=self.index_col)
 
     def save(self, data, path=None):
         path = path or self.path
         if self.output_type == "image":
             OmeTiffWriter.save(uri=path, data=data)
         elif self.output_type == "csv":
-            data.to_csv(path, index=False)
+            data.to_csv(path)
