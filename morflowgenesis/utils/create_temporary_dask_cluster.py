@@ -54,6 +54,8 @@ def make_dask_cluster_kwargs(encoded_str):
 
 def create_task_runner():
     dask.config.set({"distributed.diagnostics.nvml": False})
+    dask.config.set({"logging.distributed": "error"})
+
     if os.environ.get("DASK_CLUSTER") is not None:
         dask_kwargs = make_dask_cluster_kwargs(os.environ["DASK_CLUSTER"])
         return DaskTaskRunner(**dask_kwargs)
