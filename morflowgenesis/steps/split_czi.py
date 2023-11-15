@@ -78,17 +78,17 @@ def split_czi(
     working_dir = Path(working_dir)
     (working_dir / step_name).mkdir(exist_ok=True, parents=True)
 
-    alignment_args = {}
+    alignment_args = None
     if optical_control_path is not None:
         alignment_args = {}
         alignment_args["matrix"] = align_argolight(
-            working_dir / "optical_control_alignment", optical_control_path
+            working_dir / "optical_control_alignment" / output_name, optical_control_path
         )
         alignment_channels = channel_info_factory(czi_path).channels_from_camera_position(
             CameraPosition.BACK
         )
         alignment_args["channels"] = [channel.channel_index for channel in alignment_channels]
-        with open(working_dir / "optical_control_alignment" / "alignment_params.json", "w") as f:
+        with open(working_dir / "optical_control_alignment" / output_name / "alignment_params.json", "w") as f:
             json.dump(str(alignment_args), f)
         print("Alignment Parameters:", alignment_args)
 
