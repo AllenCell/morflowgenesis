@@ -6,9 +6,12 @@ from morflowgenesis.utils.step_output import StepOutput
 
 
 @task
-def load(image_object_path, input_step):
+def load(image_object_path, input_step, ch=None):
     image_object = ImageObject.parse_file(image_object_path)
-    return image_object, image_object.load_step(input_step)
+    img = image_object.load_step(input_step)
+    if ch is not None:
+        img = img[ch]
+    return image_object, img
 
 
 @task
@@ -19,10 +22,10 @@ def run(function, function_args, data):
 
 @flow(log_prints=True)
 def array_to_array(
-    image_object_path, step_name, output_name, input_step, function, function_args={}
+    image_object_path, step_name, output_name, input_step, function, ch = None, function_args={}
 ):
 
-    image_object, data = load(image_object_path, input_step)
+    image_object, data = load(image_object_path, input_step, ch=ch)
     results = run(function, function_args, data)
 
     output = StepOutput(
