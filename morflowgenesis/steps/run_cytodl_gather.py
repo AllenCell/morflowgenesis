@@ -43,7 +43,11 @@ def generate_config(
     checkpoint_path="checkpoints/val/loss/best.ckpt",
 ):
     # get input data path
-    data_paths = [im.get_step(input_step).path for im in image_objects if not (im.working_dir/step_name/output_name/f'{im.id}_nucseg_pred.tif').exists()]
+    data_paths = [
+        im.get_step(input_step).path
+        for im in image_objects
+        if not (im.working_dir / step_name / output_name / f"{im.id}_nucseg_pred.tif").exists()
+    ]
 
     mlflow_ckpt_path = None
     if run_id is not None:

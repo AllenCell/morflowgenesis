@@ -1,12 +1,11 @@
-import tqdm
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import tqdm
 from prefect import flow, task
 from scipy.ndimage import find_objects
 from scipy.signal import medfilt
-
 from timelapsetracking import csv_to_nodes
 from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
@@ -55,11 +54,14 @@ def create_regionprops_csv(obj, input_step, step_name, output_name):
         )
         data.append(row)
     out = pd.concat(data)
-    out.to_csv(f"{obj.working_dir}/{step_name}/{output_name}/{obj.id}_regionprops.csv", index=False)
+    out.to_csv(
+        f"{obj.working_dir}/{step_name}/{output_name}/{obj.id}_regionprops.csv", index=False
+    )
     return out
 
+
 def find_outliers_by_volume(vol, thresh=0.10, pad_size=15, kernel=9):
-    """detect errors in instance segmentation through changes in volume"""
+    """detect errors in instance segmentation through changes in volume."""
     # outliers = []
 
     # normalize data relative to minimum size
@@ -87,9 +89,10 @@ def get_outliers(df):
 
     # note if track has outliers and whichg timpoints come afterwards
     if len(outliers) > 0:
-        df.loc[outliers[0]:, "past_outlier"].iloc[outliers[0] :] = True
+        df.loc[outliers[0] :, "past_outlier"].iloc[outliers[0] :] = True
         df["has_outlier"] = True
     return df
+
 
 def get_cell_state(df):
     idxs = df.index.values.tolist()
@@ -107,16 +110,14 @@ def get_cell_state(df):
         next_idx = idxs.index(idx) + 1
         if next_idx < len(idxs):
             df.loc[idx, "parent"] = (
-                df.iloc[next_idx]["has_pair"]
-                or len(eval(df.loc[idx]["out_list"])) > 1
+                df.iloc[next_idx]["has_pair"] or len(eval(df.loc[idx]["out_list"])) > 1
             ) and not df.loc[idx, "daughter"]
 
         # if not parent or daughter, cell is migrating normally
-        df.loc[idx, "normal_migration"] = not (
-            df.loc[idx]["daughter"] or df.loc[idx]["parent"]
-        )
+        df.loc[idx, "normal_migration"] = not (df.loc[idx]["daughter"] or df.loc[idx]["parent"])
 
     return df
+
 
 def outlier_detection(df_track):
     # add new columns to tracking table
@@ -132,11 +133,12 @@ def outlier_detection(df_track):
 
     print("Cell state")
     # Estimate cell state based on tracking/instance seg results
-    grouped = df_track.groupby('lineage_id')
+    grouped = df_track.groupby("lineage_id")
     df_track = grouped.apply(get_cell_state).reset_index(drop=True)
     return df_track
 
-@task(tags=['tracking'])
+
+@task(tags=["tracking"])
 def track(regionprops, working_dir, step_name, output_name, edge_thresh_dist=75):
     output_dir = working_dir / step_name / output_name
     tracking_output = StepOutput(
@@ -186,6 +188,7 @@ def _do_tracking(image_objects, step_name, output_name):
     if not run:
         print(f"Skipping step {step_name}_{output_name}")
     return run
+
 
 # TODO find out why this requires ~ 100GB mem per worker?
 @flow(task_runner=create_task_runner(), log_prints=True)

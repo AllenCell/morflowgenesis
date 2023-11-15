@@ -18,7 +18,7 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
     dist_ratio = []
 
     x = x.to_numpy()
-    y= y.to_numpy()
+    y = y.to_numpy()
 
     r2full = skmetrics.r2_score(y_true=x, y_pred=y)
 
@@ -165,11 +165,15 @@ def summary_plot(feats):
 def plot(x_df, y_df, destdir, xlabel, ylabel):
     all_feats = {}
     for i, name in enumerate(x_df.columns):
-        x, y, feats = target_vs_prediction_scatter_metrics(x_df.iloc[:, i], y_df.iloc[:, i], niter=200)
+        x, y, feats = target_vs_prediction_scatter_metrics(
+            x_df.iloc[:, i], y_df.iloc[:, i], niter=200
+        )
         fig, ax = target_vs_prediction_scatter_plot(
             x, y, feats, name, xlabel=xlabel, ylabel=ylabel
         )
-        fig.savefig(os.path.join(destdir, f"scatter_{name}_{xlabel}_vs_{ylabel}.png"), transparent=True)
+        fig.savefig(
+            os.path.join(destdir, f"scatter_{name}_{xlabel}_vs_{ylabel}.png"), transparent=True
+        )
         plt.close(fig)
         all_feats[name] = feats
     if len(x_df.columns) > 1:
@@ -180,32 +184,32 @@ def plot(x_df, y_df, destdir, xlabel, ylabel):
 
 
 @flow(log_prints=True)
-def run_plot(image_object_paths, step_name, output_name, input_step,features, label, pred):
+def run_plot(image_object_paths, step_name, output_name, input_step, features, label, pred):
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
 
     features_df = pd.concat([obj.load_step(input_step) for obj in image_objects]).drop_duplicates()
     features_df.dropna(inplace=True)
 
-    label_features = features_df.xs(label['segmentation_name'], level='Name')[features]
+    label_features = features_df.xs(label["segmentation_name"], level="Name")[features]
 
     for pred_filter in pred:
-        if '*' in pred_filter['segmentation_name']:
-            available_levels = features_df.index.get_level_values('Name').unique().values
+        if "*" in pred_filter["segmentation_name"]:
+            available_levels = features_df.index.get_level_values("Name").unique().values
             for level in available_levels:
-                if re.search(pred_filter['segmentation_name'], level):
+                if re.search(pred_filter["segmentation_name"], level):
                     save_dir = image_objects[0].working_dir / step_name / level
                     save_dir.mkdir(exist_ok=True, parents=True)
                     plot(
                         label_features,
-                        features_df.xs(level, level='Name')[features],
+                        features_df.xs(level, level="Name")[features],
                         save_dir,
                         xlabel=label["description"],
                         ylabel=f"{pred_filter['description']} {level}",
                     )
         else:
-            save_dir = image_objects[0].working_dir / step_name / pred_filter['segmentation_name']
+            save_dir = image_objects[0].working_dir / step_name / pred_filter["segmentation_name"]
             save_dir.mkdir(exist_ok=True, parents=True)
-            pred_data=features_df.xs(pred_filter['segmentation_name'], level='Name')[features]
+            pred_data = features_df.xs(pred_filter["segmentation_name"], level="Name")[features]
             plot(
                 label_features,
                 pred_data,

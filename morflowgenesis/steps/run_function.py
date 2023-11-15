@@ -22,7 +22,7 @@ def run(function, function_args, data):
 
 @flow(log_prints=True)
 def array_to_array(
-    image_object_path, step_name, output_name, input_step, function, ch = None, function_args={}
+    image_object_path, step_name, output_name, input_step, function, ch=None, function_args={}
 ):
 
     image_object, data = load(image_object_path, input_step, ch=ch)

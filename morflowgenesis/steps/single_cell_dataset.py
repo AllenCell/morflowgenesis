@@ -66,6 +66,7 @@ def get_largest_cc(im):
         return im
     return im == largest_cc
 
+
 @task
 def extract_cell(
     image_object,
@@ -201,7 +202,7 @@ def mask_images(
     coords,
     mask=True,
     keep_lcc=False,
-    iou_thresh=None
+    iou_thresh=None,
 ):
     """Turn multich image into single cell dicts."""
     # crop
@@ -233,14 +234,15 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
     """load into multichannel images."""
     available_steps = list(image_object.steps.keys())
     for i in range(len(seg_steps)):
-        if '*' in seg_steps[i]:
+        if "*" in seg_steps[i]:
             found_steps = [step for step in available_steps if re.search(seg_steps[i], step)]
             if found_steps is not None:
                 del seg_steps[i]
                 seg_steps += found_steps
             else:
-                raise ValueError(f'Regex search for seg_name `{seg_steps[i]}` did not find any matches. If regex search is not intended, remove `*` from seg_name')
-
+                raise ValueError(
+                    f"Regex search for seg_name `{seg_steps[i]}` did not find any matches. If regex search is not intended, remove `*` from seg_name"
+                )
 
     assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
     seg_images = [image_object.load_step(step_name) for step_name in seg_steps]
@@ -254,9 +256,11 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
     seg_images = np.stack([im[minimum_shape_slice] for im in seg_images])
     splitting_ch = seg_steps.index(splitting_step)
 
-    if len(raw_images)>0:
+    if len(raw_images) > 0:
         raw_images = [im[minimum_shape_slice] for im in raw_images]
-        raw_images = np.clip(raw_images, np.percentile(raw_images, 0.01), np.percentile(raw_images, 99.99))
+        raw_images = np.clip(
+            raw_images, np.percentile(raw_images, 0.01), np.percentile(raw_images, 99.99)
+        )
         raw_images = np.stack(
             [rescale_intensity(im, out_range=np.uint8).astype(np.uint8) for im in raw_images]
         )
@@ -269,9 +273,27 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
     return raw_images, seg_images, raw_steps, seg_steps, splitting_ch
 
 
-
-@task(log_prints=True) 
-def process_image(image_object_path, splitting_step, tracking_step, padding, mask, keep_lcc, iou_thresh, output_name, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename, xy_res, z_res, qcb_res, upload_fms, include_edge_cells, step_name):
+@task(log_prints=True)
+def process_image(
+    image_object_path,
+    splitting_step,
+    tracking_step,
+    padding,
+    mask,
+    keep_lcc,
+    iou_thresh,
+    output_name,
+    seg_steps,
+    raw_steps,
+    seg_steps_rename,
+    raw_steps_rename,
+    xy_res,
+    z_res,
+    qcb_res,
+    upload_fms,
+    include_edge_cells,
+    step_name,
+):
     image_object = ImageObject.parse_file(image_object_path)
 
     raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images.fn(
@@ -302,10 +324,10 @@ def process_image(image_object_path, splitting_step, tracking_step, padding, mas
             padded_coords,
             mask=mask,
             keep_lcc=keep_lcc,
-            iou_thresh=iou_thresh
+            iou_thresh=iou_thresh,
         )
         if crop_raw_images is None or crop_seg_images is None:
-            print(f'Skipping cell {lab} due to low IoU')
+            print(f"Skipping cell {lab} due to low IoU")
             continue
         results.append(
             extract_cell.fn(
@@ -351,7 +373,6 @@ def process_image(image_object_path, splitting_step, tracking_step, padding, mas
     image_object.save()
 
 
-
 # Parallelizing over images is faster than parallelizing over cells.
 @flow(task_runner=create_task_runner(), log_prints=True)
 def single_cell_dataset(
@@ -374,8 +395,28 @@ def single_cell_dataset(
     iou_thresh=None,
     include_edge_cells=True,
 ):
-    results =[]
+    results = []
     for image_object_path in image_object_paths:
-        results.append(process_image.submit(image_object_path, splitting_step, tracking_step, padding, mask, keep_lcc, iou_thresh, output_name, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename, xy_res, z_res, qcb_res, upload_fms, include_edge_cells, step_name))
+        results.append(
+            process_image.submit(
+                image_object_path,
+                splitting_step,
+                tracking_step,
+                padding,
+                mask,
+                keep_lcc,
+                iou_thresh,
+                output_name,
+                seg_steps,
+                raw_steps,
+                seg_steps_rename,
+                raw_steps_rename,
+                xy_res,
+                z_res,
+                qcb_res,
+                upload_fms,
+                include_edge_cells,
+                step_name,
+            )
+        )
     results = [r.result() for r in results]
-        

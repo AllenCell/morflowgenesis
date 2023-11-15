@@ -88,7 +88,9 @@ def split_czi(
             CameraPosition.BACK
         )
         alignment_args["channels"] = [channel.channel_index for channel in alignment_channels]
-        with open(working_dir / "optical_control_alignment" / output_name / "alignment_params.json", "w") as f:
+        with open(
+            working_dir / "optical_control_alignment" / output_name / "alignment_params.json", "w"
+        ) as f:
             json.dump(str(alignment_args), f)
         print("Alignment Parameters:", alignment_args)
 

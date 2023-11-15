@@ -1,5 +1,6 @@
-from pathlib import Path
 import json
+from pathlib import Path
+
 import pandas as pd
 from aicsimageio import AICSImage
 from prefect import flow, task
@@ -23,7 +24,7 @@ def generate_object(
     # add metadata
     metadata = {"S": source_img.scenes, "T": source_img.dims.T - 1, "C": source_img.dims.C - 1}
     if metadata_column is not None:
-        metadata.update(json.loads(row[metadata_column].replace('\'', '\"')))
+        metadata.update(json.loads(row[metadata_column].replace("'", '"')))
 
     obj = ImageObject(working_dir, row[source_column], metadata)
     if obj.id in existing_ids:
