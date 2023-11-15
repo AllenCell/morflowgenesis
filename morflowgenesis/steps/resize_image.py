@@ -1,11 +1,10 @@
-import os
-
 from prefect import flow
 from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.step_output import StepOutput
 from morflowgenesis.utils.image_object import ImageObject
+from morflowgenesis.utils.step_output import StepOutput
+
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_resize(
@@ -13,10 +12,6 @@ def run_resize(
 ):
     image_object = ImageObject.parse_file(image_object_path)
 
-    # skip if already run
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
     # image resizing
     img = image_object.load_step(input_step)
     input_dtype = img.dtype

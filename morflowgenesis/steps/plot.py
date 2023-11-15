@@ -1,14 +1,13 @@
 import os
+import re
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn.metrics as skmetrics
 from prefect import flow
-from sklearn.decomposition import PCA
 from sklearn.utils import resample
 
-from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import ImageObject
 
 
@@ -17,38 +16,25 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
     r2 = []
     avg_ratio = []
     dist_ratio = []
-    deviation = []
-    log = np.isnan(x) | np.isnan(y)
 
-    if len(list(x.shape)) > 1:
-        log = np.sum(np.isnan(x) | np.isnan(y), axis=1) > 0
-    else:
-        log = np.isnan(x) | np.isnan(y)
-    x0 = x[~log].to_numpy()
-    y0 = y[~log].to_numpy()
+    x = x.to_numpy()
+    y = y.to_numpy()
 
-    # if no xref is supplied, then just use the target data given for noamlization of percent bias
-    xref0 = x0
+    r2full = skmetrics.r2_score(y_true=x, y_pred=y)
 
-    r2full = skmetrics.r2_score(y_true=x0, y_pred=y0)
+    avg_full = np.median(100 * (y / x - 1))
 
-    avg_full = np.mean((y0 / x0) - 1) * 100
-    avg_full = np.median(100 * (y0 / x0 - 1))
-
-    minmax = np.percentile(x0, 99) - np.percentile(x0, 1)
-    dist_full = np.median(100 * ((y0 - x0) / minmax))
-
-    deviation_full = np.median(y0 - x0)
+    minmax = np.percentile(x, 99) - np.percentile(x, 1)
+    dist_full = np.median(100 * ((y - x) / minmax))
 
     for _ in range(niter):
-        xr, yr, xrefr = resample(x0, y0, xref0, replace=True)
+        xr, yr, xrefr = resample(x, y, x, replace=True)
         r2.append(skmetrics.r2_score(y_true=xr, y_pred=yr))
 
         avg_ratio.append(np.median(100 * (yr / xr - 1)))
 
         minmax = np.percentile(xrefr, 99) - np.percentile(xrefr, 1)
         dist_ratio.append(np.median(100 * ((yr - xr) / minmax)))
-        deviation.append(np.median(yr - xr))
 
     feats["r2score"] = r2full
     feats["r2score_l"] = r2full - np.percentile(r2, 5)
@@ -62,14 +48,12 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
     feats["ratio_dist_l"] = dist_full - np.percentile(dist_ratio, 5)
     feats["ratio_dist_h"] = np.percentile(dist_ratio, 95) - dist_full
 
-    feats["deviation"] = deviation_full
-    feats["deviation_l"] = deviation_full - np.percentile(deviation, 5)
-    feats["deviation_h"] = np.percentile(deviation, 95) - deviation_full
-
-    return x0, y0, feats
+    return x, y, feats
 
 
-def target_vs_prediction_scatter_plot(x, y, feats, title, cc="k", fs=14):
+def target_vs_prediction_scatter_plot(
+    x, y, feats, title, xlabel="Label", ylabel="Pred", cc="k", fs=25
+):
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     ax.set_title(title)
     xlh = (np.nanmin(x), np.nanmax(x))
@@ -84,8 +68,8 @@ def target_vs_prediction_scatter_plot(x, y, feats, title, cc="k", fs=14):
         linestyle="None",
         label="",
     )
-    plt.ylabel("Pred")
-    plt.xlabel("Label")
+    plt.ylabel(ylabel, fontsize=fs)
+    plt.xlabel(xlabel, fontsize=fs)
     plt.axis("equal")
 
     score = feats["r2score"]
@@ -120,22 +104,7 @@ def target_vs_prediction_scatter_plot(x, y, feats, title, cc="k", fs=14):
     return fig, ax
 
 
-def perform_PCA(x, y, n_components):
-    # dimensionality reduction, 578 -> n_components
-    pca = PCA(n_components=n_components)
-    cols = x.columns
-    x = pca.fit_transform(x)
-    y.columns = cols
-    y = pca.transform(y)
-    x = pd.DataFrame(x)
-    y = pd.DataFrame(y)
-    new_columns = ["PC" + str(i + 1) for i in range(n_components)]
-    x.columns = new_columns
-    y.columns = new_columns
-    return x, y
-
-
-def summary_plot(feats, destdir):
+def summary_plot(feats):
     names = list(reversed(list(feats.keys())))
     fig, ax = plt.subplots(2, 1, figsize=(5, 10))
     errorbar_params = {
@@ -186,39 +155,65 @@ def summary_plot(feats, destdir):
     ax[1].set_yticklabels(names)
     ax[0].grid(zorder=0)
     ax[1].grid(zorder=0)
-    ax[0].set_xlabel("$R^2$")
+    ax[0].set_xlabel("$R^2$", fontsize=20)
     ax[1].set_xlabel("% bias")
     plt.tight_layout()
-    fig.savefig(os.path.join(destdir, "PC_summary.png"), transparent=True)
     plt.close(fig)
+    return fig
 
 
-def plot(x, y, destdir):
+def plot(x_df, y_df, destdir, xlabel, ylabel):
     all_feats = {}
-    for name in x.columns:
-        x0, y0, feats = target_vs_prediction_scatter_metrics(
-            x[name], y[name.replace("label", "pred")], niter=200
+    for i, name in enumerate(x_df.columns):
+        x, y, feats = target_vs_prediction_scatter_metrics(
+            x_df.iloc[:, i], y_df.iloc[:, i], niter=200
         )
-        fig, ax = target_vs_prediction_scatter_plot(x0, y0, feats, name)
-        fig.savefig(os.path.join(destdir, f"scatter_{name}.png"))
+        fig, ax = target_vs_prediction_scatter_plot(
+            x, y, feats, name, xlabel=xlabel, ylabel=ylabel
+        )
+        fig.savefig(
+            os.path.join(destdir, f"scatter_{name}_{xlabel}_vs_{ylabel}.png"), transparent=True
+        )
         plt.close(fig)
         all_feats[name] = feats
-    if len(x.columns) > 1:
-        summary_plot(all_feats, destdir)
+    if len(x_df.columns) > 1:
+        summary = summary_plot(all_feats)
+        summary.savefig(
+            os.path.join(destdir, f"{xlabel}_vs_{ylabel}_summary.png"), transparent=True
+        )
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def run_plot(image_object_path, step_name, output_name, input_step, features, pca_n_components=10):
-    image_object = ImageObject.parse_file(image_object_path)
+@flow(log_prints=True)
+def run_plot(image_object_paths, step_name, output_name, input_step, features, label, pred):
+    image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
 
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
-        return image_object
-    (image_object.working_dir / step_name / output_name).mkdir(exist_ok=True, parents=True)
-    features_df = image_object.load_step(input_step)
-    for feat in features:
-        label = features_df[[col for col in features_df.columns if "label" in col and feat in col]]
-        pred = features_df[[col for col in features_df.columns if "pred" in col and feat in col]]
-        if label.shape[1] > pca_n_components:
-            label, pred = perform_PCA(label, pred, pca_n_components)
-        plot(label, pred, image_object.working_dir / step_name / output_name)
+    features_df = pd.concat([obj.load_step(input_step) for obj in image_objects]).drop_duplicates()
+    features_df.dropna(inplace=True)
+
+    label_features = features_df.xs(label["segmentation_name"], level="Name")[features]
+
+    for pred_filter in pred:
+        if "*" in pred_filter["segmentation_name"]:
+            available_levels = features_df.index.get_level_values("Name").unique().values
+            for level in available_levels:
+                if re.search(pred_filter["segmentation_name"], level):
+                    save_dir = image_objects[0].working_dir / step_name / level
+                    save_dir.mkdir(exist_ok=True, parents=True)
+                    plot(
+                        label_features,
+                        features_df.xs(level, level="Name")[features],
+                        save_dir,
+                        xlabel=label["description"],
+                        ylabel=f"{pred_filter['description']} {level}",
+                    )
+        else:
+            save_dir = image_objects[0].working_dir / step_name / pred_filter["segmentation_name"]
+            save_dir.mkdir(exist_ok=True, parents=True)
+            pred_data = features_df.xs(pred_filter["segmentation_name"], level="Name")[features]
+            plot(
+                label_features,
+                pred_data,
+                save_dir,
+                xlabel=label["description"],
+                ylabel=pred_filter["description"],
+            )

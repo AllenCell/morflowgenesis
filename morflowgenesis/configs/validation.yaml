@@ -2,8 +2,7 @@ working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/validation_wd
 deployment_name: validation
 work_pool_name: k8s
 
-debug: True
-deploy: true
+local_run: True
 
 pull:
     repository: https://github.com/aics-int/morflowgenesis.git
@@ -67,10 +66,10 @@ gpu_step_overrides:
 steps:
     - function: morflowgenesis.steps.image_object_from_csv.generate_objects
       args:
-        csv_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/20x_cell_and_nuc_from_bf/subset_skoots/lamin_label/test_subset.csv"
-        working_dir: ${working_dir}
-        source_column: "raw"
-        non_source_columns: ["nucseg"]
+          csv_path: "/allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/20x_cell_and_nuc_from_bf/subset_skoots/lamin_label/test_subset.csv"
+          working_dir: ${working_dir}
+          source_column: "raw"
+          non_source_columns: ["nucseg"]
       step_type: "gather"
 
     # - function: morflowgenesis.steps.run_cytodl.run_cytodl
@@ -89,25 +88,25 @@ steps:
     #     seg_steps: [run_cytodl_20x_nucseg]
     - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
       args:
-        output_name: gt
-        splitting_step: generate_objects_nucseg
-        raw_steps: []
-        seg_steps: [generate_objects_nucseg]
+          output_name: gt
+          splitting_step: generate_objects_nucseg
+          raw_steps: []
+          seg_steps: [generate_objects_nucseg]
     - function: morflowgenesis.steps.feature_calculation.calculate_features
       args:
-        output_name: features
-        input_step: single_cell_dataset_gt
-        segmentation_columns: [crop_seg_path]
-        features:
-            - volume
-            - height
+          output_name: features
+          input_step: single_cell_dataset_gt
+          segmentation_columns: [crop_seg_path]
+          features:
+              - volume
+              - height
     - function: morflowgenesis.steps.contact_sheet.run_contact_sheet
       args:
-        output_name: gt_contact_sheet
-        single_cell_dataset_step: single_cell_dataset_gt
-        feature_step: calculate_features_features
-        x_characteristic: volume
-        y_characteristic: height
+          output_name: gt_contact_sheet
+          single_cell_dataset_step: single_cell_dataset_gt
+          feature_step: calculate_features_features
+          x_characteristic: volume
+          y_characteristic: height
 
     # - function: morflowgenesis.steps.cell_matching.match_cells
     #   args:
@@ -127,7 +126,7 @@ steps:
     #         - height
     #         - n_pieces
 
-    # - function: morflowgenesis.steps.compare_features.run_plot
+    # - function: morflowgenesis.steps.plot.run_plot
     #   args:
     #     output_name: plot
     #     input_step: get_features_matched_features
