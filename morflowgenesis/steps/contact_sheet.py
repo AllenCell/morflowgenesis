@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 from aicsimageio import AICSImage
 from prefect import flow, task
-from skimage.segmentation import find_boundaries
 from skimage.exposure import rescale_intensity
+from skimage.segmentation import find_boundaries
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import ImageObject
@@ -21,11 +21,8 @@ def make_rgb(img, contour):  # this function returns an RGB image
 @task
 def project_cell(row, raw_name, seg_names):
     raw = AICSImage(row["crop_raw_path"].iloc[0])
-    raw = (
-        raw.get_image_dask_data("ZYX", C=raw.channel_names.index(raw_name))
-        .compute()
-    )
-    raw  = rescale_intensity(raw, out_range=(0, 255)).astype(np.uint8)
+    raw = raw.get_image_dask_data("ZYX", C=raw.channel_names.index(raw_name)).compute()
+    raw = rescale_intensity(raw, out_range=(0, 255)).astype(np.uint8)
 
     seg = AICSImage(row["crop_seg_path"].iloc[0])
     seg_channels = seg.channel_names
