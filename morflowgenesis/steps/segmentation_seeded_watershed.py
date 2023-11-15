@@ -2,7 +2,9 @@ import numpy as np
 from prefect import flow, task
 from scipy.ndimage import binary_dilation, binary_erosion, find_objects
 from skimage.measure import label
-from skimage.segmentation import watershed
+from mahotas import cwatershed
+from skimage.filters import median
+from skimage.morphology import disk
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import ImageObject
@@ -29,6 +31,9 @@ def get_largest_cc(im):
 
 
 def generate_bg_seed(seg, lab):
+    """
+    returns background seeds where 2 is border and 3 is other objects
+    """
     # other objects are good seeds
     bg = np.logical_and(seg > 0, seg != lab)
     bg = binary_erosion(bg, iterations=5).astype(int)
@@ -39,11 +44,14 @@ def generate_bg_seed(seg, lab):
     border_mask[1:-1, 1:-1, 1:-1] = 0
     border_mask[binary_dilation(seg == lab, iterations=5)] = 0
 
-    return np.logical_or(bg, border_mask)
+    combined_mask = (border_mask + 2*bg)
+    combined_mask[combined_mask>0]+=1
+
+    return  combined_mask
 
 
 @task
-def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5):
+def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5, smooth=False):
     if mode == "centroid":
         seed = np.zeros_like(seg)
         centroids = np.asarray(np.where(seg == lab)).mean(axis=1).astype(int)
@@ -61,28 +69,36 @@ def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5):
         raise ValueError(f"Unknown mode {mode}, valid options are centroid or erosion")
 
     bg_seed = generate_bg_seed(seg, lab)
-    seed[bg_seed] = 2
+    seed += bg_seed
 
-    seg = watershed(raw, seed)
-    seg = seg == 1
+    if smooth:
+        raw = median(raw)
+    seg = cwatershed(raw, seed)
 
+    # dilate in xy into areas not covered by watershed on other objects
+    selem = np.zeros((3,3,3))
+    selem[1] = disk(1)
+    seg = binary_dilation(seg==1, iterations=1, structure=selem, mask = seg != 3)
+
+    # remove non-target object segmentations and failed segmentations
     border_mask = np.ones_like(seg)
     border_mask[1:-1, 1:-1, 1:-1] = 0
-    # if something is edge here, it is intended to be included, here we filter out non-edge segmentations that touch the border
-    # (indicating the watershed has escaped the intended objects), or really large edge cells
-    if (not is_edge and np.sum(border_mask * seg) > 1000) or (is_edge and np.mean(seg) > 0.5):
+    if (not is_edge and np.sum(seg[border_mask]) > 1000) or (is_edge and np.mean(seg) > 0.5):
         return np.zeros_like(seg)
 
     return seg
 
-
 def merge_instance_segs(segs, coords, img):
     lab = np.uint16(1)
+    count_map = np.zeros_like(img, dtype=np.uint8)
     for c, s in zip(coords, segs):
         img[c] += s.astype(np.uint16) * lab
+        if s.max() > 0:
+            count_map[c][s] +=1
         lab += 1
+    # remove pixels that were assigned to multiple objects
+    img[count_map > 1] = 0
     return img
-
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_watershed(
@@ -96,6 +112,7 @@ def run_watershed(
     min_seed_size=1000,
     include_edge=True,
     padding=10,
+    smooth=False,
 ):
     image_object = ImageObject.parse_file(image_object_path)
     output = StepOutput(
@@ -106,6 +123,8 @@ def run_watershed(
         image_id=image_object.id,
     )
     if output.path.exists():
+        image_object.add_step_output(output)
+        image_object.save()
         return
 
     raw = image_object.load_step(raw_input_step)
@@ -130,11 +149,11 @@ def run_watershed(
         # skip too small seeds
         if np.sum(crop_seg == lab) < min_seed_size:
             continue
-        results.append(run_watershed_task.submit(crop_raw, crop_seg, lab, mode, is_edge, erosion))
+        results.append(run_watershed_task.submit(crop_raw, crop_seg, lab, mode, is_edge, erosion, smooth))
         all_coords.append(coords)
     results = [r.result() for r in results]
 
-    seg = merge_instance_segs(results, all_coords, np.zeros_like(seg).astype(np.uint16))
+    seg = merge_instance_segs(results, all_coords, np.zeros_like(raw).astype(np.uint16))
 
     output.save(seg)
     image_object.add_step_output(output)
