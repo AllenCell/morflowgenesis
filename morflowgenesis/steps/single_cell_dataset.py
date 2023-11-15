@@ -12,7 +12,7 @@ from prefect import flow, task
 from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.measure import label
-from skimage.transform import rescale
+from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import ImageObject
@@ -60,9 +60,11 @@ def get_renamed_image_paths(image_object, steps, rename_steps):
 
 def get_largest_cc(im):
     im = label(im)
-    largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
+    try:
+        largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
+    except ValueError:
+        return im
     return im == largest_cc
-
 
 @task
 def extract_cell(
@@ -144,7 +146,7 @@ def extract_cell(
     name_dict = {}
     for output_type, data in zip(["raw", "seg"], [raw_images, seg_images]):
         channel_names = sorted(data.keys())
-        # possible that there is no raw or segmented image available for this cell
+        # possible that there is no raw or no segmented image available for this cell
         if len(channel_names) == 0:
             continue
         # stack segmentation/raw images into multichannel image
@@ -199,10 +201,12 @@ def mask_images(
     coords,
     mask=True,
     keep_lcc=False,
+    iou_thresh=None
 ):
     """Turn multich image into single cell dicts."""
     # crop
-    raw_crop = raw_images[coords].copy()
+    if raw_images is not None:
+        raw_crop = raw_images[coords].copy()
     seg_crop = seg_images[coords].copy()
     seg_crop[splitting_ch] = seg_crop[splitting_ch] == lab
     if mask:
@@ -211,6 +215,12 @@ def mask_images(
         seg_crop *= mask_img
     if keep_lcc:
         seg_crop = [get_largest_cc(seg_crop[ch]) for ch in range(seg_crop.shape[0])]
+    if iou_thresh is not None and len(seg_crop) > 1:
+        intersection = np.sum(np.logical_and(seg_crop[0], seg_crop[1])) + 1e-8
+        union = np.sum(np.logical_or(seg_crop[0], seg_crop[1])) + 1e-8
+        iou = intersection / union
+        if iou < iou_thresh:
+            return None, None
 
     # split into dict
     return {name: raw_crop[idx] for idx, name in enumerate(raw_steps)}, {
@@ -218,7 +228,7 @@ def mask_images(
     }
 
 
-@task
+@task(log_prints=True)
 def load_images(image_object, splitting_step, seg_steps, raw_steps):
     """load into multichannel images."""
     available_steps = list(image_object.steps.keys())
@@ -235,50 +245,36 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
     assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
     seg_images = [image_object.load_step(step_name) for step_name in seg_steps]
     raw_images = [image_object.load_step(step_name) for step_name in raw_steps]
+    raw_images = [resize(image, seg_images[0].shape, order=3) for image in raw_images]
 
     # some cytodl models produce models off by 1 pix due to resizing/rounding errors
     minimum_shape = np.min([im.shape for im in seg_images + raw_images], axis=0)
-    print(
-        f"Resizing images from shapes {[im.shape for im in seg_images + raw_images]} to {minimum_shape}"
-    )
+
     minimum_shape_slice = tuple(slice(0, s) for s in minimum_shape)
     seg_images = np.stack([im[minimum_shape_slice] for im in seg_images])
-
-    raw_images = [im[minimum_shape_slice] for im in raw_images]
-    raw_images = np.stack(
-        [rescale_intensity(im, out_range=np.uint8).astype(np.uint8) for im in raw_images]
-    )
-
     splitting_ch = seg_steps.index(splitting_step)
 
-    # check all images same shape
-    assert raw_images.shape[-3:] == seg_images.shape[-3:], "images are not same shape"
+    if len(raw_images)>0:
+        raw_images = [im[minimum_shape_slice] for im in raw_images]
+        raw_images = np.clip(raw_images, np.percentile(raw_images, 0.01), np.percentile(raw_images, 99.99))
+        raw_images = np.stack(
+            [rescale_intensity(im, out_range=np.uint8).astype(np.uint8) for im in raw_images]
+        )
+
+        # check all images same shape
+        assert raw_images.shape[-3:] == seg_images.shape[-3:], "images are not same shape"
+    else:
+        raw_images = None
 
     return raw_images, seg_images, raw_steps, seg_steps, splitting_ch
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def single_cell_dataset(
-    image_object_path,
-    step_name,
-    output_name,
-    splitting_step,
-    raw_steps,
-    seg_steps,
-    raw_steps_rename=None,
-    seg_steps_rename=None,
-    tracking_step=None,
-    xy_res=0.108,
-    z_res=0.29,
-    qcb_res=0.108,
-    padding=10,
-    mask=True,
-    keep_lcc=False,
-    upload_fms=False,
-):
+
+@task(log_prints=True) 
+def process_image(image_object_path, splitting_step, tracking_step, padding, mask, keep_lcc, iou_thresh, output_name, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename, xy_res, z_res, qcb_res, upload_fms, include_edge_cells, step_name):
     image_object = ImageObject.parse_file(image_object_path)
 
-    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(
+    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images.fn(
         image_object, splitting_step, seg_steps, raw_steps
     )
     # find objects in segmentation
@@ -294,9 +290,9 @@ def single_cell_dataset(
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        padded_coords, is_edge = pad_slice(coords, padding, seg_images[splitting_ch].shape)
+        padded_coords, is_edge = pad_slice.fn(coords, padding, seg_images[splitting_ch].shape)
         # do cropping serially to avoid memory blow up
-        crop_raw_images, crop_seg_images = mask_images(
+        crop_raw_images, crop_seg_images = mask_images.fn(
             raw_images,
             seg_images,
             raw_steps,
@@ -306,9 +302,13 @@ def single_cell_dataset(
             padded_coords,
             mask=mask,
             keep_lcc=keep_lcc,
+            iou_thresh=iou_thresh
         )
+        if crop_raw_images is None or crop_seg_images is None:
+            print(f'Skipping cell {lab} due to low IoU')
+            continue
         results.append(
-            extract_cell.submit(
+            extract_cell.fn(
                 image_object,
                 output_name,
                 crop_raw_images,
@@ -330,7 +330,9 @@ def single_cell_dataset(
             )
         )
 
-    df = pd.concat([r.result() for r in results])
+    df = pd.concat(results)
+    image_object = ImageObject.parse_file(image_object_path)
+
     csv_output_path = (
         image_object.working_dir / "single_cell_dataset" / output_name / f"{image_object.id}.csv"
     )
@@ -347,3 +349,33 @@ def single_cell_dataset(
 
     image_object.add_step_output(step_output)
     image_object.save()
+
+
+
+# Parallelizing over images is faster than parallelizing over cells.
+@flow(task_runner=create_task_runner(), log_prints=True)
+def single_cell_dataset(
+    image_object_paths,
+    step_name,
+    output_name,
+    splitting_step,
+    seg_steps,
+    raw_steps=[],
+    raw_steps_rename=None,
+    seg_steps_rename=None,
+    tracking_step=None,
+    xy_res=0.108,
+    z_res=0.29,
+    qcb_res=0.108,
+    padding=10,
+    mask=True,
+    keep_lcc=False,
+    upload_fms=False,
+    iou_thresh=None,
+    include_edge_cells=True,
+):
+    results =[]
+    for image_object_path in image_object_paths:
+        results.append(process_image.submit(image_object_path, splitting_step, tracking_step, padding, mask, keep_lcc, iou_thresh, output_name, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename, xy_res, z_res, qcb_res, upload_fms, include_edge_cells, step_name))
+    results = [r.result() for r in results]
+        
