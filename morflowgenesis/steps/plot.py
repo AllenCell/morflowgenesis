@@ -52,7 +52,7 @@ def target_vs_prediction_scatter_metrics(x, y, niter=200):
 
 
 def target_vs_prediction_scatter_plot(
-    x, y, feats, title, xlabel="Label", ylabel="Pred", cc="k", fs=14
+    x, y, feats, title, xlabel="Label", ylabel="Pred", cc="k", fs=25
 ):
     fig, ax = plt.subplots(1, 1, figsize=(6, 6))
     ax.set_title(title)
@@ -68,8 +68,8 @@ def target_vs_prediction_scatter_plot(
         linestyle="None",
         label="",
     )
-    plt.ylabel(ylabel)
-    plt.xlabel(xlabel)
+    plt.ylabel(ylabel, fontsize=fs)
+    plt.xlabel(xlabel, fontsize=fs)
     plt.axis("equal")
 
     score = feats["r2score"]
@@ -155,7 +155,7 @@ def summary_plot(feats):
     ax[1].set_yticklabels(names)
     ax[0].grid(zorder=0)
     ax[1].grid(zorder=0)
-    ax[0].set_xlabel("$R^2$")
+    ax[0].set_xlabel("$R^2$", fontsize=20)
     ax[1].set_xlabel("% bias")
     plt.tight_layout()
     plt.close(fig)
@@ -169,7 +169,7 @@ def plot(x_df, y_df, destdir, xlabel, ylabel):
         fig, ax = target_vs_prediction_scatter_plot(
             x, y, feats, name, xlabel=xlabel, ylabel=ylabel
         )
-        fig.savefig(os.path.join(destdir, f"scatter_{name}_{xlabel}_vs_{ylabel}.png"))
+        fig.savefig(os.path.join(destdir, f"scatter_{name}_{xlabel}_vs_{ylabel}.png"), transparent=True)
         plt.close(fig)
         all_feats[name] = feats
     if len(x_df.columns) > 1:
@@ -184,6 +184,7 @@ def run_plot(image_object_paths, step_name, output_name, input_step,features, la
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
 
     features_df = pd.concat([obj.load_step(input_step) for obj in image_objects]).drop_duplicates()
+    features_df.dropna(inplace=True)
 
     label_features = features_df.xs(label['segmentation_name'], level='Name')[features]
 
@@ -204,9 +205,10 @@ def run_plot(image_object_paths, step_name, output_name, input_step,features, la
         else:
             save_dir = image_objects[0].working_dir / step_name / pred_filter['segmentation_name']
             save_dir.mkdir(exist_ok=True, parents=True)
+            pred_data=features_df.xs(pred_filter['segmentation_name'], level='Name')[features]
             plot(
                 label_features,
-                features_df.xs(pred_filter['segmentation_name'], level='Name')[features],
+                pred_data,
                 save_dir,
                 xlabel=label["description"],
                 ylabel=pred_filter["description"],
