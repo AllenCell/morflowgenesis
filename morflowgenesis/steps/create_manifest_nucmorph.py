@@ -23,7 +23,7 @@ def create_manifest(
     manifest = []
     for obj in image_objects:
         tracks = tracking_df[tracking_df.time_index == obj.metadata['T']]
-        tracks =tracks[['centroid_z', 'centroid_y', 'centroid_x', 'label_img', 'time_index', 'is_outlier', 'has_outlier', 'past_outlier', 'normal_migration', 'edge_cell']]
+        tracks =tracks[['centroid_z', 'centroid_y', 'centroid_x', 'label_img', 'time_index', 'is_outlier', 'has_outlier', 'past_outlier', 'normal_migration']]
         features = obj.load_step(feature_step)
         cells = obj.load_step(single_cell_step)
         assert len(features) == len(cells)
