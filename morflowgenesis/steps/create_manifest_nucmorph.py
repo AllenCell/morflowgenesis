@@ -30,6 +30,8 @@ def create_manifest(
         assert len(cells) == len(tracks)
         tracked_cells = pd.merge(tracks, cells, on=["label_img",'centroid_z', 'centroid_y', 'centroid_x'])
         tracked_cells_with_feats = pd.merge(tracked_cells, features, on="CellId")        
+        drop_cols = [col for col in tracked_cells_with_feats.columns if re.search("Unnamed", col)]
+        tracked_cells_with_feats = tracked_cells_with_feats.drop(columns=drop_cols)
         manifest.append(tracked_cells_with_feats)
 
     manifest = pd.concat(manifest)
