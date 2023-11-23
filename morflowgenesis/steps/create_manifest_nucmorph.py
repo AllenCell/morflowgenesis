@@ -36,6 +36,7 @@ def create_manifest(
 
     manifest = pd.concat(manifest)
     manifest = manifest.sort_values(by="time_index")
+    manifest = manifest.rename(columns={"time_index": "T_index", "20x_lamin_path": "raw_full_zstack_path", "nuc_seg_path": "seg_full_zstack_path",})
     step_output = StepOutput(
         image_objects[0].working_dir,
         step_name,
