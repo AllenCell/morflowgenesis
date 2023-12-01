@@ -1,0 +1,115 @@
+experiment_name: fbl
+run_name: simple_seg
+task_name: eval
+tags:
+- dev
+ckpt_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/fbl/simple_seg/2023-11-13_14-00-21/checkpoints/last.ckpt
+data:
+  _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader
+  data: 
+  num_workers: 1
+  batch_size: 1
+  pin_memory: true
+  transforms:
+    _target_: monai.transforms.Compose
+    transforms:
+      - _target_: monai.transforms.LoadImaged
+        keys: ${source_col}
+        reader:
+        - _target_: cyto_dl.image.io.MonaiBioReader
+          dimension_order_out: CZYX
+          C: 0
+      - _target_: monai.transforms.NormalizeIntensityd
+        keys: ${source_col}
+        channel_wise: true
+  _aux:
+    patch_shape:
+    - 32
+    - 128
+    - 128
+
+model:
+  _target_: cyto_dl.models.im2im.MultiTaskIm2Im
+  save_images_every_n_epochs: 1
+  save_dir: ${paths.output_dir}
+  x_key: ${source_col}
+  backbone:
+    _target_: monai.networks.nets.DynUNet
+    spatial_dims: ${spatial_dims}
+    in_channels: ${raw_im_channels}
+    out_channels: 1
+    strides:
+    - 1
+    - 2
+    - 2
+    kernel_size:
+    - 3
+    - 3
+    - 3
+    upsample_kernel_size:
+    - 2
+    - 2
+    dropout: 0.1
+    res_block: true
+  task_heads: ${kv_to_dict:${model._aux._tasks}}
+  optimizer:
+    generator:
+      _partial_: true
+      _target_: torch.optim.Adam
+      lr: 0.003
+      weight_decay: 0.0001
+  lr_scheduler:
+    generator:
+      _partial_: true
+      _target_: torch.optim.lr_scheduler.ExponentialLR
+      gamma: 0.995
+  inference_args:
+    sw_batch_size: 1
+    roi_size: ${data._aux.patch_shape}
+    overlap: 0.25
+  _aux:
+    _tasks:
+    - - ${target_col}
+      - _target_: cyto_dl.nn.BaseHead
+        loss:
+          _target_: monai.losses.DiceCELoss
+          sigmoid: true
+        postprocess:
+          input:
+            _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
+            rescale_dtype: numpy.uint8
+          prediction:
+            _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
+            threshold: 0
+            dtype: numpy.uint8
+        save_raw: true
+logger:
+trainer:
+  _target_: lightning.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 100
+  accelerator: gpu
+  devices: 1
+  check_val_every_n_epoch: 1
+  deterministic: false
+  detect_anomaly: false
+  precision: 16
+paths:
+  root_dir: .
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: true
+  precision:
+    _target_: torch.set_float32_matmul_precision
+    precision: medium
+seed: 12345
+source_col: raw
+target_col: seg
+spatial_dims: 3
+raw_im_channels: 1

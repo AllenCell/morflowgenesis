@@ -1,0 +1,125 @@
+working_dir: //allen/aics/assay-dev/users/Benji/CurrentProjects/nucleolus_transfer_function/quantitative_validation/
+deployment_name: npm1_tf
+
+local_run: True
+
+steps:
+    - function: morflowgenesis.steps.image_object_from_csv.generate_objects
+      args:
+          csv_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/nucleolus_transfer_function/quantitative_validation/manifest.csv"
+          working_dir: ${working_dir}
+          source_column: "lr"
+          non_source_columns: ["hr"]
+      step_type: "init"
+
+    # run transfer function
+    - function: morflowgenesis.steps.run_cytodl_gather.run_cytodl
+      args:
+          output_name: tf_npm1
+          input_step: generate_objects_lr
+          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/workflow/npm1_transfer_function/npm1_tf.yaml
+      step_type: "gather"
+
+      # run dl segmentation on real npm1
+    - function: morflowgenesis.steps.run_cytodl_gather.run_cytodl
+      args:
+          output_name: dl_seg_real
+          input_step: generate_objects_hr
+          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/workflow/npm1_transfer_function/npm1_seg.yaml
+      step_type: "gather"
+
+    # run dl segmentation on real npm1
+    - function: morflowgenesis.steps.run_cytodl_gather.run_cytodl
+      args:
+          output_name: dl_seg_tf
+          input_step: run_cytodl_tf_npm1
+          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/workflow/npm1_transfer_function/npm1_seg.yaml
+      step_type: "gather"
+
+    # run classic npm1_seg on real images
+    - function: morflowgenesis.steps.run_function.array_to_array
+      args:
+          output_name: classic_seg_real
+          input_step: generate_objects_hr
+          function: aicssegmentation.structure_wrapper.seg_npm1.Workflow_npm1
+          function_args:
+              output_type: array
+
+    # run classic npm1_seg on tg images
+    - function: morflowgenesis.steps.run_function.array_to_array
+      args:
+          output_name: classic_seg_tf
+          input_step: run_cytodl_tf_npm1
+          function: aicssegmentation.structure_wrapper.seg_npm1.Workflow_npm1
+          function_args:
+              output_type: array
+
+    # generate psuedo-nucseg from npm1 segmentation
+    - function: morflowgenesis.steps.separate_instances.generate_mask
+      args:
+          output_name: mask
+          input_step: array_to_array_classic_seg_real
+
+    # create dataset with all real/tf lamin and direct/tf_watershed/lamin_watershed images
+    - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
+      args:
+          output_name: single_cell
+          splitting_step: generate_mask_mask
+          raw_steps: [generate_objects_hr, run_cytodl_tf_npm1]
+          seg_steps:
+              [
+                  array_to_array_classic_seg_tf,
+                  array_to_array_classic_seg_real,
+                  generate_mask_mask,
+                  run_cytodl_dl_seg_tf,
+                  run_cytodl_dl_seg_real,
+              ]
+          seg_steps_rename: [tf_classic, real_classic, mask, tf_dl, real_dl]
+          keep_lcc: False
+          mask: True
+
+    - function: morflowgenesis.steps.feature_calculation.calculate_features
+      args:
+          output_name: features
+          input_step: single_cell_dataset_single_cell
+          features: [height, volume, n_pieces]
+          per_piece: True
+
+    - function: morflowgenesis.steps.contact_sheet.segmentation_contact_sheet
+      args:
+          output_name: tf_classic_vs_real_classic
+          single_cell_dataset_step: single_cell_dataset_single_cell
+          feature_step: calculate_features_features
+          segmentation_name: real_classic
+          x_feature: volume
+          y_feature: height
+          seg_channels: [1, 3]
+      step_type: "gather"
+
+    - function: morflowgenesis.steps.contact_sheet.segmentation_contact_sheet
+      args:
+          output_name: tf_dl_vs_real_classic
+          single_cell_dataset_step: single_cell_dataset_single_cell
+          feature_step: calculate_features_features
+          segmentation_name: real_classic
+          x_feature: volume
+          y_feature: height
+          seg_channels: [1, 4]
+      step_type: "gather"
+
+    - function: morflowgenesis.steps.plot.run_plot
+      args:
+          output_name: plot
+          input_step: calculate_features_features
+          features: [volume, n_pieces, height]
+          label:
+              segmentation_name: real_classic
+              description: "Classic Seg on Real NPM1"
+          pred:
+              - segmentation_name: tf_classic
+                description: Classic Seg on TF NPM1
+              - segmentation_name: real_dl
+                description: Classic Seg on TF NPM1
+              - segmentation_name: tf_dl
+                description: Classic Seg on TF NPM1
+      step_type: "gather"

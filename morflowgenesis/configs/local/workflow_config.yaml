@@ -1,0 +1,17 @@
+working_dir: //allen/aics/assay-dev/users/Benji/CurrentProjects/breakdown_classifier_cyto_dl/data/max_project_20x
+deployment_name: generate_lamin_gt
+local_run: true
+steps:
+    - function: morflowgenesis.steps.image_object_from_csv.generate_objects
+      args:
+        csv_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/breakdown_classifier_cyto_dl/data/max_project_20x/manifest.csv"
+        working_dir: ${working_dir}
+        source_column: "raw"
+      step_type: "init"
+
+    - function: morflowgenesis.steps.project.project_gather
+      args:
+        output_name: project
+        input_steps: [generate_objects_raw]
+        project_type: max
+      step_type: "gather"

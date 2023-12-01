@@ -14,7 +14,7 @@ steps:
           scenes: ["P8-B4"]
       step_type: "init"
 
-    run segmentation from 20x
+    # run segmentation from 20x
     - function: morflowgenesis.steps.run_cytodl_gather.run_cytodl
       args:
         output_name: 100x_lamin_seg
@@ -51,7 +51,6 @@ steps:
             - shcoeff
       step_type: "gather"
 
-
     - function: morflowgenesis.steps.create_manifest_nucmorph.create_manifest
       args:
         output_name: manifest
@@ -59,4 +58,3 @@ steps:
         tracking_step: run_tracking_tracking
         single_cell_step: single_cell_dataset_cells_parallelize_across_fovs
       step_type: "gather"
-1

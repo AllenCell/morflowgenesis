@@ -1,0 +1,23 @@
+working_dir: /allen/aics/assay-dev/users/Benji/CurrentProjects/cytodata/${deployment_name}
+deployment_name: movies
+
+local_run: True
+
+steps:
+    # - function: morflowgenesis.steps.image_object_from_csv.generate_objects
+    #   args:
+    #     csv_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/cytodata/movies/manifest.csv"
+    #     working_dir: ${working_dir}
+    #     source_column: "bf"
+    #     non_source_columns: [lr_caax, hr_caax, hr_nucseg]
+    #     metadata_column: metadata
+    #   step_type: "init"
+
+
+    - function: morflowgenesis.steps.tracking.run_tracking
+      args:
+          output_name: tracking
+          input_step: generate_objects_hr_nucseg
+      step_type: "gather"
+
+

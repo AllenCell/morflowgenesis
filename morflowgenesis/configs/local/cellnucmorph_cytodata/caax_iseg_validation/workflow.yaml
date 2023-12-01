@@ -1,0 +1,92 @@
+working_dir: //allen/aics/assay-dev/users/Benji/CurrentProjects/validation/cytodata/${deployment_name}
+deployment_name: caax_iseg
+
+local_run: True
+
+steps:
+    # get paired hr caax /instance seg
+    - function: morflowgenesis.steps.image_object_from_csv.generate_objects
+      args:
+        csv_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/cellnucmorph_cytodata/caax_iseg_validation/manifest.csv
+        working_dir: ${working_dir}
+        source_column: hr
+        non_source_columns: [cellseg]
+      step_type: "init"
+
+    # generate instance segmentation on caax
+    - function: morflowgenesis.steps.run_cytodl_gather.run_cytodl
+      args:
+        output_name: pred_cellseg
+        input_step: generate_objects_hr
+        config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/cellnucmorph_cytodata/caax_iseg_validation/model.yaml
+      step_type: "gather"
+
+    # create dataset with caax, cellseg, and pred cellseg
+    - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
+      args:
+        output_name: single_cell
+        splitting_step: run_cytodl_pred_cellseg
+        raw_steps: [generate_objects_hr]
+        seg_steps: [run_cytodl_pred_cellseg, generate_objects_cellseg]
+        seg_steps_rename: [pred_cellseg, gt_cellseg]
+        keep_lcc: True
+        mask: False
+        iou_thresh: 0.7
+        include_edge_cells: False
+
+
+    - function: morflowgenesis.steps.feature_calculation.calculate_features
+      args:
+        output_name: features
+        input_step: single_cell_dataset_single_cell
+        features:
+            - height
+            - volume
+            - shcoeff
+
+    - function: morflowgenesis.steps.contact_sheet.segmentation_contact_sheet
+      args:
+        output_name: pred_contact_sheet
+        single_cell_dataset_step: single_cell_dataset_single_cell
+        feature_step: calculate_features_features
+        raw_name: generate_objects_hr
+        segmentation_name: gt_cellseg
+        x_feature: volume
+        y_feature: height
+        seg_names: [gt_cellseg, pred_cellseg]
+      step_type: 'gather'
+
+    - function: morflowgenesis.steps.pca.run_pca
+      args:
+        output_name: pca
+        feature_step: calculate_features_features
+        features_regex: '.*shcoeffs.*'
+        calculate_name: gt_cellseg
+        apply_names: [pred_cellseg]
+      step_type: 'gather'
+        
+    - function: morflowgenesis.steps.plot.run_plot
+      args:
+        output_name: plot
+        input_step: calculate_features_features
+        features: [volume, height]
+        label:
+          segmentation_name: gt_cellseg
+          description: 'GT'
+        pred:
+          - segmentation_name: pred_cellseg
+            description: Pred
+      step_type: 'gather'
+
+    - function: morflowgenesis.steps.plot.run_plot
+      args:
+        output_name: pca_plot
+        input_step: run_pca_pca
+        features: [PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10]
+        label:
+          segmentation_name: gt_cellseg
+          description: 'GT'
+        pred:
+          - segmentation_name: pred_cellseg
+            description: Pred
+      step_type: 'gather'

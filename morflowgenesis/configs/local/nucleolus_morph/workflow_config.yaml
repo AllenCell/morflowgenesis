@@ -1,0 +1,186 @@
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/nucleolus_morph
+deployment_name: nucleolus_morph
+work_pool_name: k8s
+
+local_run: false
+
+pull:
+    repository: https://github.com/aics-int/morflowgenesis.git
+    branch: dev_benji
+    secret_block_name: dev-morflowgenesis-benji-pat
+
+path: morflowgenesis
+entrypoint: morflowgenesis/bin/run_workflow.py:morflowgenesis
+
+base_image: docker-modeling-local.artifactory.corp.alleninstitute.org/mlops/morflowgenesis:v0.0.2
+
+#kubernetes cluster infra overrides
+infra_overrides:
+    #  don't use latest in production
+    image: ${base_image}
+    image_pull_policy: Always
+    namespace: "prefect"
+    resources:
+        limits:
+            cpu: "100000m"
+            memory: "400Gi"
+        requests:
+            cpu: "50000m"
+            memory: "100Gi"
+
+# default gpu steps, added to infra overrides
+gpu_step_overrides:
+    resources:
+        limits:
+            cpu: "8000m"
+            memory: "80Gi"
+            nvidia.com/gpu: "1"
+        requests:
+            cpu: "1000m"
+            memory: "50Gi"
+            nvidia.com/gpu: "1"
+
+# dask cluster overrides
+dask_cluster:
+    adapt_kwargs:
+        maximum: 10
+    cluster_kwargs:
+        # dask worker args
+        pod_template:
+            image: ${base_image}
+            extra_pod_config:
+                volumes:
+                    - name: vast-nfs
+                      nfs:
+                          server: aics.vast01.corp.alleninstitute.org
+                          path: /aics
+            extra_container_config:
+                imagePullPolicy: Always
+                volumeMounts:
+                    - name: vast-nfs
+                      mountPath: /allen/aics
+                resources:
+                    limits:
+                        cpu: "4000m"
+                        memory: "20Gi"
+                        nvidia.com/gpu: 0
+                    requests:
+                        cpu: "500m"
+                        memory: "1Gi"
+        deploy_mode: local
+        n_workers: 5
+
+steps:
+    - function: morflowgenesis.steps.split_czi.split_czi
+      args:
+          czi_path: //allen/aics/assay-dev/MicroscopyData/Frick/2023/20230413/ZSD0/AD00003903/AD00003903_NucleolusTimelapse_ZSD0_20x-01-3.czi/AD00003903_NucleolusTimelapse_ZSD0_20x-01-3_AcquisitionBlock1.czi/AD00003903_NucleolusTimelapse_ZSD0_20x-01-3_AcquisitionBlock1_pt1.czi
+          optical_control_path: "//allen/aics/assay-dev/MicroscopyData/Frick/2023/20230413/ZSD0/QC/field_of_rings/ZSD0_201230413_20x_SLG_506_field_of_rings_reset_roiFOV_shows_SAME_camera_misalignment.czi"
+          # NPM1, bf, FBL
+          working_dir: ${working_dir}
+          output_name: 20x_raw
+          channels: -1
+          dimension_order_out: CZYX
+          timepoints: -1
+          scenes: ["P1-C5"]
+      step_type: "gather"
+
+    - function: morflowgenesis.steps.run_cytodl.run_cytodl
+      args:
+          output_name: 20x_nucseg
+          input_step: split_czi_20x_raw
+          config_path: ./morflowgenesis/configs/step/20x_bf_to_20x_nucseg.yaml
+      dask_cluster: null
+      infra_overrides: ${gpu_step_overrides}
+
+    - function: morflowgenesis.steps.resize_image.run_resize
+      args:
+          output_name: 100x_nucseg
+          input_step: run_cytodl_20x_nucseg
+          output_shape: [120, 3000, 4500]
+
+    - function: morflowgenesis.steps.run_cytodl.run_cytodl
+      args:
+          output_name: 100x_npm1
+          input_step: split_czi_20x_raw
+          config_path: ./morflowgenesis/configs/step/20x_npm1_to_100x_npm1.yaml
+      dask_cluster: null
+      infra_overrides: ${gpu_step_overrides}
+
+    - function: morflowgenesis.steps.max_project.max_project
+      args:
+          output_name: max_project
+          input_steps: run_cytodl_100x_npm1
+
+    - function: morflowgenesis.steps.run_cytodl.run_cytodl
+      args:
+          output_name: 100x_npm1_seg
+          input_step: run_cytodl_100x_npm1
+          config_path: ./morflowgenesis/configs/step/100x_npm1_to_100x_npm1_seg.yaml
+      dask_cluster: null
+      infra_overrides: ${gpu_step_overrides}
+
+    - function: morflowgenesis.steps.tracking.run_tracking
+      args:
+          working_dir: ${working_dir}
+          output_name: tracking
+          input_step: run_resize_100x_nucseg
+      step_type: "gather"
+
+    - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
+      args:
+          output_name: cells
+          splitting_step: run_resize_100x_nucseg
+          raw_steps: [run_cytodl_100x_npm1]
+          raw_steps_rename: [npm1]
+          seg_steps: [run_cytodl_100x_npm1_seg, run_resize_100x_nucseg]
+          seg_steps_rename: [npm1_seg, nuc_seg]
+          tracking_step: test_tracking
+          mask: False
+      dask_cluster:
+          adapt_kwargs:
+              maximum: 10
+          cluster_kwargs:
+              # dask worker args
+              pod_template:
+                  extra_container_config:
+                      resources:
+                          limits:
+                              cpu: "4000m"
+                              memory: "30Gi"
+                              nvidia.com/gpu: 0
+                          requests:
+                              cpu: "1000m"
+                              memory: "20Gi"
+
+    - function: morflowgenesis.steps.feature_calculation.calculate_features
+      args:
+          output_name: features
+          input_step: single_cell_dataset_cells
+          segmentation_columns: [crop_seg_path]
+          features:
+              - height
+              - volume
+              - n_pieces
+      dask_cluster:
+          adapt_kwargs:
+              maximum: 10
+          cluster_kwargs:
+              # dask worker args
+              pod_template:
+                  extra_container_config:
+                      resources:
+                          limits:
+                              cpu: "4000m"
+                              memory: "30Gi"
+                              nvidia.com/gpu: 0
+                          requests:
+                              cpu: "1000m"
+                              memory: "20Gi"
+
+    - function: morflowgenesis.steps.contact_sheet.run_contact_sheet
+      args:
+          output_name: contact_sheet
+          single_cell_dataset_step: single_cell_dataset_single_cell_dataset
+          feature_step: calculate_features_features
+          x_characteristic: volume_crop_seg_path
+          y_characteristic: height_crop_seg_path

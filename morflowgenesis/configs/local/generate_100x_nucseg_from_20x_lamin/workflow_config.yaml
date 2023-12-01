@@ -1,0 +1,36 @@
+# working_dir: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/nucleus_transfer_function/goldilocks_replicate/skoots_direct_segmentation_improved_seeds_better_crop/"
+# working_dir: "//allen/aics/assay-dev/computational/data/transfer_function_production/ZSD3_retrain/lamin_20x-100x/aligned_data/segmentation"
+working_dir: //allen/aics/assay-dev/computational/data/transfer_function_production/ZSD3 2023/LaminB1_ZSD3_20230731/aligned_data/segmentation
+deployment_name: generate_gts
+
+local_run: true
+
+steps:
+    - function: morflowgenesis.steps.image_object_from_csv.generate_objects
+      args:
+        # csv_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/data/nucleus_transfer_function/goldilocks_replicate/skoots_direct_segmentation_improved_seeds/raw_seg_manifest.csv"
+        csv_path: ${working_dir}/manifest.csv
+        working_dir: ${working_dir}
+        source_column: "lr"
+        non_source_columns: ["hr"]
+      step_type: "init"
+
+    # run segmentation from 20x
+    - function: morflowgenesis.steps.run_cytodl_gather.run_cytodl
+      args:
+        output_name: 100x_lamin_seg
+        input_step: generate_objects_lr
+        config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/20x_lamin_to_100x_nucseg_high_semantic_loss.yaml
+        run_id: 28968a81015b4dfb8f16f14c13f4c1c7
+      step_type: "gather"
+
+    # watershed on transfer function lamin
+    - function: morflowgenesis.steps.segmentation_seeded_watershed.run_watershed
+      args:
+          output_name: watershed_mahotas
+          raw_input_step: generate_objects_hr
+          seg_input_step: run_cytodl_100x_lamin_seg
+          min_seed_size: 500
+          mode: "erosion"
+          erosion: 3
+          smooth: True
