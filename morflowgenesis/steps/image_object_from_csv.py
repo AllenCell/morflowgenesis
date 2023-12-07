@@ -5,9 +5,7 @@ import pandas as pd
 from aicsimageio import AICSImage
 from prefect import flow, task
 
-from morflowgenesis.utils.create_temporary_dask_cluster import create_task_runner
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner
 
 
 @task

@@ -1,5 +1,3 @@
-import glob
-
 import numpy as np
 import pandas as pd
 from aics_shape_modes.projection import (
@@ -8,7 +6,7 @@ from aics_shape_modes.projection import (
 )
 from prefect import flow
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner
+from morflowgenesis.utils import ImageObject, StepOutput
 
 
 @flow(log_prints=True)

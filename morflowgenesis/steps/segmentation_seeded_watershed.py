@@ -1,14 +1,13 @@
 import numpy as np
 from mahotas import cwatershed
 from prefect import flow, task
+from prefect.futures import PrefectFuture
 from scipy.ndimage import binary_dilation, binary_erosion, find_objects
 from skimage.filters import median
 from skimage.measure import label
 from skimage.morphology import disk
 
-from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
 
 def pad_slice(s, padding, constraints):
@@ -88,6 +87,7 @@ def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5, smooth=False):
 
 
 def merge_instance_segs(segs, coords, img):
+    breakpoint()
     lab = np.uint16(1)
     count_map = np.zeros_like(img, dtype=np.uint8)
     for c, s in zip(coords, segs):
@@ -100,33 +100,25 @@ def merge_instance_segs(segs, coords, img):
     return img
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def run_watershed(
-    image_object_path,
-    step_name,
-    output_name,
+@task
+def run_object(
+    image_object,
     raw_input_step,
     seg_input_step,
-    mode="centroid",
-    erosion=None,
-    min_seed_size=1000,
-    include_edge=True,
-    padding=10,
-    smooth=False,
+    padding,
+    include_edge,
+    mode,
+    erosion,
+    smooth,
+    min_seed_size,
+    run_within_object,
 ):
-    image_object = ImageObject.parse_file(image_object_path)
-    output = StepOutput(
-        image_object.working_dir,
-        step_name,
-        output_name,
-        output_type="image",
-        image_id=image_object.id,
-    )
-    if output.path.exists():
-        image_object.add_step_output(output)
-        image_object.save()
-        return
+    """General purpose function to run a task across an image object.
 
+    If run_within_object is True, run the task steps within the image object and return tuple of
+    (futures, coords) If run_within_object is False run the task as a function and return a tuple
+    of (img, coords)
+    """
     raw = image_object.load_step(raw_input_step)
     seg = image_object.load_step(seg_input_step)
 
@@ -150,13 +142,80 @@ def run_watershed(
         if np.sum(crop_seg == lab) < min_seed_size:
             continue
         results.append(
-            run_watershed_task.submit(crop_raw, crop_seg, lab, mode, is_edge, erosion, smooth)
+            submit(
+                run_watershed_task,
+                as_task=run_within_object,
+                raw=crop_raw,
+                seg=crop_seg,
+                lab=lab,
+                mode=mode,
+                is_edge=is_edge,
+                erosion=erosion,
+                smooth=smooth,
+            )
         )
         all_coords.append(coords)
-    results = [r.result() for r in results]
 
-    seg = merge_instance_segs(results, all_coords, np.zeros_like(raw).astype(np.uint16))
+    return results, all_coords, raw.shape
 
-    output.save(seg)
-    image_object.add_step_output(output)
-    image_object.save()
+
+@flow(task_runner=create_task_runner(), log_prints=True)
+def run_watershed(
+    image_object_paths,
+    step_name,
+    output_name,
+    raw_input_step,
+    seg_input_step,
+    mode="centroid",
+    erosion=None,
+    min_seed_size=1000,
+    include_edge=True,
+    padding=10,
+    smooth=False,
+):
+    # if only one image is passed, run across objects within that image. Otherwise, run across images
+    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
+    run_within_object = len(image_objects) == 1
+
+    all_results = []
+    for obj in image_objects:
+        all_results.append(
+            submit(
+                run_object,
+                as_task=not run_within_object,
+                image_object=obj,
+                raw_input_step=raw_input_step,
+                seg_input_step=seg_input_step,
+                padding=padding,
+                include_edge=include_edge,
+                mode=mode,
+                erosion=erosion,
+                smooth=smooth,
+                min_seed_size=min_seed_size,
+                run_within_object=run_within_object,
+            )
+        )
+
+    for object_result, obj in zip(all_results, image_objects):
+        if run_within_object:
+            # parallelizing within fov
+            imgs, coords, shape = object_result
+            imgs = [im.result() for im in imgs]
+        else:
+            assert isinstance(
+                object_result, PrefectFuture
+            ), "parallelizing across fovs returned unexpected result"
+            # parallelizing across fovs
+            imgs, coords, shape = object_result.result()
+
+        seg = merge_instance_segs(imgs, coords, np.zeros(shape).astype(np.uint16))
+        output = StepOutput(
+            obj.working_dir,
+            step_name,
+            output_name,
+            output_type="image",
+            image_id=obj.id,
+        )
+        output.save(seg)
+        obj.add_step_output(output)
+        obj.save()

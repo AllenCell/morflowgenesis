@@ -4,11 +4,13 @@ import tqdm
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from prefect import flow, task
+from prefect.futures import PrefectFuture
 from skimage.measure import label
 
-from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
+
+# TODO either return everything in pixels or everything in microns
+# TODO add centroid calculation
 
 
 def get_volume(img):
@@ -154,22 +156,40 @@ def get_matched_features(row, features, reference_channel):
     )
 
 
-@task(log_prints=True)
-def get_features_gather(
-    path, step_name, output_name, input_step, reference_channel, features
+@task
+def run_object(
+    image_object,
+    step_name,
+    output_name,
+    input_step,
+    reference_channel,
+    features,
+    run_within_object,
 ):
-    image_object = ImageObject.parse_file(path)
+    """General purpose function to run a task across an image object.
 
+    If run_within_object is True, run the task across cells within the image object and return a
+    list of futures and the output object. Otherwise, run the task as a function and return the
+    results and an output object
+    """
     cell_df = image_object.load_step(input_step)
     results = []
     for row in tqdm.tqdm(cell_df.itertuples()):
         row = row._asdict()
         if reference_channel is None:
-            results.append(get_features.fn(row, features))
+            results.append(
+                submit(get_features, as_task=run_within_object, row=row, features=features)
+            )
         else:
-            results.append(get_matched_features.fn(row, features, reference_channel))
-
-    features_df = pd.concat(results)
+            results.append(
+                submit(
+                    get_matched_features,
+                    as_task=run_within_object,
+                    row=row,
+                    features=features,
+                    reference_channel=reference_channel,
+                )
+            )
 
     output = StepOutput(
         image_object.working_dir,
@@ -179,9 +199,7 @@ def get_features_gather(
         image_id=image_object.id,
         index_col=["CellId", "Name", "Label"],
     )
-    output.save(features_df)
-    image_object.add_step_output(output)
-    image_object.save()
+    return results, output
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
@@ -193,12 +211,34 @@ def calculate_features(
     features,
     reference_channel=None,
 ):
-    results = []
-    for p in image_object_paths:
-        results.append(
-            get_features_gather.submit(
-                p, step_name, output_name, input_step, reference_channel, features
+    # if only one image is passed, run across objects within that image. Otherwise, run across images
+    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
+    run_within_object = len(image_objects) == 1
+
+    all_results = []
+    for obj in image_objects:
+        all_results.append(
+            submit(
+                run_object,
+                as_task=not run_within_object,
+                image_object=obj,
+                step_name=step_name,
+                output_name=output_name,
+                input_step=input_step,
+                reference_channel=reference_channel,
+                features=features,
+                run_within_object=run_within_object,
             )
         )
-        break
-    [r.result() for r in results]
+    for object_result, obj in zip(all_results, image_objects):
+        if not run_within_object:
+            # parallelizing across fovs
+            object_result = object_result.result()
+        results, output = object_result
+        if run_within_object:
+            # parallelizing within fov
+            results = [r.result() for r in results]
+        features_df = pd.concat(results)
+        output.save(features_df)
+        obj.add_step_output(output)
+        obj.save()

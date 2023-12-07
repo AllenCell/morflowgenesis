@@ -3,6 +3,7 @@ import shutil
 from pathlib import Path
 
 import mlflow
+import pandas as pd
 from cyto_dl.eval import evaluate
 from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
@@ -10,18 +11,19 @@ from hydra.core.hydra_config import HydraConfig
 from omegaconf import OmegaConf, open_dict, read_write
 from prefect import flow, task
 
-from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import ImageObject
 from morflowgenesis.utils.step_output import StepOutput
 
 
-@task
 def download_mlflow_model(
     run_id: str,
     save_path: str,
     checkpoint_path="checkpoints/val/loss/best.ckpt",
     tracking_uri: str = "https://mlflow.a100.int.allencell.org",
 ):
+    if (save_path / checkpoint_path).exists():
+        print("Checkpoint exists! Skipping download...")
+        return save_path / checkpoint_path
     mlflow.set_tracking_uri(tracking_uri)
     mlflow.artifacts.download_artifacts(
         run_id=run_id, tracking_uri=tracking_uri, artifact_path=checkpoint_path, dst_path=save_path
@@ -29,24 +31,27 @@ def download_mlflow_model(
     return save_path / checkpoint_path
 
 
-@task
+# @task
 def generate_config(
-    image_object,
+    image_objects,
     step_name,
     output_name,
     input_step,
-    overrides,
     config_path,
+    overrides,
     run_id=None,
     checkpoint_path="checkpoints/val/loss/best.ckpt",
 ):
     # get input data path
-    prev_step_output = image_object.get_step(input_step)
-    data_path = prev_step_output.path
+    data_paths = [
+        im.get_step(input_step).path
+        for im in image_objects
+        if not (im.working_dir / step_name / output_name / f"{im.id}_nucseg_pred.tif").exists()
+    ]
 
     mlflow_ckpt_path = None
     if run_id is not None:
-        save_path = image_object.working_dir / run_id
+        save_path = image_objects[0].working_dir / run_id
         save_path.mkdir(exist_ok=True, parents=True)
         mlflow_ckpt_path = download_mlflow_model(run_id, save_path, checkpoint_path)
 
@@ -67,46 +72,59 @@ def generate_config(
                 cfg.hydra.job.num = 0
                 cfg.hydra.job.id = 0
 
-        # TODO make load/save path overrides work on default cytodl configs
-        cfg["data"]["data"] = [{cfg.model.x_key: str(data_path)}]
-        save_dir = image_object.working_dir / step_name / output_name / image_object.id
-        cfg["model"]["save_dir"] = str(save_dir)
-
         if mlflow_ckpt_path is not None:
             cfg["ckpt_path"] = mlflow_ckpt_path
 
+        # TODO make load/save path overrides work on default cytodl configs
+        cfg["data"]["data"] = [{cfg.model.x_key: str(p)} for p in data_paths]
+        save_dir = image_objects[0].working_dir / step_name / output_name
+        cfg["model"]["save_dir"] = str(save_dir)
         HydraConfig.instance().set_config(cfg)
         OmegaConf.set_readonly(cfg.hydra, None)
-    return cfg, save_dir
+    return cfg
 
 
-@task(retries=3, retry_delay_seconds=[10, 60, 120])
+# @task(retries=3, retry_delay_seconds=[10, 60, 120])
 def run_evaluate(cfg):
-    evaluate(cfg)
+    return evaluate(cfg)
 
 
-@flow(log_prints=True)  # task_runner=create_task_runner()
-def run_cytodl(image_object_path, step_name, output_name, input_step, config_path, overrides=[]):
-    image_object = ImageObject.parse_file(image_object_path)
+# @flow(log_prints=True)
+def run_cytodl(
+    image_object_paths,
+    step_name,
+    output_name,
+    input_step,
+    config_path,
+    overrides=[],
+    run_id=None,
+    checkpoint_path="checkpoints/val/loss/best.ckpt",
+):
+    image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
 
-    cfg, save_dir = generate_config(
-        image_object, step_name, output_name, input_step, config_path, overrides
+    cfg = generate_config(
+        image_objects,
+        step_name,
+        output_name,
+        input_step,
+        config_path,
+        overrides,
+        run_id,
+        checkpoint_path,
     )
-    run_evaluate(cfg)
-
-    # find where cytodl saves out image
-    out_image_path = list((save_dir / "predict_images").glob("*"))[0]
-    output = StepOutput(
-        image_object.working_dir,
-        step_name=step_name,
-        output_name=output_name,
-        output_type="image",
-        image_id=image_object.id,
-    )
-    # move it to expected path of output step
-    shutil.move(str(out_image_path), str(output.path))
-    # delete cytodl-generated predict_image/test_image etc. folders
-    shutil.rmtree(save_dir)
-
-    image_object.add_step_output(output)
-    image_object.save()
+    _, _, out = run_evaluate(cfg)
+    for batch in out:
+        for input_filename, output_dict in batch.items():
+            for i in range(len(image_objects)):
+                if input_filename == str(image_objects[i].get_step(input_step).path):
+                    for head, save_path in output_dict.items():
+                        output = StepOutput(
+                            image_objects[0].working_dir,
+                            step_name=step_name,
+                            output_name=f"{output_name}_{head}",
+                            output_type="image",
+                            image_id=image_objects[i].id,
+                        )
+                        image_objects[i].add_step_output(output)
+                        image_objects[i].save()
+                        shutil.move(str(save_path), str(output.path))

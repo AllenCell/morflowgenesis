@@ -62,8 +62,7 @@ def create_regionprops_csv(obj, input_step, step_name, output_name):
 
 def find_outliers_by_volume(vol, thresh=0.10, pad_size=15, kernel=9):
     """detect errors in instance segmentation through changes in volume."""
-    # outliers = []
-
+    # TODO this makes outliers easier at the end of the movie
     # normalize data relative to minimum size
     vol = vol / np.min(vol)
     vol_pad = np.pad(vol, pad_size, mode="edge")  # , stat_length=3)

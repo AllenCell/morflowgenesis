@@ -14,9 +14,13 @@ from skimage.exposure import rescale_intensity
 from skimage.measure import label
 from skimage.transform import rescale, resize
 
-from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import (
+    ImageObject,
+    StepOutput,
+    create_task_runner,
+    submit,
+    to_list,
+)
 
 
 def upload_file(
@@ -177,7 +181,6 @@ def extract_cell(
     return df
 
 
-@task
 def pad_slice(s, padding, constraints):
     # pad slice by padding subject to image size constraints
     is_edge = False
@@ -191,7 +194,6 @@ def pad_slice(s, padding, constraints):
     return tuple(new_slice), is_edge
 
 
-@task
 def mask_images(
     raw_images,
     seg_images,
@@ -229,7 +231,6 @@ def mask_images(
     }
 
 
-@task(log_prints=True)
 def load_images(image_object, splitting_step, seg_steps, raw_steps):
     """load into multichannel images."""
     available_steps = list(image_object.steps.keys())
@@ -275,7 +276,7 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
 
 @task(log_prints=True)
 def process_image(
-    image_object_path,
+    image_object,
     splitting_step,
     tracking_step,
     padding,
@@ -293,10 +294,9 @@ def process_image(
     upload_fms,
     include_edge_cells,
     step_name,
+    run_within_object,
 ):
-    image_object = ImageObject.parse_file(image_object_path)
-
-    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images.fn(
+    raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(
         image_object, splitting_step, seg_steps, raw_steps
     )
     # find objects in segmentation
@@ -312,9 +312,9 @@ def process_image(
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        padded_coords, is_edge = pad_slice.fn(coords, padding, seg_images[splitting_ch].shape)
+        padded_coords, is_edge = pad_slice(coords, padding, seg_images[splitting_ch].shape)
         # do cropping serially to avoid memory blow up
-        crop_raw_images, crop_seg_images = mask_images.fn(
+        crop_raw_images, crop_seg_images = mask_images(
             raw_images,
             seg_images,
             raw_steps,
@@ -330,20 +330,22 @@ def process_image(
             print(f"Skipping cell {lab} due to low IoU")
             continue
         results.append(
-            extract_cell.fn(
-                image_object,
-                output_name,
-                crop_raw_images,
-                crop_seg_images,
-                padded_coords[1:],  # remove channel slicing
-                coords,
-                lab,
-                raw_steps,
-                seg_steps,
-                is_edge,
-                qcb_res,
-                z_res,
-                xy_res,
+            submit(
+                extract_cell,
+                as_task=run_within_object,
+                image_object=image_object,
+                output_name=output_name,
+                raw_images=crop_raw_images,
+                seg_images=crop_seg_images,
+                roi=coords,
+                coords=coords,
+                lab=lab,
+                raw_steps=raw_steps,
+                seg_steps=seg_steps,
+                is_edge=is_edge,
+                qcb_res=qcb_res,
+                z_res=z_res,
+                xy_res=xy_res,
                 upload_fms=False,
                 dataset_name="morphogenesis",
                 tracking_df=None,
@@ -351,26 +353,7 @@ def process_image(
                 raw_steps_rename=raw_steps_rename,
             )
         )
-
-    df = pd.concat(results)
-    image_object = ImageObject.parse_file(image_object_path)
-
-    csv_output_path = (
-        image_object.working_dir / "single_cell_dataset" / output_name / f"{image_object.id}.csv"
-    )
-
-    step_output = StepOutput(
-        image_object.working_dir,
-        step_name,
-        output_name,
-        output_type="csv",
-        image_id=image_object.id,
-        path=csv_output_path,
-    )
-    step_output.save(df)
-
-    image_object.add_step_output(step_output)
-    image_object.save()
+    return results
 
 
 # Parallelizing over images is faster than parallelizing over cells.
@@ -395,28 +378,58 @@ def single_cell_dataset(
     iou_thresh=None,
     include_edge_cells=True,
 ):
-    results = []
-    for image_object_path in image_object_paths:
-        results.append(
-            process_image.submit(
-                image_object_path,
-                splitting_step,
-                tracking_step,
-                padding,
-                mask,
-                keep_lcc,
-                iou_thresh,
-                output_name,
-                seg_steps,
-                raw_steps,
-                seg_steps_rename,
-                raw_steps_rename,
-                xy_res,
-                z_res,
-                qcb_res,
-                upload_fms,
-                include_edge_cells,
-                step_name,
+
+    # if only one image is passed, run across objects within that image. Otherwise, run across images
+    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
+    run_within_object = len(image_objects) == 1
+
+    all_results = []
+    for obj in image_objects:
+        all_results.append(
+            submit(
+                process_image,
+                as_task=not run_within_object,
+                image_object=obj,
+                splitting_step=splitting_step,
+                tracking_step=tracking_step,
+                padding=padding,
+                mask=mask,
+                keep_lcc=keep_lcc,
+                iou_thresh=iou_thresh,
+                output_name=output_name,
+                seg_steps=seg_steps,
+                raw_steps=raw_steps,
+                seg_steps_rename=seg_steps_rename,
+                raw_steps_rename=raw_steps_rename,
+                xy_res=xy_res,
+                z_res=z_res,
+                qcb_res=qcb_res,
+                upload_fms=upload_fms,
+                include_edge_cells=include_edge_cells,
+                step_name=step_name,
+                run_within_object=run_within_object,
             )
         )
-    results = [r.result() for r in results]
+    for object_result, obj in zip(all_results, image_objects):
+        if run_within_object:
+            # parallelizing across cells within an fov
+            object_result = [r.result() for r in object_result]
+        else:
+            # parallelizing across fovs
+            object_result = object_result.result()
+        df = pd.concat(object_result)
+
+        csv_output_path = obj.working_dir / "single_cell_dataset" / output_name / f"{obj.id}.csv"
+
+        step_output = StepOutput(
+            obj.working_dir,
+            step_name,
+            output_name,
+            output_type="csv",
+            image_id=obj.id,
+            path=csv_output_path,
+        )
+        step_output.save(df)
+
+        obj.add_step_output(step_output)
+        obj.save()
