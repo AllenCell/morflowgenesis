@@ -1,10 +1,11 @@
 import numpy as np
 import pandas as pd
 import tqdm
+from typing import List, Optional, Union
+from pathlib import Path
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from prefect import flow, task
-from prefect.futures import PrefectFuture
 from skimage.measure import label
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
@@ -87,15 +88,18 @@ def append_dict(features_dict, new_dict):
 
 
 @task
-def get_features(row, features):
+def get_features(row, features, channels):
     features_dict = {}
     multi_index = []
 
     img = AICSImage(row["crop_seg_path"])
     channel_names = img.channel_names
+    channels = channels or channel_names
     img = img.get_image_data("CZYX")
 
     for i, name in enumerate(channel_names):
+        if name not in channels:
+            continue
         ch_img = img[i]
         if np.all(ch_img == 0):
             continue
@@ -115,10 +119,11 @@ def get_features(row, features):
 
 
 @task()
-def get_matched_features(row, features, reference_channel):
+def get_matched_features(row, features, channels, reference_channel):
     features_dict = {}
     img = AICSImage(row["crop_seg_path"])
     channel_names = img.channel_names
+    channels= channels or channel_names
     img = img.get_image_data("CZYX")
     for ch in range(img.shape[0]):
         if np.all(img[ch] == 0):
@@ -135,6 +140,8 @@ def get_matched_features(row, features, reference_channel):
             continue
         if feat == "shcoeff":
             for i, ch in enumerate(channel_names):
+                if ch not in channels:
+                    continue
                 if i == 0:
                     # add ground truth features
                     feats, transform_params = FEATURE_EXTRACTION_FUNCTIONS[feat](
@@ -164,6 +171,7 @@ def run_object(
     input_step,
     reference_channel,
     features,
+    channels=channels
     run_within_object,
 ):
     """General purpose function to run a task across an image object.
@@ -178,7 +186,7 @@ def run_object(
         row = row._asdict()
         if reference_channel is None:
             results.append(
-                submit(get_features, as_task=run_within_object, row=row, features=features)
+                submit(get_features, as_task=run_within_object, row=row, features=features, channels=channels)
             )
         else:
             results.append(
@@ -187,6 +195,7 @@ def run_object(
                     as_task=run_within_object,
                     row=row,
                     features=features,
+                    channels=channels,
                     reference_channel=reference_channel,
                 )
             )
@@ -204,13 +213,32 @@ def run_object(
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def calculate_features(
-    image_object_paths,
-    step_name,
-    output_name,
-    input_step,
-    features,
-    reference_channel=None,
+    image_object_paths: List[Union(str, Path)],
+    step_name: str,
+    output_name: str,
+    input_step: str,
+    features: List[str],
+    reference_channel: Optional[str]=None,
+    channels: Optional[List[str]]= None,
 ):
+    """
+    Parameters
+    ----------
+    image_object_paths: List[Union(str, Path)]
+        List of paths to image objects to run the task on
+    step_name: str
+        Name of the step
+    output_name: str
+        Name of the output
+    input_step: str
+        Name of the input step (usually a single cell dataset step)
+    features: List[str]
+        List of names of features to calculate
+    reference_channel: Optional[str]
+        Name of the reference channel to use for spherical harmonics alignment
+    channels: Optional[List[str]]
+        List of channel names to use for feature calculation. If None, use all channels
+    """
     # if only one image is passed, run across objects within that image. Otherwise, run across images
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     run_within_object = len(image_objects) == 1
@@ -227,6 +255,7 @@ def calculate_features(
                 input_step=input_step,
                 reference_channel=reference_channel,
                 features=features,
+                channels=channels
                 run_within_object=run_within_object,
             )
         )
