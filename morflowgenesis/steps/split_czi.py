@@ -21,9 +21,9 @@ def get_data(path, load_kwargs):
 
 
 @task
-def split(path, working_dir, output_name, step_name, file_path, alignment_args, load_kwargs):
+def split(path, working_dir, output_name, step_name,  alignment_args, load_kwargs):
     # create object associated with image
-    img_obj = ImageObject(working_dir, file_path, load_kwargs)
+    img_obj = ImageObject(working_dir, path, load_kwargs)
     output = StepOutput(
         working_dir,
         step_name,
@@ -76,8 +76,8 @@ def _validate_list(val):
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
-def split_czi(
-    czi_path,
+def split_image(
+    image_path,
     working_dir,
     output_name,
     step_name,
@@ -96,7 +96,7 @@ def split_czi(
         alignment_args["matrix"] = align_argolight(
             working_dir / "optical_control_alignment" / output_name, optical_control_path
         )
-        alignment_channels = channel_info_factory(czi_path).channels_from_camera_position(
+        alignment_channels = channel_info_factory(image_path).channels_from_camera_position(
             CameraPosition.BACK
         )
         alignment_args["channels"] = [channel.channel_index for channel in alignment_channels]
@@ -107,7 +107,7 @@ def split_czi(
         print("Alignment Parameters:", alignment_args)
 
     # get source image metadata
-    img = AICSImage(czi_path)
+    img = AICSImage(image_path)
     scenes = img.scenes if scenes == -1 else scenes
 
     # run all timepoints if no timepoints specified in config
@@ -136,11 +136,10 @@ def split_czi(
             if (t, s) not in already_run:
                 new_image_objects.append(
                     split.submit(
-                        czi_path,
+                        image_path,
                         working_dir,
                         output_name,
                         step_name,
-                        czi_path,
                         alignment_args,
                         load_kwargs.copy(),
                     )
