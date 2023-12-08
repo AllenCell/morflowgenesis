@@ -17,10 +17,10 @@ steps:
     # run segmentation from 20x
     - function: morflowgenesis.steps.run_cytodl_gather.run_cytodl
       args:
-        output_name: 100x_lamin_seg
-        input_step: split_czi_20x_raw
-        config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/20x_lamin_to_100x_nucseg_high_semantic_loss.yaml
-        run_id: 28968a81015b4dfb8f16f14c13f4c1c7
+          output_name: 100x_lamin_seg
+          input_step: split_czi_20x_raw
+          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/20x_lamin_to_100x_nucseg_high_semantic_loss.yaml
+          run_id: 28968a81015b4dfb8f16f14c13f4c1c7
       step_type: "gather"
 
     - function: morflowgenesis.steps.tracking.run_tracking
@@ -36,25 +36,25 @@ steps:
           raw_steps: [split_czi_20x_raw]
           raw_steps_rename: [20x_lamin]
           seg_steps: [run_cytodl_100x_lamin_seg]
-          seg_steps_rename: [ nuc_seg]
+          seg_steps_rename: [nuc_seg]
           tracking_step: run_tracking_tracking
           mask: False
       step_type: "gather"
 
     - function: morflowgenesis.steps.feature_calculation.calculate_features
       args:
-        output_name: features
-        input_step: single_cell_dataset_cells_parallelize_across_fovs
-        features:
-            - height
-            - volume
-            - shcoeff
+          output_name: features
+          input_step: single_cell_dataset_cells_parallelize_across_fovs
+          features:
+              - height
+              - volume
+              - shcoeff
       step_type: "gather"
 
     - function: morflowgenesis.steps.create_manifest_nucmorph.create_manifest
       args:
-        output_name: manifest
-        feature_step: calculate_features_features
-        tracking_step: run_tracking_tracking
-        single_cell_step: single_cell_dataset_cells_parallelize_across_fovs
+          output_name: manifest
+          feature_step: calculate_features_features
+          tracking_step: run_tracking_tracking
+          single_cell_step: single_cell_dataset_cells_parallelize_across_fovs
       step_type: "gather"
