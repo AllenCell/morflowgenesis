@@ -211,7 +211,7 @@ def run_object(
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def calculate_features(
-    image_object_paths: List[Union(str, Path)],
+    image_object_paths: List[Union[str, Path]],
     step_name: str,
     output_name: str,
     input_step: str,
