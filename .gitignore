@@ -113,3 +113,11 @@ ENV/
 
 # mypy
 .mypy_cache/
+
+
+# hydra
+/morflowgenesis/outputs
+
+# ignore local configs
+/morflowgenesis/configs/local/
+# !/morflowgenesis/configs/local/.gitkeep

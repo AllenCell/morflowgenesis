@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build docs help
+.PHONY: clean clean-test clean-pyc clean-build docs help docker
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -57,3 +57,17 @@ gen-docs: ## generate Sphinx HTML documentation, including API docs
 docs: ## generate Sphinx HTML documentation, including API docs, and serve to browser
 	make gen-docs
 	$(BROWSER) docs/_build/html/index.html
+
+local-registry = docker-modeling-local.artifactory.corp.alleninstitute.org
+version = v0.0.1
+ssh-file-name = id_ed2551
+
+docker:
+	DOCKER_BUILDKIT=1 \
+	docker build \
+	    --ssh github=$(HOME)/.ssh/${ssh-file-name} \
+	    --build-arg version=$(version) \
+	    -t $(local-registry)/mlops/morflowgenesis:$(version) .
+	docker push $(local-registry)/mlops/morflowgenesis:$(version)
+	docker tag $(local-registry)/mlops/morflowgenesis:$(version) $(local-registry)/mlops/morflowgenesis:latest
+	docker push $(local-registry)/mlops/morflowgenesis:latest

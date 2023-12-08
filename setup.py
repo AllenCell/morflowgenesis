@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """The setup script."""
 
 from setuptools import find_packages, setup
 
-with open("README.md") as readme_file:
+with open("README.md") as readme_file:  # noqa: FURB101
     readme = readme_file.read()
 
 setup_requirements = [
@@ -41,23 +40,26 @@ step_workflow_requirements = [
     "bokeh>=2.0.2",
     "dask[bag]>=2.18.1",
     "dask_jobqueue>=0.7.0",
-    "datastep>=0.1.9",
     "distributed>=2.18.0",
     "docutils",
+    "hydra-core",
     "fire",
-    "prefect",
+    "prefect==2.11.2",
+    "pydantic==1.10.12",
     "python-dateutil",
+    "aicspylibczi>3.1.1",
 ]
 
-requirements = [
-    *step_workflow_requirements,
-    # project requires
-    "numpy",
-    "pandas",
-    "Pillow",
-    "tqdm",
-]
+# requirements = [
+#     *step_workflow_requirements,
+#     # project requires
+#     "numpy",
+#     "pandas",
+#     "Pillow",
+#     "tqdm",
+# ]
 
+requirements = []
 extra_requirements = {
     "setup": setup_requirements,
     "test": test_requirements,
@@ -65,26 +67,22 @@ extra_requirements = {
     "all": [
         *requirements,
         *dev_requirements,
-    ]
+    ],
 }
 
 setup(
-    author="Jackson Maxfield Brown",
+    author="AICS",
     author_email="benjamin.morris@alleninstitute.org",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
         "License :: Free for non-commercial use",
         "Natural Language :: English",
-        "Programming Language :: Python :: 3.7",
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
     description="general workflow for morphogenesis projects",
-    entry_points={
-        "console_scripts": [
-            "morflowgenesis=morflowgenesis.bin.cli:cli"
-        ]
-    },
+    entry_points={"run_morflowgenesis": ["morflowgenesis=morflowgenesis.bin.run_workflow:main"]},
     install_requires=requirements,
     license="Allen Institute Software License",
     long_description=readme,
@@ -93,7 +91,7 @@ setup(
     keywords="morflowgenesis",
     name="morflowgenesis",
     packages=find_packages(exclude=["tests", "*.tests", "*.tests.*"]),
-    python_requires=">=3.7",
+    python_requires=">=3.8",
     setup_requires=setup_requirements,
     test_suite="morflowgenesis/tests",
     tests_require=test_requirements,
