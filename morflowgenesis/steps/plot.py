@@ -184,11 +184,16 @@ def plot(x_df, y_df, destdir, xlabel, ylabel):
 
 
 @flow(log_prints=True)
-def run_plot(image_object_paths, step_name, output_name, input_step, features, label, pred):
+def run_plot(image_object_paths, output_name, input_step, features, label, pred):
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
 
     features_df = pd.concat([obj.load_step(input_step) for obj in image_objects]).drop_duplicates()
     features_df.dropna(inplace=True)
+
+    # drop cellids that don't have values for name gt and pred
+    unmatched_cells = features_df.groupby('CellId').size()==1
+    unmatched_cells = unmatched_cells[unmatched_cells].index
+    features_df.drop(unmatched_cells, inplace=True)
 
     label_features = features_df.xs(label["segmentation_name"], level="Name")[features]
 
@@ -197,7 +202,7 @@ def run_plot(image_object_paths, step_name, output_name, input_step, features, l
             available_levels = features_df.index.get_level_values("Name").unique().values
             for level in available_levels:
                 if re.search(pred_filter["segmentation_name"], level):
-                    save_dir = image_objects[0].working_dir / step_name / level
+                    save_dir = image_objects[0].working_dir / "run_plot" / level
                     save_dir.mkdir(exist_ok=True, parents=True)
                     plot(
                         label_features,
@@ -207,7 +212,7 @@ def run_plot(image_object_paths, step_name, output_name, input_step, features, l
                         ylabel=f"{pred_filter['description']} {level}",
                     )
         else:
-            save_dir = image_objects[0].working_dir / step_name / pred_filter["segmentation_name"]
+            save_dir = image_objects[0].working_dir / "run_plot" / pred_filter["segmentation_name"]
             save_dir.mkdir(exist_ok=True, parents=True)
             pred_data = features_df.xs(pred_filter["segmentation_name"], level="Name")[features]
             plot(

@@ -6,9 +6,7 @@ from prefect import flow, task
 from skimage.exposure import rescale_intensity
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
 
 def make_rgb(img, contour):  # this function returns an RGB image
@@ -77,7 +75,6 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title=
 @flow(task_runner=create_task_runner(), log_prints=True)
 def segmentation_contact_sheet(
     image_object_paths,
-    step_name,
     output_name,
     single_cell_dataset_step,
     feature_step,
@@ -128,7 +125,7 @@ def segmentation_contact_sheet(
 
     output = StepOutput(
         image_objects[0].working_dir,
-        step_name,
+        "segmentation_contact_sheet",
         output_name,
         output_type="image",
         image_id=f"contact_sheet_{x_feature}_vs_{y_feature}",
@@ -137,75 +134,3 @@ def segmentation_contact_sheet(
     for image_object in image_objects:
         image_object.add_step_output(output)
         image_object.save()
-
-
-@flow(task_runner=create_task_runner(), log_prints=True)
-def run_contact_sheet(
-    image_object_path,
-    step_name,
-    output_name,
-    single_cell_dataset_step,
-    feature_step=None,
-    x_feature=None,
-    y_feature=None,
-    n_bins=10,
-    raw_channel=0,
-    seg_channel=0,
-    grouping_column=None,
-):
-    image_object = ImageObject.parse_file(image_object_path)
-
-    cell_df = image_object.load_step(single_cell_dataset_step)
-    feature_df = image_object.load_step(feature_step)
-    quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]
-
-    # Use qcut to bin the DataFrame by percentiles across both features
-    feature_df[f"{x_feature}_bin"] = pd.qcut(
-        feature_df[f"{x_feature}"], q=quantile_boundaries, duplicates="drop"
-    )
-    feature_df[f"{y_feature}_bin"] = pd.qcut(
-        feature_df[f"{y_feature}"], q=quantile_boundaries, duplicates="drop"
-    )
-    x_bins = feature_df[f"{x_feature}_bin"].unique()
-    y_bins = feature_df[f"{y_feature}_bin"].unique()
-
-    grouped_dfs = [cell_df]
-    if grouping_column is not None:
-        grouped_dfs = [
-            cell_df[cell_df[grouping_column] == cat] for cat in cell_df.grouping_column.unique()
-        ]
-
-    for gdf in grouped_dfs:
-        results = []
-        for x_bin in x_bins:
-            for y_bin in y_bins:
-                temp = feature_df[
-                    np.logical_and(
-                        feature_df[f"{x_feature}_bin"] == x_bin,
-                        feature_df[f"{y_feature}_bin"] == y_bin,
-                    )
-                ]
-                if len(temp) > 0:
-                    cell_id = temp["CellId"].sample(1).values[0]
-                    results.append(
-                        project_cell.submit(
-                            gdf[gdf["CellId"] == cell_id], raw_channel, seg_channel
-                        )
-                    )
-                else:
-                    results.append(None)
-        results = [r.result() if r is not None else (None, None) for r in results]
-
-        contact_sheet = assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature)
-
-        group_name = "" if grouping_column is None else f"_{gdf[grouping_column].iloc[0]}"
-        output = StepOutput(
-            image_object.working_dir,
-            step_name,
-            output_name + group_name,
-            output_type="image",
-            image_id=image_object.id,
-        )
-        contact_sheet.savefig(output.path, dpi=300)
-        image_object.add_step_output(output)
-    image_object.save()

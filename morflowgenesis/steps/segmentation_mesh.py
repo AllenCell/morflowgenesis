@@ -2,11 +2,17 @@ from aicsshparam import shtools
 from prefect import flow, task
 from skimage.transform import rescale
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner
+from morflowgenesis.utils import (
+    ImageObject,
+    StepOutput,
+    create_task_runner,
+    submit,
+    to_list,
+)
 
 
 @task
-def create_mesh(image_object, step_name, output_name, seg_step, resize):
+def create_mesh(image_object, output_name, seg_step, resize):
     seg = image_object.load_step(seg_step)
 
     # Reduce the image size and make volume isotropic
@@ -20,13 +26,13 @@ def create_mesh(image_object, step_name, output_name, seg_step, resize):
     save_path = (
         mesh_output_directory / f"{image_object.source_path}_T{timepoint:04d}.vtk"
         if timepoint is not None
-        else mech_output_directory / f"{image_object.id}.vtk"
+        else mesh_output_directory / f"{image_object.id}.vtk"
     )
 
     step_output = StepOutput(
         image_object.working_dir,
-        step_name,
-        output_name,
+        "mesh",
+        f"{output_name}_{seg_step}",
         "image",
         image_id=image_object.id,
         path=save_path,
@@ -35,19 +41,68 @@ def create_mesh(image_object, step_name, output_name, seg_step, resize):
     return step_output
 
 
+@task
+def run_object(
+    image_object,
+    input_steps,
+    output_name,
+    resize,
+    run_within_object,
+):
+    """General purpose function to run a task across an image object.
+
+    If run_within_object is True, run the task steps within the image object and return a list of
+    futures of output objects If run_within_object is False run the task as a function and return a
+    list of output objects
+    """
+    results = []
+    for step in input_steps:
+        results.append(
+            submit(
+                create_mesh,
+                as_task=run_within_object,
+                image_object=image_object,
+                seg_step=step,
+                output_name=output_name,
+                resize=resize,
+            )
+        )
+    return results
+
+
 @flow(task_runner=create_task_runner(), log_prints=True)
 def mesh(
-    image_object_path,
-    step_name,
+    image_object_paths,
     output_name,
-    segmentation_steps,
+    input_steps,
     resize=0.2,
 ):
-    image_object = ImageObject.parse_file(image_object_path)
+    # if only one image is passed, run across objects within that image. Otherwise, run across images
+    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
+    run_within_object = len(image_objects) == 1
 
-    results = []
-    for seg_step in segmentation_steps:
-        results.append(create_mesh.submit(image_object, step_name, output_name, seg_step, resize))
-    for r in results:
-        image_object.add_step_output(r.result())
-    image_object.save()
+    input_steps = to_list(input_steps)
+
+    all_results = []
+    for obj in image_objects:
+        all_results.append(
+            submit(
+                run_object,
+                as_task=not run_within_object,
+                image_object=obj,
+                input_steps=input_steps,
+                output_name=output_name,
+                resize=resize,
+                run_within_object=run_within_object,
+            )
+        )
+
+    for object_result, obj in zip(all_results, image_objects):
+        if run_within_object:
+            # parallelizing within fov
+            object_result = [r.result() for r in object_result]
+        else:
+            # parallelizing across fovs
+            object_result = object_result.result()
+        for output in object_result:
+            obj.add_step_output(output)

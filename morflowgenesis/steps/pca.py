@@ -5,14 +5,12 @@ import pandas as pd
 from prefect import flow
 from sklearn.decomposition import PCA
 
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput
 
 
 @flow(log_prints=True)
 def run_pca(
     image_object_paths,
-    step_name,
     output_name,
     feature_step,
     features_regex,
@@ -20,6 +18,8 @@ def run_pca(
     apply_names: List,
     n_components=10,
 ):
+    if calculate_name in apply_names:
+        raise ValueError("Calculate_name cannot be in apply_names")
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
 
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
@@ -45,7 +45,7 @@ def run_pca(
 
     step_output = StepOutput(
         image_objects[0].working_dir,
-        step_name,
+        "run_pca",
         output_name,
         "csv",
         image_id="pca",

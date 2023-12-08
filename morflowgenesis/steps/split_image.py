@@ -11,19 +11,34 @@ from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import ImageObject, StepOutput
 
 
-def get_data(img, load_kwargs):
+def get_data(path, load_kwargs):
+    img = AICSImage(path)
     # keep s when load kwargs is used later
-    load_kwargs = load_kwargs.copy()
     if "S" in load_kwargs:
-        img.set_scene(load_kwargs.pop("S"))
-    data = img.get_image_dask_data(**load_kwargs).compute()
+        img.set_scene(load_kwargs["S"])
+    data = img.get_image_dask_data(**{k: v for k, v in load_kwargs.items() if k != "S"}).compute()
     return data
 
 
 @task
-def split(img, working_dir, output_name, step_name, file_path, alignment_args, load_kwargs):
+def split(path, working_dir, output_name, alignment_args, load_kwargs):
+    # create object associated with image
+    img_obj = ImageObject(working_dir, path, load_kwargs)
+    output = StepOutput(
+        working_dir,
+        "split_image",
+        output_name,
+        "image",
+        # image_id=img_obj.id)
+        image_id=f"S{load_kwargs['S']}_T{load_kwargs['T']:04d}",
+    )
+
     # load image
-    data = get_data(img, load_kwargs)
+    data = get_data(path, load_kwargs)
+
+    import numpy as np
+
+    data = np.max(data.squeeze(), 0)
 
     if alignment_args is not None:
         data = align_image(
@@ -31,9 +46,6 @@ def split(img, working_dir, output_name, step_name, file_path, alignment_args, l
         )
         data = crop(data, Magnification(20))
 
-    # create object associated with image
-    img_obj = ImageObject(working_dir, file_path, load_kwargs)
-    output = StepOutput(working_dir, step_name, output_name, "image", image_id=img_obj.id)
     output.save(data)
     img_obj.add_step_output(output)
     img_obj.save()
@@ -64,11 +76,10 @@ def _validate_list(val):
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
-def split_czi(
-    czi_path,
+def split_image(
+    image_path,
     working_dir,
     output_name,
-    step_name,
     scenes=-1,
     timepoints=-1,
     channels=-1,
@@ -76,7 +87,7 @@ def split_czi(
     optical_control_path=None,
 ):
     working_dir = Path(working_dir)
-    (working_dir / step_name).mkdir(exist_ok=True, parents=True)
+    (working_dir / "split_image").mkdir(exist_ok=True, parents=True)
 
     alignment_args = None
     if optical_control_path is not None:
@@ -84,7 +95,7 @@ def split_czi(
         alignment_args["matrix"] = align_argolight(
             working_dir / "optical_control_alignment" / output_name, optical_control_path
         )
-        alignment_channels = channel_info_factory(czi_path).channels_from_camera_position(
+        alignment_channels = channel_info_factory(image_path).channels_from_camera_position(
             CameraPosition.BACK
         )
         alignment_args["channels"] = [channel.channel_index for channel in alignment_channels]
@@ -95,7 +106,7 @@ def split_czi(
         print("Alignment Parameters:", alignment_args)
 
     # get source image metadata
-    img = AICSImage(czi_path)
+    img = AICSImage(image_path)
     scenes = img.scenes if scenes == -1 else scenes
 
     # run all timepoints if no timepoints specified in config
@@ -124,13 +135,11 @@ def split_czi(
             if (t, s) not in already_run:
                 new_image_objects.append(
                     split.submit(
-                        img,
+                        image_path,
                         working_dir,
                         output_name,
-                        step_name,
-                        czi_path,
                         alignment_args,
-                        load_kwargs,
+                        load_kwargs.copy(),
                     )
                 )
             else:

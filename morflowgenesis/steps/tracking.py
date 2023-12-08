@@ -17,9 +17,9 @@ from morflowgenesis.utils.step_output import StepOutput
 
 
 @task()
-def create_regionprops_csv(obj, input_step, step_name, output_name):
+def create_regionprops_csv(obj, input_step, output_name):
     inst_seg = obj.get_step(input_step).load_output()
-    save_path = Path(f"{obj.working_dir}/{step_name}/{output_name}/{obj.id}_regionprops.csv")
+    save_path = Path(f"{obj.working_dir}/'tracking'/{output_name}/{obj.id}_regionprops.csv")
     if save_path.exists():
         return pd.read_csv(save_path)
 
@@ -54,16 +54,13 @@ def create_regionprops_csv(obj, input_step, step_name, output_name):
         )
         data.append(row)
     out = pd.concat(data)
-    out.to_csv(
-        f"{obj.working_dir}/{step_name}/{output_name}/{obj.id}_regionprops.csv", index=False
-    )
+    out.to_csv(f"{obj.working_dir}/tracking/{output_name}/{obj.id}_regionprops.csv", index=False)
     return out
 
 
 def find_outliers_by_volume(vol, thresh=0.10, pad_size=15, kernel=9):
     """detect errors in instance segmentation through changes in volume."""
-    # outliers = []
-
+    # TODO this makes outliers easier at the end of the movie
     # normalize data relative to minimum size
     vol = vol / np.min(vol)
     vol_pad = np.pad(vol, pad_size, mode="edge")  # , stat_length=3)
@@ -139,11 +136,11 @@ def outlier_detection(df_track):
 
 
 @task(tags=["tracking"])
-def track(regionprops, working_dir, step_name, output_name, edge_thresh_dist=75):
-    output_dir = working_dir / step_name / output_name
+def track(regionprops, working_dir, output_name, edge_thresh_dist=75):
+    output_dir = working_dir / "tracking" / output_name
     tracking_output = StepOutput(
         working_dir,
-        step_name=step_name,
+        step_name="tracking",
         output_name=output_name,
         output_type="csv",
         image_id="",
@@ -178,31 +175,31 @@ def track(regionprops, working_dir, step_name, output_name, edge_thresh_dist=75)
     return tracking_output
 
 
-def _do_tracking(image_objects, step_name, output_name):
+def _do_tracking(image_objects, output_name):
     # check if any step does not have tracking output
     run = False
     for obj in image_objects:
-        if not obj.step_is_run(f"{step_name}_{output_name}"):
+        if not obj.step_is_run(f"tracking_{output_name}"):
             run = True
             break
     if not run:
-        print(f"Skipping step {step_name}_{output_name}")
+        print(f"Skipping step `tracking_{output_name}`")
     return run
 
 
 # TODO find out why this requires ~ 100GB mem per worker?
 @flow(task_runner=create_task_runner(), log_prints=True)
-def run_tracking(image_object_paths, step_name, output_name, input_step):
+def run_tracking(image_object_paths, output_name, input_step):
     image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
 
-    if _do_tracking(image_objects, step_name, output_name):
+    if _do_tracking(image_objects, output_name):
         # create centroid/volume csv
         tasks = []
         for obj in image_objects:
-            tasks.append(create_regionprops_csv.submit(obj, input_step, step_name, output_name))
+            tasks.append(create_regionprops_csv.submit(obj, input_step, output_name))
         regionprops = pd.concat([task.result() for task in tasks])
 
-        output = track(regionprops, image_objects[0].working_dir, step_name, output_name)
+        output = track(regionprops, image_objects[0].working_dir, output_name)
         for obj in image_objects:
             obj.add_step_output(output)
             obj.save()
