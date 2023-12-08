@@ -1,7 +1,6 @@
 import numpy as np
 from mahotas import cwatershed
 from prefect import flow, task
-from prefect.futures import PrefectFuture
 from scipy.ndimage import binary_dilation, binary_erosion, find_objects
 from skimage.filters import median
 from skimage.measure import label
