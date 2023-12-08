@@ -169,7 +169,7 @@ def run_object(
     input_step,
     reference_channel,
     features,
-    channels=channels,
+    channels,
     run_within_object,
 ):
     """General purpose function to run a task across an image object.
