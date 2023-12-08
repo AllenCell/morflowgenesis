@@ -2,6 +2,7 @@ import os
 import shutil
 from pathlib import Path
 from typing import List, Optional, Union
+import numpy as np
 
 import mlflow
 from cyto_dl.eval import evaluate
@@ -40,17 +41,15 @@ def generate_config(
     run_id=None,
     checkpoint_path="checkpoints/val/loss/best.ckpt",
 ):
-    # get input data path
-    data_paths = [im.get_step(input_step).path for im in image_objects]
+    working_dir = image_objects[0].working_dir
 
     mlflow_ckpt_path = None
     if run_id is not None:
-        save_path = image_objects[0].working_dir / run_id
+        save_path = working_dir / run_id
         save_path.mkdir(exist_ok=True, parents=True)
         mlflow_ckpt_path = download_mlflow_model(run_id, save_path, checkpoint_path)
 
     # initialize config with overrides
-    config_path = Path(config_path)
     GlobalHydra.instance().clear()
     with initialize_config_dir(version_base="1.2", config_dir=str(config_path.parent.resolve())):
         cfg = compose(config_name=config_path.name, return_hydra_config=True, overrides=overrides)
@@ -69,9 +68,18 @@ def generate_config(
         if mlflow_ckpt_path is not None:
             cfg["ckpt_path"] = mlflow_ckpt_path
 
+
+        heads = list(cfg.model.task_heads.keys())
+        if 'inference_heads' in cfg.model:
+            heads = cfg.model.inference_heads
+
+        save_dir = working_dir / "run_cytodl"
+
+        # get input data path
+        data_paths = [im.get_step(input_step).path for im in image_objects if not np.all([(save_dir/head/f'{im.id}.tif').exists() for head in heads])]
+
         # TODO make load/save path overrides work on default cytodl configs
         cfg["data"]["data"] = [{cfg.model.x_key: str(p)} for p in data_paths]
-        save_dir = image_objects[0].working_dir / "run_cytodl"
         cfg["model"]["save_dir"] = str(save_dir)
         HydraConfig.instance().set_config(cfg)
         OmegaConf.set_readonly(cfg.hydra, None)
@@ -115,11 +123,13 @@ def run_cytodl(
     cfg = generate_config(
         image_objects,
         input_step,
-        config_path,
+        Path(config_path),
         overrides,
         run_id,
         checkpoint_path,
     )
+    if len(cfg.data.data) == 0:
+        return
     _, _, out = run_evaluate(cfg)
     for batch in out:
         for input_filename, output_dict in batch.items():
@@ -138,4 +148,4 @@ def run_cytodl(
                         shutil.move(str(save_path), str(output.path))
     # delete 'predict_images, 'test_images', train_images', and 'val_images' from the run_cytodl folder
     for folder in ["predict_images", "test_images", "train_images", "val_images"]:
-        shutil.rmtree(cfg.model.save_dir / folder)   
+        shutil.rmtree(Path(cfg.model.save_dir) / folder)   
