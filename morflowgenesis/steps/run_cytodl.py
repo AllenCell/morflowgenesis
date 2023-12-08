@@ -3,7 +3,6 @@ import shutil
 from pathlib import Path
 
 import mlflow
-import pandas as pd
 from cyto_dl.eval import evaluate
 from hydra import compose, initialize_config_dir
 from hydra.core.global_hydra import GlobalHydra
@@ -31,7 +30,7 @@ def download_mlflow_model(
     return save_path / checkpoint_path
 
 
-# @task
+@task
 def generate_config(
     image_objects,
     step_name,
@@ -84,12 +83,12 @@ def generate_config(
     return cfg
 
 
-# @task(retries=3, retry_delay_seconds=[10, 60, 120])
+@task(retries=3, retry_delay_seconds=[10, 60, 120])
 def run_evaluate(cfg):
     return evaluate(cfg)
 
 
-# @flow(log_prints=True)
+@flow(log_prints=True)
 def run_cytodl(
     image_object_paths,
     step_name,
