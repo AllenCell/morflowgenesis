@@ -18,6 +18,8 @@ def run_pca(
     apply_names: List,
     n_components=10,
 ):
+    if calculate_name in apply_names:
+        raise ValueError("Calculate_name cannot be in apply_names")
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
 
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
