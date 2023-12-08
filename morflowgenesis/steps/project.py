@@ -1,7 +1,6 @@
 import numpy as np
 from hydra.utils import get_class
 from prefect import flow, task
-from prefect.futures import PrefectFuture
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 

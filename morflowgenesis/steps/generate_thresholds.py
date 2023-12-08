@@ -1,6 +1,5 @@
 import numpy as np
 from prefect import flow, task
-from prefect.futures import PrefectFuture
 from skimage.measure import label as run_label
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit

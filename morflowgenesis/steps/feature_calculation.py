@@ -1,8 +1,9 @@
+from pathlib import Path
+from typing import List, Optional, Union
+
 import numpy as np
 import pandas as pd
 import tqdm
-from typing import List, Optional, Union
-from pathlib import Path
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from prefect import flow, task
@@ -13,8 +14,10 @@ from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, su
 # TODO either return everything in pixels or everything in microns
 # TODO add centroid calculation
 
+
 def get_volume(img):
     return {"volume": np.sum(img)}
+
 
 def get_height(img):
     z, _, _ = np.where(img)
@@ -121,7 +124,7 @@ def get_matched_features(row, features, channels, reference_channel):
     features_dict = {}
     img = AICSImage(row["crop_seg_path"])
     channel_names = img.channel_names
-    channels= channels or channel_names
+    channels = channels or channel_names
     img = img.get_image_data("CZYX")
     for ch in range(img.shape[0]):
         if np.all(img[ch] == 0):
@@ -184,7 +187,13 @@ def run_object(
         row = row._asdict()
         if reference_channel is None:
             results.append(
-                submit(get_features, as_task=run_within_object, row=row, features=features, channels=channels)
+                submit(
+                    get_features,
+                    as_task=run_within_object,
+                    row=row,
+                    features=features,
+                    channels=channels,
+                )
             )
         else:
             results.append(
@@ -216,8 +225,8 @@ def calculate_features(
     output_name: str,
     input_step: str,
     features: List[str],
-    reference_channel: Optional[str]=None,
-    channels: Optional[List[str]]= None,
+    reference_channel: Optional[str] = None,
+    channels: Optional[List[str]] = None,
 ):
     """
     Parameters

@@ -21,7 +21,7 @@ def get_data(path, load_kwargs):
 
 
 @task
-def split(path, working_dir, output_name, step_name,  alignment_args, load_kwargs):
+def split(path, working_dir, output_name, step_name, alignment_args, load_kwargs):
     # create object associated with image
     img_obj = ImageObject(working_dir, path, load_kwargs)
     output = StepOutput(

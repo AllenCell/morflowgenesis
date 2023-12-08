@@ -87,7 +87,6 @@ def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5, smooth=False):
 
 
 def merge_instance_segs(segs, coords, img):
-    breakpoint()
     lab = np.uint16(1)
     count_map = np.zeros_like(img, dtype=np.uint8)
     for c, s in zip(coords, segs):
@@ -202,9 +201,6 @@ def run_watershed(
             imgs, coords, shape = object_result
             imgs = [im.result() for im in imgs]
         else:
-            assert isinstance(
-                object_result, PrefectFuture
-            ), "parallelizing across fovs returned unexpected result"
             # parallelizing across fovs
             imgs, coords, shape = object_result.result()
 

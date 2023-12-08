@@ -1,6 +1,5 @@
 from hydra._internal.utils import _locate
 from prefect import flow, task
-from prefect.futures import PrefectFuture
 
 from morflowgenesis.utils import (
     ImageObject,

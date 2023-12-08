@@ -1,6 +1,5 @@
 from aicsshparam import shtools
 from prefect import flow, task
-from prefect.future import PrefectFuture
 from skimage.transform import rescale
 
 from morflowgenesis.utils import (

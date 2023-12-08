@@ -1,5 +1,5 @@
 from .contact_sheet import segmentation_contact_sheet
-from .feature_calculation import get_features, matched_features
+from .feature_calculation import calculate_features
 from .generate_shape_space import make_shape_space
 from .image_object_from_csv import generate_objects
 from .pca import run_pca

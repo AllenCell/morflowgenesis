@@ -1,5 +1,4 @@
 from prefect import flow, task
-from prefect.futures import PrefectFuture
 from skimage.transform import rescale as sk_rescale
 from skimage.transform import resize as sk_resize
 
