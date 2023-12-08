@@ -13,10 +13,8 @@ from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, su
 # TODO either return everything in pixels or everything in microns
 # TODO add centroid calculation
 
-
 def get_volume(img):
     return {"volume": np.sum(img)}
-
 
 def get_height(img):
     z, _, _ = np.where(img)
@@ -171,7 +169,7 @@ def run_object(
     input_step,
     reference_channel,
     features,
-    channels=channels
+    channels=channels,
     run_within_object,
 ):
     """General purpose function to run a task across an image object.
@@ -255,7 +253,7 @@ def calculate_features(
                 input_step=input_step,
                 reference_channel=reference_channel,
                 features=features,
-                channels=channels
+                channels=channels,
                 run_within_object=run_within_object,
             )
         )
