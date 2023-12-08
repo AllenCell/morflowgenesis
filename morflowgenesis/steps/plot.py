@@ -190,6 +190,11 @@ def run_plot(image_object_paths, output_name, input_step, features, label, pred)
     features_df = pd.concat([obj.load_step(input_step) for obj in image_objects]).drop_duplicates()
     features_df.dropna(inplace=True)
 
+    # drop cellids that don't have values for name gt and pred
+    unmatched_cells = features_df.groupby('CellId').size()==1
+    unmatched_cells = unmatched_cells[unmatched_cells].index
+    features_df.drop(unmatched_cells, inplace=True)
+
     label_features = features_df.xs(label["segmentation_name"], level="Name")[features]
 
     for pred_filter in pred:
