@@ -85,7 +85,7 @@ def run_evaluate(cfg):
 
 @flow(log_prints=True)
 def run_cytodl(
-    image_object_paths: List[str],
+    image_object_paths: List[Union[str, Path]],
     input_step: str,
     config_path: str,
     overrides: List = [],
@@ -136,3 +136,6 @@ def run_cytodl(
                         image_objects[i].add_step_output(output)
                         image_objects[i].save()
                         shutil.move(str(save_path), str(output.path))
+    # delete 'predict_images, 'test_images', train_images', and 'val_images' from the run_cytodl folder
+    for folder in ["predict_images", "test_images", "train_images", "val_images"]:
+        shutil.rmtree(cfg.model.save_dir / folder)   
