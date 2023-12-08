@@ -12,9 +12,7 @@ from morflowgenesis.utils import (
 
 
 @task
-def run_resize(
-    image_object, step_name, output_name, input_step, output_shape=None, scale=None, order=0
-):
+def run_resize(image_object, output_name, input_step, output_shape=None, scale=None, order=0):
     # image resizing
     img = image_object.load_step(input_step)
     input_dtype = img.dtype
@@ -25,7 +23,7 @@ def run_resize(
     # add result to image object
     output = StepOutput(
         image_object.working_dir,
-        step_name=step_name,
+        step_name="resize",
         output_name=f"{output_name}_{input_step}",
         output_type="image",
         image_id=image_object.id,
@@ -37,7 +35,6 @@ def run_resize(
 @task
 def run_object(
     image_object,
-    step_name,
     output_name,
     input_steps,
     run_within_object,
@@ -59,7 +56,6 @@ def run_object(
                 as_task=run_within_object,
                 image_object=image_object,
                 input_step=step,
-                step_name=step_name,
                 output_name=output_name,
                 output_shape=output_shape,
                 scale=scale,
@@ -70,9 +66,7 @@ def run_object(
 
 
 @flow(task_runner=create_task_runner(), log_prints=True)
-def resize(
-    image_object_paths, step_name, output_name, input_steps, output_shape=None, scale=None, order=0
-):
+def resize(image_object_paths, output_name, input_steps, output_shape=None, scale=None, order=0):
 
     input_steps = to_list(input_steps)
 
@@ -87,7 +81,6 @@ def resize(
                 run_object,
                 as_task=not run_within_object,
                 image_object=obj,
-                step_name=step_name,
                 output_name=output_name,
                 input_steps=input_steps,
                 output_shape=output_shape,

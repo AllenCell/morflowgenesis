@@ -14,10 +14,9 @@ from morflowgenesis.utils import (
 
 
 @task
-def project(
+def project_task(
     image_object,
     input_step,
-    step_name,
     output_name,
     scale,
     dtype,
@@ -49,7 +48,7 @@ def project(
     # add result to image object
     output = StepOutput(
         image_object.working_dir,
-        step_name=step_name,
+        step_name="project",
         output_name=f"{output_name}_{input_step}_{project_type}_{project_slice}_{axis}",
         output_type="image",
         image_id=image_object.id,
@@ -82,11 +81,10 @@ def run_object(
     for i, step in enumerate(input_steps):
         results.append(
             submit(
-                project,
+                project_task,
                 as_task=run_within_object,
                 image_object=image_object,
                 input_step=step,
-                step_name=step_name,
                 output_name=output_name,
                 scale=scale,
                 dtype=dtype,
@@ -104,7 +102,6 @@ def run_object(
 @flow(task_runner=create_task_runner(), log_prints=True)
 def project(
     image_object_paths,
-    step_name,
     output_name,
     input_steps,
     scale=1.0,
@@ -129,7 +126,6 @@ def project(
                 as_task=not run_within_object,
                 image_object=obj,
                 input_steps=input_steps,
-                step_name=step_name,
                 output_name=output_name,
                 scale=scale,
                 dtype=dtype,

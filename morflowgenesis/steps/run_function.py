@@ -11,7 +11,7 @@ from morflowgenesis.utils import (
 
 
 @task
-def apply_function(image_object, input_step, step_name, output_name, ch, function, function_args):
+def apply_function(image_object, input_step, output_name, ch, function, function_args):
     data = image_object.load_step(input_step)
     if ch is not None:
         data = data[ch]
@@ -20,7 +20,7 @@ def apply_function(image_object, input_step, step_name, output_name, ch, functio
     applied = function(data, **function_args)
     output = StepOutput(
         working_dir=image_object.working_dir,
-        step_name=step_name,
+        step_name="array_to_array",
         output_name=f"{output_name}_{input_step}",
         output_type="image",
         image_id=image_object.id,
@@ -33,7 +33,6 @@ def apply_function(image_object, input_step, step_name, output_name, ch, functio
 def run_object(
     image_object,
     input_steps,
-    step_name,
     output_name,
     run_within_object,
     function,
@@ -54,7 +53,6 @@ def run_object(
                 as_task=run_within_object,
                 image_object=image_object,
                 input_step=step,
-                step_name=step_name,
                 output_name=output_name,
                 function=function,
                 function_args=function_args,
@@ -65,7 +63,7 @@ def run_object(
 
 @flow(task_runner=create_task_runner(), log_prints=True)
 def array_to_array(
-    image_object_paths, step_name, output_name, input_steps, function, ch=None, function_args={}
+    image_object_paths, output_name, input_steps, function, ch=None, function_args={}
 ):
     # if only one image is passed, run across objects within that image. Otherwise, run across images
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
@@ -81,7 +79,6 @@ def array_to_array(
                 as_task=not run_within_object,
                 image_object=obj,
                 input_steps=input_steps,
-                step_name=step_name,
                 output_name=output_name,
                 run_within_object=run_within_object,
                 function=function,

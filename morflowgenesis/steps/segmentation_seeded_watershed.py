@@ -160,7 +160,6 @@ def run_object(
 @flow(task_runner=create_task_runner(), log_prints=True)
 def run_watershed(
     image_object_paths,
-    step_name,
     output_name,
     raw_input_step,
     seg_input_step,
@@ -206,7 +205,7 @@ def run_watershed(
         seg = merge_instance_segs(imgs, coords, np.zeros(shape).astype(np.uint16))
         output = StepOutput(
             obj.working_dir,
-            step_name,
+            "run_watershed",
             output_name,
             output_type="image",
             image_id=obj.id,

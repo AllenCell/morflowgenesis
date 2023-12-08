@@ -13,7 +13,6 @@ def generate_object(
     existing_ids,
     row,
     working_dir,
-    step_name,
     source_column,
     non_source_columns,
     metadata_column=None,
@@ -31,7 +30,7 @@ def generate_object(
 
     for col in [source_column] + non_source_columns:
         step_output = StepOutput(
-            working_dir, step_name, col, "image", image_id=obj.id, path=row[col]
+            working_dir, "generate_objects", col, "image", image_id=obj.id, path=row[col]
         )
         obj.add_step_output(step_output)
     obj.save()
@@ -40,7 +39,6 @@ def generate_object(
 @flow(task_runner=create_task_runner(), log_prints=True)
 def generate_objects(
     working_dir,
-    step_name,
     csv_path,
     source_column,
     non_source_columns=[],
@@ -62,7 +60,6 @@ def generate_objects(
                 existing_ids,
                 row._asdict(),
                 working_dir,
-                step_name,
                 source_column,
                 non_source_columns,
                 metadata_column,

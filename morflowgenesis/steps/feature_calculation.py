@@ -167,7 +167,6 @@ def get_matched_features(row, features, channels, reference_channel):
 @task
 def run_object(
     image_object,
-    step_name,
     output_name,
     input_step,
     reference_channel,
@@ -209,7 +208,7 @@ def run_object(
 
     output = StepOutput(
         image_object.working_dir,
-        step_name,
+        "calculate_features",
         output_name,
         output_type="csv",
         image_id=image_object.id,
@@ -221,7 +220,6 @@ def run_object(
 @flow(task_runner=create_task_runner(), log_prints=True)
 def calculate_features(
     image_object_paths: List[Union[str, Path]],
-    step_name: str,
     output_name: str,
     input_step: str,
     features: List[str],
@@ -233,8 +231,6 @@ def calculate_features(
     ----------
     image_object_paths: List[Union(str, Path)]
         List of paths to image objects to run the task on
-    step_name: str
-        Name of the step
     output_name: str
         Name of the output
     input_step: str
@@ -257,7 +253,6 @@ def calculate_features(
                 run_object,
                 as_task=not run_within_object,
                 image_object=obj,
-                step_name=step_name,
                 output_name=output_name,
                 input_step=input_step,
                 reference_channel=reference_channel,

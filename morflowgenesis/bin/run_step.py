@@ -33,9 +33,9 @@ async def run_step(step_cfg, object_store_path):
     step_fn = step_cfg["function"]
     step_type = step_cfg.get("step_type", "list")
     step_args = step_cfg["args"]
-    step_args["step_name"] = step_fn.split(".")[-1]
+    step_name = step_fn.split(".")[-1]
 
-    flow_name = slugify(step_args["step_name"])
+    flow_name = slugify(step_name)
     deployment_name = slugify(step_cfg.get("deployment_name", "default"))
     full_deployment_name = f"{flow_name}/{deployment_name}"
     if step_type == "gather":
@@ -47,7 +47,7 @@ async def run_step(step_cfg, object_store_path):
     else:
         # checking which objects to run here prevents overhead on the cluster and excess job creation.
         objects_to_run = get_objects_to_run(
-            object_store_path, step_args["step_name"], step_args["output_name"]
+            object_store_path, step_name, step_args["output_name"]
         )
         out = await asyncio.gather(
             *[
@@ -65,23 +65,21 @@ def run_step_local(step_cfg, object_store_path):
     step_fn = step_cfg["function"]
     step_type = step_cfg.get("step_type", "list")
     step_args = step_cfg["args"]
-    step_args["step_name"] = step_fn.split(".")[-1]
     step_fn = _locate(step_fn)
 
     if step_type == "init":
         step_fn(**step_args)
-    elif step_type == "gather":
-        objects_to_run = get_objects_to_run(
-            object_store_path, step_args["step_name"], step_args["output_name"]
-        )
-        if len(objects_to_run) > 0:
-            step_args.update({"image_object_paths": objects_to_run})
-            step_fn(**step_args)
     else:
         # checking which objects to run here prevents overhead on the cluster and excess job creation.
         objects_to_run = get_objects_to_run(
-            object_store_path, step_args["step_name"], step_args["output_name"]
+            object_store_path, step_fn.split(".")[-1], step_args.get("output_name")
         )
-        for object_path in objects_to_run:
-            parameters = {"image_object_path": object_path, **step_args}
-            step_fn(**parameters)
+        if len(objects_to_run) == 0:
+            return
+        if step_type == "gather":
+            step_args.update({"image_object_paths": objects_to_run})
+            step_fn(**step_args)
+        else:
+            for object_path in objects_to_run:
+                step_args.update({"image_object_paths": [object_path]})
+                step_fn(**step_args)

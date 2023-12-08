@@ -75,7 +75,6 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title=
 @flow(task_runner=create_task_runner(), log_prints=True)
 def segmentation_contact_sheet(
     image_object_paths,
-    step_name,
     output_name,
     single_cell_dataset_step,
     feature_step,
@@ -126,7 +125,7 @@ def segmentation_contact_sheet(
 
     output = StepOutput(
         image_objects[0].working_dir,
-        step_name,
+        "segmentation_contact_sheet",
         output_name,
         output_type="image",
         image_id=f"contact_sheet_{x_feature}_vs_{y_feature}",

@@ -21,12 +21,12 @@ def get_data(path, load_kwargs):
 
 
 @task
-def split(path, working_dir, output_name, step_name, alignment_args, load_kwargs):
+def split(path, working_dir, output_name, alignment_args, load_kwargs):
     # create object associated with image
     img_obj = ImageObject(working_dir, path, load_kwargs)
     output = StepOutput(
         working_dir,
-        step_name,
+        "split_image",
         output_name,
         "image",
         # image_id=img_obj.id)
@@ -80,7 +80,6 @@ def split_image(
     image_path,
     working_dir,
     output_name,
-    step_name,
     scenes=-1,
     timepoints=-1,
     channels=-1,
@@ -88,7 +87,7 @@ def split_image(
     optical_control_path=None,
 ):
     working_dir = Path(working_dir)
-    (working_dir / step_name).mkdir(exist_ok=True, parents=True)
+    (working_dir / "split_image").mkdir(exist_ok=True, parents=True)
 
     alignment_args = None
     if optical_control_path is not None:
@@ -139,7 +138,6 @@ def split_image(
                         image_path,
                         working_dir,
                         output_name,
-                        step_name,
                         alignment_args,
                         load_kwargs.copy(),
                     )

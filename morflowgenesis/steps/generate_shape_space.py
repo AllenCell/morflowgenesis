@@ -10,17 +10,15 @@ from morflowgenesis.utils import ImageObject, StepOutput
 
 
 @flow(log_prints=True)
-def make_shape_space(
-    image_object_paths, step_name, output_name, feature_step, segmentation_names, n_pcs=10
-):
+def make_shape_space(image_object_paths, output_name, feature_step, segmentation_names, n_pcs=10):
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
 
     for seg_name in segmentation_names:
         step_output = StepOutput(
             image_objects[0].working_dir,
-            step_name,
             output_name,
+            "make_shape_space",
             "image",
             image_id="shape_modes_{seg_name}",
         )

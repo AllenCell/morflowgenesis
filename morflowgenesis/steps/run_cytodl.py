@@ -41,10 +41,7 @@ def generate_config(
     checkpoint_path="checkpoints/val/loss/best.ckpt",
 ):
     # get input data path
-    data_paths = [
-        im.get_step(input_step).path
-        for im in image_objects
-    ]
+    data_paths = [im.get_step(input_step).path for im in image_objects]
 
     mlflow_ckpt_path = None
     if run_id is not None:
@@ -74,7 +71,7 @@ def generate_config(
 
         # TODO make load/save path overrides work on default cytodl configs
         cfg["data"]["data"] = [{cfg.model.x_key: str(p)} for p in data_paths]
-        save_dir = image_objects[0].working_dir / 'run_cytodl' 
+        save_dir = image_objects[0].working_dir / "run_cytodl"
         cfg["model"]["save_dir"] = str(save_dir)
         HydraConfig.instance().set_config(cfg)
         OmegaConf.set_readonly(cfg.hydra, None)
@@ -89,14 +86,14 @@ def run_evaluate(cfg):
 @flow(log_prints=True)
 def run_cytodl(
     image_object_paths: List[str],
-    input_step:str,
+    input_step: str,
     config_path: str,
-    overrides: List=[],
-    run_id: Optional[str]=None,
-    checkpoint_path: Optional[str]="checkpoints/val/loss/best.ckpt",
+    overrides: List = [],
+    run_id: Optional[str] = None,
+    checkpoint_path: Optional[str] = "checkpoints/val/loss/best.ckpt",
 ):
-    """
-    Wrapper function to run cytoDL on a list of image objects. Note that the output will be saved to `working_dir/run_cytodl/head_name` for each ouput task head of your model
+    """Wrapper function to run cytoDL on a list of image objects. Note that the output will be
+    saved to `working_dir/run_cytodl/head_name` for each output task head of your model.
 
     Parameters
     ----------
@@ -131,7 +128,7 @@ def run_cytodl(
                     for head, save_path in output_dict.items():
                         output = StepOutput(
                             image_objects[0].working_dir,
-                            step_name='run_cytodl',
+                            step_name="run_cytodl",
                             output_name=head,
                             output_type="image",
                             image_id=image_objects[i].id,

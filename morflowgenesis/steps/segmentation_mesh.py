@@ -12,7 +12,7 @@ from morflowgenesis.utils import (
 
 
 @task
-def create_mesh(image_object, step_name, output_name, seg_step, resize):
+def create_mesh(image_object, output_name, seg_step, resize):
     seg = image_object.load_step(seg_step)
 
     # Reduce the image size and make volume isotropic
@@ -31,7 +31,7 @@ def create_mesh(image_object, step_name, output_name, seg_step, resize):
 
     step_output = StepOutput(
         image_object.working_dir,
-        step_name,
+        "mesh",
         f"{output_name}_{seg_step}",
         "image",
         image_id=image_object.id,
@@ -45,7 +45,6 @@ def create_mesh(image_object, step_name, output_name, seg_step, resize):
 def run_object(
     image_object,
     input_steps,
-    step_name,
     output_name,
     resize,
     run_within_object,
@@ -64,7 +63,6 @@ def run_object(
                 as_task=run_within_object,
                 image_object=image_object,
                 seg_step=step,
-                step_name=step_name,
                 output_name=output_name,
                 resize=resize,
             )
@@ -75,7 +73,6 @@ def run_object(
 @flow(task_runner=create_task_runner(), log_prints=True)
 def mesh(
     image_object_paths,
-    step_name,
     output_name,
     input_steps,
     resize=0.2,
@@ -94,7 +91,6 @@ def mesh(
                 as_task=not run_within_object,
                 image_object=obj,
                 input_steps=input_steps,
-                step_name=step_name,
                 output_name=output_name,
                 resize=resize,
                 run_within_object=run_within_object,

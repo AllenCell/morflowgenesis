@@ -293,7 +293,6 @@ def process_image(
     qcb_res,
     upload_fms,
     include_edge_cells,
-    step_name,
     run_within_object,
 ):
     raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(
@@ -356,11 +355,9 @@ def process_image(
     return results
 
 
-# Parallelizing over images is faster than parallelizing over cells.
 @flow(task_runner=create_task_runner(), log_prints=True)
 def single_cell_dataset(
     image_object_paths,
-    step_name,
     output_name,
     splitting_step,
     seg_steps,
@@ -406,7 +403,6 @@ def single_cell_dataset(
                 qcb_res=qcb_res,
                 upload_fms=upload_fms,
                 include_edge_cells=include_edge_cells,
-                step_name=step_name,
                 run_within_object=run_within_object,
             )
         )
@@ -423,7 +419,7 @@ def single_cell_dataset(
 
         step_output = StepOutput(
             obj.working_dir,
-            step_name,
+            "single_cell_dataset",
             output_name,
             output_type="csv",
             image_id=obj.id,

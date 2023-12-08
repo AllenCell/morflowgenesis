@@ -6,10 +6,10 @@ from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, su
 
 
 @task
-def run_threshold(image_object, img, step_name, output_name, thresh, label):
+def run_threshold(image_object, img, output_name, thresh, label):
     step = StepOutput(
         working_dir=image_object.working_dir,
-        step_name=step_name,
+        step_name="threshold",
         output_name=f"{output_name}_{thresh}",
         output_type="image",
         image_id=image_object.id,
@@ -22,9 +22,7 @@ def run_threshold(image_object, img, step_name, output_name, thresh, label):
 
 
 @task
-def run_object(
-    image_object, step_name, output_name, input_step, threshold_range, run_within_object, label
-):
+def run_object(image_object, output_name, input_step, threshold_range, run_within_object, label):
     """General purpose function to run a task across an image object.
 
     If run_within_object is True, parallelize across thresholds and return a list of futures of
@@ -41,7 +39,6 @@ def run_object(
                 run_threshold,
                 as_task=run_within_object,
                 image_object=image_object,
-                step_name=step_name,
                 output_name=output_name,
                 img=img,
                 thresh=thresh,
@@ -54,7 +51,6 @@ def run_object(
 @flow(task_runner=create_task_runner(), log_prints=True)
 def threshold(
     image_object_paths,
-    step_name,
     output_name,
     input_step,
     start,
@@ -82,7 +78,6 @@ def threshold(
                 run_object,
                 as_task=not run_within_object,
                 image_object=obj,
-                step_name=step_name,
                 output_name=output_name,
                 input_step=input_step,
                 threshold_range=threshold_range,

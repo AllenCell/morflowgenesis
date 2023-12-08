@@ -11,7 +11,6 @@ from morflowgenesis.utils import ImageObject, StepOutput
 @flow(log_prints=True)
 def run_pca(
     image_object_paths,
-    step_name,
     output_name,
     feature_step,
     features_regex,
@@ -44,7 +43,7 @@ def run_pca(
 
     step_output = StepOutput(
         image_objects[0].working_dir,
-        step_name,
+        "run_pca",
         output_name,
         "csv",
         image_id="pca",
