@@ -212,7 +212,7 @@ def run_object(
         output_name,
         output_type="csv",
         image_id=image_object.id,
-        index_col=["CellId", "Name", "Label"],
+        index_col=["CellId", "Name"],
     )
     return results, output
 
