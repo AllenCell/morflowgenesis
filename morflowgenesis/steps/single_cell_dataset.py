@@ -4,6 +4,7 @@ import os
 import re
 from pathlib import Path
 from shutil import rmtree
+from omegaconf import ListConfig
 
 import numpy as np
 import pandas as pd
@@ -202,8 +203,8 @@ def mask_images(
     lab,
     splitting_ch,
     coords,
-    mask=True,
-    keep_lcc=False,
+    mask,
+    keep_lcc,
     iou_thresh=None,
 ):
     """Turn multich image into single cell dicts."""
@@ -212,18 +213,23 @@ def mask_images(
         raw_crop = raw_images[coords].copy()
     seg_crop = seg_images[coords].copy()
     seg_crop[splitting_ch] = seg_crop[splitting_ch] == lab
-    if mask:
-        # use masking segmentation to crop out non-cell regions in segmentations
-        mask_img = seg_crop[splitting_ch]
-        seg_crop *= mask_img
-    if keep_lcc:
-        seg_crop = [get_largest_cc(seg_crop[ch]) for ch in range(seg_crop.shape[0])]
-    if iou_thresh is not None and len(seg_crop) > 1:
-        intersection = np.sum(np.logical_and(seg_crop[0], seg_crop[1])) + 1e-8
-        union = np.sum(np.logical_or(seg_crop[0], seg_crop[1])) + 1e-8
-        iou = intersection / union
-        if iou < iou_thresh:
-            return None, None
+    mask_img = seg_crop[splitting_ch]
+
+    for ch in range(len(seg_crop)):
+        if ch in mask:
+            seg_crop[ch] *= mask_img
+        if ch in keep_lcc:
+            seg_crop[ch] = get_largest_cc(seg_crop[ch] * mask_img)
+
+    if iou_thresh is not None:
+        if len(seg_crop) == 2:
+            intersection = np.sum(np.logical_and(seg_crop[0], seg_crop[1])) + 1e-8
+            union = np.sum(np.logical_or(seg_crop[0], seg_crop[1])) + 1e-8
+            iou = intersection / union
+            if iou < iou_thresh:
+                return None, None
+        else:
+            raise ValueError("IoU thresholding only implemented for 2 channels when comparing two segmentations")
 
     # split into dict
     return {name: raw_crop[idx] for idx, name in enumerate(raw_steps)}, {
@@ -306,6 +312,22 @@ def process_image(
     if tracking_step is not None:
         tracking_df = image_object.load_step(tracking_step)
         tracking_df = tracking_df[tracking_df.time_index == image_object.metadata["T"]]
+
+    # mask = True means mask all seg images, mask = list means mask only those seg images
+    if mask == True:
+        mask = list(range(len(seg_steps)))
+    elif isinstance(mask, (list, ListConfig)):
+        mask = sorted([seg_steps.index(m) for m in mask])
+    else:
+        mask = []
+            
+    # same for keep_lcc
+    if keep_lcc == True:
+        keep_lcc = list(range(len(seg_steps)))
+    elif isinstance(keep_lcc, (list, ListConfig)):
+        keep_lcc = sorted([seg_steps.index(m) for m in keep_lcc])
+    else:
+        keep_lcc = []
 
     results = []
     for lab, coords in enumerate(regions, start=1):
