@@ -36,10 +36,6 @@ def split(path, working_dir, output_name, alignment_args, load_kwargs):
     # load image
     data = get_data(path, load_kwargs)
 
-    import numpy as np
-
-    data = np.max(data.squeeze(), 0)
-
     if alignment_args is not None:
         data = align_image(
             data, alignment_args["matrix"], channels_to_shift=alignment_args["channels"]
