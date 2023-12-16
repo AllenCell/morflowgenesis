@@ -35,6 +35,7 @@ def download_mlflow_model(
 @task
 def generate_config(
     image_objects,
+    output_name,
     input_step,
     config_path,
     overrides,
@@ -74,6 +75,8 @@ def generate_config(
             heads = cfg.model.inference_heads
 
         save_dir = working_dir / "run_cytodl"
+        if output_name is not None:
+            save_dir = save_dir / output_name
 
         # get input data path
         data_paths = [im.get_step(input_step).path for im in image_objects if not np.all([(save_dir/head/f'{im.id}.tif').exists() for head in heads])]
@@ -96,6 +99,7 @@ def run_cytodl(
     image_object_paths: List[Union[str, Path]],
     input_step: str,
     config_path: str,
+    output_name: Optional[str] = None,
     overrides: List = [],
     run_id: Optional[str] = None,
     checkpoint_path: Optional[str] = "checkpoints/val/loss/best.ckpt",
@@ -122,6 +126,7 @@ def run_cytodl(
 
     cfg = generate_config(
         image_objects,
+        output_name,
         input_step,
         Path(config_path),
         overrides,
@@ -129,7 +134,7 @@ def run_cytodl(
         checkpoint_path,
     )
     if len(cfg.data.data) == 0:
-        return
+        return 
     _, _, out = run_evaluate(cfg)
     for batch in out:
         for input_filename, output_dict in batch.items():
@@ -139,13 +144,13 @@ def run_cytodl(
                         output = StepOutput(
                             image_objects[0].working_dir,
                             step_name="run_cytodl",
-                            output_name=head,
+                            output_name=head if output_name is None else f'{output_name}/{head}',
                             output_type="image",
                             image_id=image_objects[i].id,
                         )
                         image_objects[i].add_step_output(output)
                         image_objects[i].save()
                         shutil.move(str(save_path), str(output.path))
-    # delete 'predict_images, 'test_images', train_images', and 'val_images' from the run_cytodl folder
+    # delete configsfrom the run_cytodl folder
     for folder in ["predict_images", "test_images", "train_images", "val_images"]:
         shutil.rmtree(Path(cfg.model.save_dir) / folder)   
