@@ -201,7 +201,7 @@ def run_plot(image_object_paths, output_name, input_step, features, label, pred)
             available_levels = features_df.index.get_level_values("Name").unique().values
             for level in available_levels:
                 if re.search(pred_filter["segmentation_name"], level):
-                    save_dir = image_objects[0].working_dir / "run_plot" / level
+                    save_dir = image_objects[0].working_dir / "run_plot" /output_name/ level
                     save_dir.mkdir(exist_ok=True, parents=True)
                     plot(
                         features_df,
@@ -212,7 +212,7 @@ def run_plot(image_object_paths, output_name, input_step, features, label, pred)
                         ylabel=f"{pred_filter['description']} {level}",
                     )
         else:
-            save_dir = image_objects[0].working_dir / "run_plot" / pred_filter["segmentation_name"]
+            save_dir = image_objects[0].working_dir / "run_plot" /output_name/ pred_filter["segmentation_name"]
             save_dir.mkdir(exist_ok=True, parents=True)
             plot(
                 features_df,
