@@ -3,19 +3,24 @@ from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
-import tqdm
 import torch
+import tqdm
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from prefect import flow, task
 from skimage.measure import label
-
 from torchmetrics.classification import BinaryF1Score
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
 # TODO either return everything in pixels or everything in microns
 # TODO add centroid calculation
+# add absolute error
+
+
+def get_height_percentile(img):
+    z, _, _ = np.where(img)
+    return {"height_percentile": np.percentile(z, 97.5) - np.percentile(z, 2.5)}
 
 
 def get_volume(img):
@@ -54,17 +59,21 @@ def get_largest_cc(im):
     largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
     return im == largest_cc
 
+
 def get_f1(img, reference):
-    return {'f1':BinaryF1Score()(torch.from_numpy(img), torch.from_numpy(reference).item())}
+    return {
+        "f1": BinaryF1Score()(torch.from_numpy(img > 0), torch.from_numpy(reference > 0)).item()
+    }
+
 
 FEATURE_EXTRACTION_FUNCTIONS = {
     "volume": get_volume,
     "height": get_height,
+    "height_percentile": get_height_percentile,
     "shcoeff": get_shcoeff,
     "n_pieces": get_n_pieces,
-    'f1': get_f1,
+    "f1": get_f1,
 }
-
 
 
 def compute_nucleolus_feats(img):
@@ -94,85 +103,123 @@ def append_dict(features_dict, new_dict):
             features_dict[k] = [v]
     return features_dict
 
+
 def ensure_channel_first(img):
     if len(img.shape) == 3:
         img = np.expand_dims(img, 0)
     return img
 
 
+def get_valid_features(features):
+    # remove invalid features and warn user
+    valid_features = [feat for feat in features if feat in FEATURE_EXTRACTION_FUNCTIONS]
+    invalid_features = set(features) - set(valid_features)
+    if len(invalid_features) > 0:
+        print(
+            f"Features {invalid_features} not found. Options are {FEATURE_EXTRACTION_FUNCTIONS.keys()}"
+        )
+    return valid_features
+
+
+def get_channels(img, channel_names, run_channels):
+    """
+    Parameters
+    ----------
+    img: np.ndarray
+        Image data in CZYX format
+    channel_names: List[str]
+        List of channel names in img
+    run_channels: List[str]
+        List of channels to run feature extraction on. If None, use all channels
+    """
+    run_channels = run_channels or channel_names
+    if np.all([isinstance(ch, str) for ch in run_channels]):
+        # create tuple of (index, channel_name) for non-zero channels to run
+        channel_names = [
+            (channel_names.index(c), c)
+            for c in run_channels
+            if c in channel_names and not np.all(img[channel_names.index(c)] == 0)
+        ]
+    elif np.all([isinstance(ch, int) for ch in run_channels]):
+        channel_names = [(ch, f"Ch:{ch}") for ch in run_channels if not np.all(img[ch] == 0)]
+    return channel_names
+
+
 @task
 def get_roi_features(img, features, channels):
+    features = get_valid_features(features)
     img = ensure_channel_first(img)
     channels = channels or range(img.shape[0])
+
+    valid_channels = get_channels(img, channel_names=None, run_channels=channels)
+
+    if len(valid_channels) == 0:
+        print("No valid channels found!")
+        return None
+
     features_dict = {}
-    for ch in channels:
-        ch_img = img[ch]
-        if np.all(ch_img == 0):
-            continue
+    for i, name in valid_channels:
         for feat in features:
-            if feat not in FEATURE_EXTRACTION_FUNCTIONS:
-                print(
-                    f"Feature {feat} not found. Options are {FEATURE_EXTRACTION_FUNCTIONS.keys()}"
-                )
-                continue
-            feats = FEATURE_EXTRACTION_FUNCTIONS[feat](ch_img)
-            append_dict(features_dict, feats)
+            append_dict(features_dict, FEATURE_EXTRACTION_FUNCTIONS[feat](img[i]))
     return pd.DataFrame(features_dict)
+
 
 @task
 def get_matched_roi_features(img, features, channels, reference):
+    features = get_valid_features(features)
+
     img = ensure_channel_first(img)
     reference = ensure_channel_first(reference)
     channels = channels or range(img.shape[0])
+    valid_channels = get_channels(img, channel_names=None, run_channels=channels)
+
+    if len(valid_channels) == 0:
+        print("No valid channels found!")
+        return None
+
     features_dict = {}
-    for ch in channels:
-        ch_img = img[ch]
-        if np.all(ch_img == 0):
-            continue
+    for i, name in valid_channels:
         for feat in features:
-            if feat not in FEATURE_EXTRACTION_FUNCTIONS:
-                print(
-                    f"Feature {feat} not found. Options are {FEATURE_EXTRACTION_FUNCTIONS.keys()}"
-                )
-                continue
-            feats = FEATURE_EXTRACTION_FUNCTIONS[feat](ch_img, reference[ch])
-            append_dict(features_dict, feats)
+            append_dict(features_dict, FEATURE_EXTRACTION_FUNCTIONS[feat](img[i], reference[i]))
     return pd.DataFrame(features_dict)
 
 
 @task
 def get_cell_features(row, features, channels):
-    features_dict = {}
-    multi_index = []
+    valid_features = get_valid_features(features)
 
     img = AICSImage(row["crop_seg_path"])
     channel_names = img.channel_names
-    channels = channels or channel_names
     img = img.get_image_data("CZYX")
 
-    for i, name in enumerate(channel_names):
-        if name not in channels:
-            continue
-        ch_img = img[i]
-        if np.all(ch_img == 0):
-            continue
-        for feat in features:
-            if feat not in FEATURE_EXTRACTION_FUNCTIONS:
-                print(
-                    f"Feature {feat} not found. Options are {FEATURE_EXTRACTION_FUNCTIONS.keys()}"
-                )
-                continue
-            feats = FEATURE_EXTRACTION_FUNCTIONS[feat](ch_img)
-            append_dict(features_dict, feats)
-        multi_index.append((row["CellId"], name))
-    return pd.DataFrame(
-        features_dict,
-        index=pd.MultiIndex.from_tuples(multi_index, names=["CellId", "Name"]),
-    )
+    valid_channels = get_channels(img, channel_names, channels)
+
+    if len(valid_channels) == 0:
+        print("No valid channels found!")
+        return None
+
+    features_dict = {}
+    multi_index = [(row["CellId"], name) for i, name in valid_channels]
+
+    for i, name in valid_channels:
+        for feat in valid_features:
+            append_dict(features_dict, FEATURE_EXTRACTION_FUNCTIONS[feat](img[i]))
+
+    try:
+        features = pd.DataFrame(
+            features_dict,
+            index=pd.MultiIndex.from_tuples(multi_index, names=["CellId", "Name"]),
+        )
+        print('Cell', row['CellId'], 'complete')
+        return features
+    except:
+        return None
 
 
-@task()
+@task
 def get_matched_cell_features(row, features, channels, reference_channel):
+    valid_features = get_valid_features(features)
+
     features_dict = {}
     img = AICSImage(row["crop_seg_path"])
     channel_names = img.channel_names
@@ -187,10 +234,7 @@ def get_matched_cell_features(row, features, channels, reference_channel):
     channel_names = [channel_names[reference_idx]] + [
         ch for ch in channel_names if ch != reference_channel
     ]
-    for feat in features:
-        if feat not in FEATURE_EXTRACTION_FUNCTIONS:
-            print(f"Feature {feat} not found. Options are {FEATURE_EXTRACTION_FUNCTIONS.keys()}")
-            continue
+    for feat in valid_features:
         if feat == "shcoeff":
             for i, ch in enumerate(channel_names):
                 if ch not in channels:
@@ -216,7 +260,7 @@ def get_matched_cell_features(row, features, channels, reference_channel):
     )
 
 
-@task
+@task(tags=["benji_100"])
 def run_object(
     image_object,
     output_name,
@@ -263,10 +307,27 @@ def run_object(
     # fov calculations
     elif isinstance(input, np.ndarray):
         if reference_step is None:
-            results = [submit(get_roi_features, as_task=run_within_object, img=input, features=features, channels=channels)]
+            results = [
+                submit(
+                    get_roi_features,
+                    as_task=run_within_object,
+                    img=input,
+                    features=features,
+                    channels=channels,
+                )
+            ]
         else:
             reference = image_object.load_step(reference_step)
-            results= [submit(get_matched_roi_features, as_task = run_within_object, img=input, features=features, channels=channels, reference = reference)]
+            results = [
+                submit(
+                    get_matched_roi_features,
+                    as_task=run_within_object,
+                    img=input,
+                    features=features,
+                    channels=channels,
+                    reference=reference,
+                )
+            ]
     output = StepOutput(
         image_object.working_dir,
         "calculate_features",
@@ -275,6 +336,11 @@ def run_object(
         image_id=image_object.id,
         index_col=["CellId", "Name"],
     )
+    features_df = pd.concat(results)
+    output.save(features_df)
+    image_object.add_step_output(output)
+    image_object.save()
+
     return results, output
 
 
@@ -330,11 +396,11 @@ def calculate_features(
         if not run_within_object:
             # parallelizing across fovs
             object_result = object_result.result()
-        results, output = object_result
-        if run_within_object:
-            # parallelizing within fov
-            results = [r.result() for r in results]
-        features_df = pd.concat(results)
-        output.save(features_df)
-        obj.add_step_output(output)
-        obj.save()
+        # results, output = object_result
+        # if run_within_object:
+        #     # parallelizing within fov
+        #     results = [r.result() for r in results]
+        # features_df = pd.concat(results)
+        # output.save(features_df)
+        # obj.add_step_output(output)
+        # obj.save()
