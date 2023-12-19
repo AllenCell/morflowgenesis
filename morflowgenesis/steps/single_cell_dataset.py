@@ -4,11 +4,11 @@ import os
 import re
 from pathlib import Path
 from shutil import rmtree
-from omegaconf import ListConfig
 
 import numpy as np
 import pandas as pd
 from aicsimageio.writers import OmeTiffWriter
+from omegaconf import ListConfig
 from prefect import flow, task
 from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
@@ -229,7 +229,9 @@ def mask_images(
             if iou < iou_thresh:
                 return None, None
         else:
-            raise ValueError("IoU thresholding only implemented for 2 channels when comparing two segmentations")
+            raise ValueError(
+                "IoU thresholding only implemented for 2 channels when comparing two segmentations"
+            )
 
     # split into dict
     return {name: raw_crop[idx] for idx, name in enumerate(raw_steps)}, {
@@ -317,15 +319,15 @@ def process_image(
     if mask == True:
         mask = list(range(len(seg_steps)))
     elif isinstance(mask, (list, ListConfig)):
-        mask = sorted([seg_steps.index(m) for m in mask])
+        mask = sorted(seg_steps.index(m) for m in mask)
     else:
         mask = []
-            
+
     # same for keep_lcc
     if keep_lcc == True:
         keep_lcc = list(range(len(seg_steps)))
     elif isinstance(keep_lcc, (list, ListConfig)):
-        keep_lcc = sorted([seg_steps.index(m) for m in keep_lcc])
+        keep_lcc = sorted(seg_steps.index(m) for m in keep_lcc)
     else:
         keep_lcc = []
 

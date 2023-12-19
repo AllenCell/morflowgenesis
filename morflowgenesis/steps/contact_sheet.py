@@ -2,10 +2,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from aicsimageio import AICSImage
+from omegaconf import ListConfig
 from prefect import flow, task
 from skimage.exposure import rescale_intensity
 from skimage.segmentation import find_boundaries
-from omegaconf import ListConfig
+
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
 

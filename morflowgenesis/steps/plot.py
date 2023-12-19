@@ -181,11 +181,14 @@ def plot(df, pred_level, label_level, destdir, xlabel, ylabel):
             os.path.join(destdir, f"{xlabel}_vs_{ylabel}_summary.png"), transparent=True
         )
 
+
 def subset_data(features, pred_level, label_level):
     pred = features.xs(pred_level, level="Name")
     label = features.xs(label_level, level="Name")
     # select cellids present in both
-    cellids = set(pred.index.get_level_values(0)).intersection(set(label.index.get_level_values(0)))
+    cellids = set(pred.index.get_level_values(0)).intersection(
+        set(label.index.get_level_values(0))
+    )
     return label.loc[cellids], pred.loc[cellids]
 
 
@@ -201,23 +204,28 @@ def run_plot(image_object_paths, output_name, input_step, features, label, pred)
             available_levels = features_df.index.get_level_values("Name").unique().values
             for level in available_levels:
                 if re.search(pred_filter["segmentation_name"], level):
-                    save_dir = image_objects[0].working_dir / "run_plot" /output_name/ level
+                    save_dir = image_objects[0].working_dir / "run_plot" / output_name / level
                     save_dir.mkdir(exist_ok=True, parents=True)
                     plot(
                         features_df,
                         level,
-                        label['segmentation_name'],
+                        label["segmentation_name"],
                         save_dir,
                         xlabel=label["description"],
                         ylabel=f"{pred_filter['description']} {level}",
                     )
         else:
-            save_dir = image_objects[0].working_dir / "run_plot" /output_name/ pred_filter["segmentation_name"]
+            save_dir = (
+                image_objects[0].working_dir
+                / "run_plot"
+                / output_name
+                / pred_filter["segmentation_name"]
+            )
             save_dir.mkdir(exist_ok=True, parents=True)
             plot(
                 features_df,
                 pred_filter["segmentation_name"],
-                label['segmentation_name'],
+                label["segmentation_name"],
                 save_dir,
                 xlabel=label["description"],
                 ylabel=pred_filter["description"],

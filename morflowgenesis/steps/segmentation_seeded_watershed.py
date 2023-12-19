@@ -1,11 +1,12 @@
 import numpy as np
-# from mahotas import cwatershed as watershed
-from skimage.segmentation import watershed
 from prefect import flow, task
 from scipy.ndimage import binary_dilation, binary_erosion, find_objects
 from skimage.filters import median
 from skimage.measure import label
 from skimage.morphology import disk
+
+# from mahotas import cwatershed as watershed
+from skimage.segmentation import watershed
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 

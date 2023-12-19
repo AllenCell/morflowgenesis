@@ -5,5 +5,4 @@ from .create_temporary_dask_cluster import (
 )
 from .image_object import ImageObject
 from .step_output import StepOutput
-
 from .utils import submit, to_list

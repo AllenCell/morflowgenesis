@@ -46,9 +46,7 @@ async def run_step(step_cfg, object_store_path):
         return [out]
     else:
         # checking which objects to run here prevents overhead on the cluster and excess job creation.
-        objects_to_run = get_objects_to_run(
-            object_store_path, step_name, step_args["output_name"]
-        )
+        objects_to_run = get_objects_to_run(object_store_path, step_name, step_args["output_name"])
         out = await asyncio.gather(
             *[
                 run_deployment(
