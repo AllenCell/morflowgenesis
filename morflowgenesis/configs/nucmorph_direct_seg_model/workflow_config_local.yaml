@@ -1,60 +1,54 @@
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/nuc_morph
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/nuc_morph_new_model
 
 local_run: true
 
 steps:
-    - function: morflowgenesis.steps.split_czi.split_czi
-      args:
-          czi_path: //allen/programs/allencell/data/proj0/935/c72/962/3cc/7a4/37b/f4f/6d8/69c/91a/71/20200323_F01_001.czi
-          working_dir: ${working_dir}
-          output_name: 20x_raw
-          channels: [0]
-          dimension_order_out: CZYX
-          timepoints: -1
-          scenes: ["P8-B4"]
-      step_type: "init"
+    # - function: morflowgenesis.steps.split_image
+    #   args:
+    #       image_path: //allen/programs/allencell/data/proj0/935/c72/962/3cc/7a4/37b/f4f/6d8/69c/91a/71/20200323_F01_001.czi
+    #       working_dir: ${working_dir}
+    #       output_name: 20x_raw
+    #       channels: [0]
+    #       dimension_order_out: CZYX
+    #       timepoints: -1
+    #       scenes: ["P8-B4"]
+    #   step_type: "init"
 
-    # run segmentation from 20x
-    - function: morflowgenesis.steps.run_cytodl_gather.run_cytodl
-      args:
-          output_name: 100x_lamin_seg
-          input_step: split_czi_20x_raw
-          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/20x_lamin_to_100x_nucseg_high_semantic_loss.yaml
-          run_id: 28968a81015b4dfb8f16f14c13f4c1c7
-      step_type: "gather"
+    # # run segmentation from 20x
+    # - function: morflowgenesis.steps.run_cytodl
+    #   args:
+    #       input_step: split_image_20x_raw
+    #       config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/best_nucseg_model.yaml
 
-    - function: morflowgenesis.steps.tracking.run_tracking
-      args:
-          output_name: tracking
-          input_step: run_cytodl_100x_lamin_seg
-      step_type: "gather"
+    # - function: morflowgenesis.steps.run_tracking
+    #   args:
+    #       output_name: tracking
+    #       input_step: run_cytodl_nucseg
 
-    - function: morflowgenesis.steps.single_cell_dataset.single_cell_dataset
+    - function: morflowgenesis.steps.single_cell_dataset
       args:
-          output_name: cells_parallelize_across_fovs
-          splitting_step: run_cytodl_100x_lamin_seg
-          raw_steps: [split_czi_20x_raw]
+          output_name: cells
+          splitting_step: run_cytodl_nucseg
+          raw_steps: [split_image_20x_raw]
           raw_steps_rename: [20x_lamin]
-          seg_steps: [run_cytodl_100x_lamin_seg]
+          seg_steps: [run_cytodl_nucseg]
           seg_steps_rename: [nuc_seg]
           tracking_step: run_tracking_tracking
           mask: False
-      step_type: "gather"
+          keep_lcc: False
 
-    - function: morflowgenesis.steps.feature_calculation.calculate_features
+    - function: morflowgenesis.steps.calculate_features
       args:
           output_name: features
-          input_step: single_cell_dataset_cells_parallelize_across_fovs
+          input_step: single_cell_dataset_cells
           features:
               - height
               - volume
               - shcoeff
-      step_type: "gather"
 
-    - function: morflowgenesis.steps.create_manifest_nucmorph.create_manifest
+    - function: morflowgenesis.steps.create_manifest
       args:
           output_name: manifest
           feature_step: calculate_features_features
           tracking_step: run_tracking_tracking
-          single_cell_step: single_cell_dataset_cells_parallelize_across_fovs
-      step_type: "gather"
+          single_cell_step: single_cell_dataset_cells

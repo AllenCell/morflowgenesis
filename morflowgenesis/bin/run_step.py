@@ -31,7 +31,7 @@ def get_objects_to_run(working_dir, step_name, output_name):
 
 async def run_step(step_cfg, object_store_path):
     step_fn = step_cfg["function"]
-    step_type = step_cfg.get("step_type", "list")
+    step_type = step_cfg.get("step_type", "gather")
     step_args = step_cfg["args"]
     step_name = step_fn.split(".")[-1]
 
@@ -46,9 +46,7 @@ async def run_step(step_cfg, object_store_path):
         return [out]
     else:
         # checking which objects to run here prevents overhead on the cluster and excess job creation.
-        objects_to_run = get_objects_to_run(
-            object_store_path, step_name, step_args["output_name"]
-        )
+        objects_to_run = get_objects_to_run(object_store_path, step_name, step_args["output_name"])
         out = await asyncio.gather(
             *[
                 run_deployment(
@@ -63,7 +61,7 @@ async def run_step(step_cfg, object_store_path):
 
 def run_step_local(step_cfg, object_store_path):
     step_fn = step_cfg["function"]
-    step_type = step_cfg.get("step_type", "list")
+    step_type = step_cfg.get("step_type", "gather")
     step_args = step_cfg["args"]
     step_name = step_fn.split(".")[-1]
     step_fn = _locate(step_fn)

@@ -8,6 +8,7 @@ from shutil import rmtree
 import numpy as np
 import pandas as pd
 from aicsimageio.writers import OmeTiffWriter
+from omegaconf import ListConfig
 from prefect import flow, task
 from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
@@ -49,7 +50,7 @@ def centroid_from_slice(slicee):
 
 
 def roi_from_slice(slicee):
-    return ",".join([f"{s.start},{s.stop}" for s in slicee])
+    return "["+",".join([f"{s.start},{s.stop}" for s in slicee])+"]"
 
 
 def get_renamed_image_paths(image_object, steps, rename_steps):
@@ -71,7 +72,7 @@ def get_largest_cc(im):
     return im == largest_cc
 
 
-@task
+@task(log_prints=True)
 def extract_cell(
     image_object,
     output_name,
@@ -178,6 +179,7 @@ def extract_cell(
         df[f"channel_names_{output_type}"] = str(channel_names)
         name_dict[f"crop_{output_type}"] = channel_names
     df["name_dict"] = json.dumps(name_dict)
+    print('cell_id', cell_id, 'done')
     return df
 
 
@@ -202,8 +204,8 @@ def mask_images(
     lab,
     splitting_ch,
     coords,
-    mask=True,
-    keep_lcc=False,
+    mask,
+    keep_lcc,
     iou_thresh=None,
 ):
     """Turn multich image into single cell dicts."""
@@ -212,18 +214,25 @@ def mask_images(
         raw_crop = raw_images[coords].copy()
     seg_crop = seg_images[coords].copy()
     seg_crop[splitting_ch] = seg_crop[splitting_ch] == lab
-    if mask:
-        # use masking segmentation to crop out non-cell regions in segmentations
-        mask_img = seg_crop[splitting_ch]
-        seg_crop *= mask_img
-    if keep_lcc:
-        seg_crop = [get_largest_cc(seg_crop[ch]) for ch in range(seg_crop.shape[0])]
-    if iou_thresh is not None and len(seg_crop) > 1:
-        intersection = np.sum(np.logical_and(seg_crop[0], seg_crop[1])) + 1e-8
-        union = np.sum(np.logical_or(seg_crop[0], seg_crop[1])) + 1e-8
-        iou = intersection / union
-        if iou < iou_thresh:
-            return None, None
+    mask_img = seg_crop[splitting_ch]
+
+    for ch in range(len(seg_crop)):
+        if ch in mask:
+            seg_crop[ch] *= mask_img
+        if ch in keep_lcc:
+            seg_crop[ch] = get_largest_cc(seg_crop[ch] * mask_img)
+
+    if iou_thresh is not None:
+        if len(seg_crop) == 2:
+            intersection = np.sum(np.logical_and(seg_crop[0], seg_crop[1])) + 1e-8
+            union = np.sum(np.logical_or(seg_crop[0], seg_crop[1])) + 1e-8
+            iou = intersection / union
+            if iou < iou_thresh:
+                return None, None
+        else:
+            raise ValueError(
+                "IoU thresholding only implemented for 2 channels when comparing two segmentations"
+            )
 
     # split into dict
     return {name: raw_crop[idx] for idx, name in enumerate(raw_steps)}, {
@@ -248,28 +257,25 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
     assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
     seg_images = [image_object.load_step(step_name) for step_name in seg_steps]
     raw_images = [image_object.load_step(step_name) for step_name in raw_steps]
-    raw_images = [resize(image, seg_images[0].shape, order=3) for image in raw_images]
+
+    if len(raw_images) > 0:
+        raw_images = np.clip(
+            raw_images, np.percentile(raw_images, 0.01), np.percentile(raw_images, 99.99)
+        )
+        raw_images = [rescale_intensity(im, out_range=np.uint8).astype(np.uint8) for im in raw_images]
+        raw_images = [resize(image, seg_images[0].shape, order=0) for image in raw_images]
 
     # some cytodl models produce models off by 1 pix due to resizing/rounding errors
     minimum_shape = np.min([im.shape for im in seg_images + raw_images], axis=0)
 
     minimum_shape_slice = tuple(slice(0, s) for s in minimum_shape)
     seg_images = np.stack([im[minimum_shape_slice] for im in seg_images])
+    raw_images = np.stack([im[minimum_shape_slice] for im in raw_images])
+    # check all images same shape
+    assert raw_images.shape[-3:] == seg_images.shape[-3:], "images are not same shape"
+
     splitting_ch = seg_steps.index(splitting_step)
-
-    if len(raw_images) > 0:
-        raw_images = [im[minimum_shape_slice] for im in raw_images]
-        raw_images = np.clip(
-            raw_images, np.percentile(raw_images, 0.01), np.percentile(raw_images, 99.99)
-        )
-        raw_images = np.stack(
-            [rescale_intensity(im, out_range=np.uint8).astype(np.uint8) for im in raw_images]
-        )
-
-        # check all images same shape
-        assert raw_images.shape[-3:] == seg_images.shape[-3:], "images are not same shape"
-    else:
-        raw_images = None
+    raw_images = None if len(raw_images) == 0 else raw_images
 
     return raw_images, seg_images, raw_steps, seg_steps, splitting_ch
 
@@ -295,9 +301,11 @@ def process_image(
     include_edge_cells,
     run_within_object,
 ):
+    print(f"Processing image {image_object.id}")
     raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(
         image_object, splitting_step, seg_steps, raw_steps
     )
+    print('images loaded for', image_object.id)
     # find objects in segmentation
     regions = find_objects(seg_images[splitting_ch].astype(int))
 
@@ -306,6 +314,24 @@ def process_image(
     if tracking_step is not None:
         tracking_df = image_object.load_step(tracking_step)
         tracking_df = tracking_df[tracking_df.time_index == image_object.metadata["T"]]
+    print('Tracking loaded for', image_object.id)
+
+
+    # mask = True means mask all seg images, mask = list means mask only those seg images
+    if mask == True:
+        mask = list(range(len(seg_steps)))
+    elif isinstance(mask, (list, ListConfig)):
+        mask = sorted(seg_steps.index(m) for m in mask)
+    else:
+        mask = []
+
+    # same for keep_lcc
+    if keep_lcc == True:
+        keep_lcc = list(range(len(seg_steps)))
+    elif isinstance(keep_lcc, (list, ListConfig)):
+        keep_lcc = sorted(seg_steps.index(m) for m in keep_lcc)
+    else:
+        keep_lcc = []
 
     results = []
     for lab, coords in enumerate(regions, start=1):
@@ -325,6 +351,8 @@ def process_image(
             keep_lcc=keep_lcc,
             iou_thresh=iou_thresh,
         )
+        print('processing cell', lab, 'of', image_object.id)
+
         if crop_raw_images is None or crop_seg_images is None:
             print(f"Skipping cell {lab} due to low IoU")
             continue

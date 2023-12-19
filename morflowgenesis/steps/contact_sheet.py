@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from aicsimageio import AICSImage
+from omegaconf import ListConfig
 from prefect import flow, task
 from skimage.exposure import rescale_intensity
 from skimage.segmentation import find_boundaries
@@ -10,10 +11,12 @@ from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, su
 
 
 def make_rgb(img, contour):  # this function returns an RGB image
-    rgb = np.stack([img] * 3, axis=-1)
+    rgb = np.stack([img] * 3, axis=-1).astype(float)
+    colors = [(0, 255, 255), (255, 0, 255), (255, 255, 0)]
     for ch in range(contour.shape[0]):
-        rgb[contour[ch] > 0, ch] = 255
-    return rgb
+        rgb[contour[ch] > 0] += colors[ch]
+    rgb[rgb > 255] = 255
+    return rgb.astype(np.uint8)
 
 
 @task
@@ -85,6 +88,8 @@ def segmentation_contact_sheet(
     n_bins=10,
     seg_names=None,
 ):
+    if isinstance(seg_names, (list, ListConfig)) and len(seg_names) > 3:
+        raise ValueError("Only three segmentation names can be used to create a contact sheet")
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
 
     cell_df = pd.concat(
@@ -115,7 +120,7 @@ def segmentation_contact_sheet(
             else:
                 results.append(None)
     results = [r.result() if r is not None else (None, None) for r in results]
-    colors = ["Red", "Green", "Blue"]
+    colors = ["Cyan", "Magenta", "Yellow"]
     title = "Contact Sheet: " + ", ".join(
         [f"{col}: {name}" for col, name in zip(colors, seg_names)]
     )

@@ -1,10 +1,12 @@
 import numpy as np
-from mahotas import cwatershed
 from prefect import flow, task
 from scipy.ndimage import binary_dilation, binary_erosion, find_objects
 from skimage.filters import median
 from skimage.measure import label
 from skimage.morphology import disk
+
+# from mahotas import cwatershed as watershed
+from skimage.segmentation import watershed
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
@@ -69,7 +71,7 @@ def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5, smooth=False):
 
     if smooth:
         raw = median(raw)
-    seg = cwatershed(raw, seed)
+    seg = watershed(raw, seed)
 
     # dilate in xy into areas not covered by watershed on other objects
     selem = np.zeros((3, 3, 3))

@@ -24,21 +24,10 @@ def get_data(path, load_kwargs):
 def split(path, working_dir, output_name, alignment_args, load_kwargs):
     # create object associated with image
     img_obj = ImageObject(working_dir, path, load_kwargs)
-    output = StepOutput(
-        working_dir,
-        "split_image",
-        output_name,
-        "image",
-        # image_id=img_obj.id)
-        image_id=f"S{load_kwargs['S']}_T{load_kwargs['T']:04d}",
-    )
+    output = StepOutput(working_dir, "split_image", output_name, "image", image_id=img_obj.id)
 
     # load image
     data = get_data(path, load_kwargs)
-
-    import numpy as np
-
-    data = np.max(data.squeeze(), 0)
 
     if alignment_args is not None:
         data = align_image(
