@@ -4,21 +4,22 @@ import pandas as pd
 from aicsimageio import AICSImage
 from omegaconf import ListConfig
 from prefect import flow, task
+from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.segmentation import find_boundaries
-from scipy.ndimage import find_objects
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
 
 def make_rgb(img, contour):  # this function returns an RGB image
-    img= np.clip(img, np.percentile(img, 0.1), np.percentile(img, 99.9))
-    img= rescale_intensity(img, out_range=(0, 255)).astype(np.uint8)
+    img = np.clip(img, np.percentile(img, 0.1), np.percentile(img, 99.9))
+    img = rescale_intensity(img, out_range=(0, 255)).astype(np.uint8)
     rgb = np.stack([img] * 3, axis=-1).astype(float)
     colors = [(0, 255, 255), (255, 0, 255), (255, 255, 0)]
     for ch in range(contour.shape[0]):
         rgb[contour[ch] > 0] = colors[ch]
     return rgb.astype(np.uint8)
+
 
 def project(raw, seg):
     assert len(seg.shape) == 4
@@ -29,9 +30,9 @@ def project(raw, seg):
         mid_z, mid_y, mid_x = int(np.median(z)), int(np.median(y)), int(np.median(x))
 
     # raw is zyx, seg is czyx
-    z_project = make_rgb(raw[mid_z], seg[:,mid_z]) #overlay[mid_z]
-    y_project = make_rgb(raw[:, mid_y], seg[:, :, mid_y]) #overlay[:, mid_y]
-    x_project = make_rgb(raw[:, :, mid_x], seg[:, :, :, mid_x]) #overlay[:, :, mid_x]
+    z_project = make_rgb(raw[mid_z], seg[:, mid_z])  # overlay[mid_z]
+    y_project = make_rgb(raw[:, mid_y], seg[:, :, mid_y])  # overlay[:, mid_y]
+    x_project = make_rgb(raw[:, :, mid_x], seg[:, :, :, mid_x])  # overlay[:, :, mid_x]
     x_project = np.transpose(x_project, (1, 0, 2))
 
     # Calculate the required output dimensions
@@ -50,6 +51,7 @@ def project(raw, seg):
 
     return out.astype(np.uint8)
 
+
 def pad_coords(s, padding, constraints):
     # pad slice by padding subject to image size constraints
     new_slice = []
@@ -58,6 +60,7 @@ def pad_coords(s, padding, constraints):
         stop = min(c, slice_part.stop + padding)
         new_slice.append(slice(start, stop, None))
     return tuple(new_slice)
+
 
 @task
 def project_cell(row, raw_name, seg_names):
@@ -73,7 +76,7 @@ def project_cell(row, raw_name, seg_names):
     seg = np.stack([find_boundaries(seg[ch], mode="inner") for ch in range(seg.shape[0])])
 
     projection = project(raw, seg)
-    return projection, row['CellId'].iloc[0]
+    return projection, row["CellId"].iloc[0]
 
 
 def project_fov(image_object, raw_name, seg_step):
@@ -86,7 +89,7 @@ def project_fov(image_object, raw_name, seg_step):
             continue
         coords = pad_coords(coords, 10, raw.shape)
         raw_crop = raw[coords]
-        seg_crop = find_boundaries(seg[coords] == val,mode="inner")[None]
+        seg_crop = find_boundaries(seg[coords] == val, mode="inner")[None]
         cells.append((project(raw_crop, seg_crop), val))
     return cells
 
@@ -98,7 +101,7 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title=
     fig.supylabel(y_feature)
     for x_idx, x_bin in enumerate(x_bins):
         for y_idx, y_bin in enumerate(y_bins):
-            if len(results)==0:
+            if len(results) == 0:
                 break
             img, cellid = results.pop(0)
             if img is not None:
@@ -174,6 +177,7 @@ def segmentation_contact_sheet(
         image_object.add_step_output(output)
         image_object.save()
 
+
 @flow(task_runner=create_task_runner(), log_prints=True)
 def segmentation_contact_sheet_all(
     image_object_paths,
@@ -192,7 +196,7 @@ def segmentation_contact_sheet_all(
         )
         n_bins = int(np.ceil(np.sqrt(len(cells))))
         contact_sheet = assemble_contact_sheet(
-            cells, range(n_bins), range(n_bins), '', '', title=title
+            cells, range(n_bins), range(n_bins), "", "", title=title
         )
         output = StepOutput(
             image_objects[0].working_dir,
