@@ -155,5 +155,5 @@ def run_cytodl(
                         image_objects[i].save()
                         shutil.move(str(save_path), str(output.path))
     # delete configsfrom the run_cytodl folder
-    for folder in ["predict_images", "test_images", "train_images", "val_images"]:
+    for folder in ("predict_images", "test_images", "train_images", "val_images"):
         shutil.rmtree(Path(cfg.model.save_dir) / folder)
