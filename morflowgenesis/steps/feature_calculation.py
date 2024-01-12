@@ -13,9 +13,16 @@ from torchmetrics.classification import BinaryF1Score
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
-# TODO either return everything in pixels or everything in microns
-# TODO add centroid calculation
-# add absolute error
+
+def get_centroid(img):
+    z, y, x = np.where(img)
+    return {"centroid": (z.mean(), y.mean(), x.mean())}
+
+
+def get_axis_lengths(img):
+    img, _ = shtools.align_image_2d(img.copy(), compute_aligned_image=True)
+    _, y, x = np.where(img)
+    return {"width": np.ptp(y) + 1, "length": np.ptp(x) + 1}
 
 
 def get_height_percentile(img):
@@ -210,7 +217,7 @@ def get_cell_features(row, features, channels):
             features_dict,
             index=pd.MultiIndex.from_tuples(multi_index, names=["CellId", "Name"]),
         )
-        print('Cell', row['CellId'], 'complete')
+        print("Cell", row["CellId"], "complete")
         return features
     except:
         return None
@@ -260,7 +267,7 @@ def get_matched_cell_features(row, features, channels, reference_channel):
     )
 
 
-@task(tags=["benji_100"])
+@task()
 def run_object(
     image_object,
     output_name,
