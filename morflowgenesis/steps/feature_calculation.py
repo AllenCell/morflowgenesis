@@ -27,7 +27,7 @@ def get_axis_lengths(img):
 
 def get_height_percentile(img):
     z, _, _ = np.where(img)
-    return {"height_percentile": np.percentile(z, 97.5) - np.percentile(z, 2.5)}
+    return {"height_percentile": np.percentile(z, 99.9) - np.percentile(z, 0.1)}
 
 
 def get_volume(img):
