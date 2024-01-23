@@ -40,9 +40,7 @@ def generate_bg_seed(seg, lab):
     border_mask[1:-1, 1:-1, 1:-1] = 0
     border_mask[binary_dilation(seg == lab, iterations=5)] = 0
 
-    combined_mask = border_mask + 2 * bg
-    combined_mask[combined_mask > 0] = 2 
-
+    combined_mask = np.logical_or(border_mask, bg).astype(int) * 2
     return combined_mask
 
 
@@ -113,9 +111,9 @@ def run_object(
     raw = image_object.load_step(raw_input_step)
     seg = image_object.load_step(seg_input_step)
 
-    # DELETE
-    if seg.shape != raw.shape:
-        seg = seg[: raw.shape[0], : raw.shape[1], : raw.shape[2]]
+    min_im_shape = np.min([raw.shape, seg.shape], axis=0)
+    raw = raw[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
+    seg = seg[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
 
     seg = label(seg)
     regions = find_objects(seg.astype(int))
@@ -129,8 +127,8 @@ def run_object(
         if not include_edge and is_edge:
             continue
         crop_raw, crop_seg = raw[coords], seg[coords]
-        # skip too small seeds
-        if np.sum(crop_seg == lab) < min_seed_size:
+        # skip too small seeds not touching border
+        if not is_edge and np.sum(crop_seg == lab) < min_seed_size:
             continue
         results.append(
             submit(
