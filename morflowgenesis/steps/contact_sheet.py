@@ -82,6 +82,9 @@ def project_cell(row, raw_name, seg_names):
 def project_fov(image_object, raw_name, seg_step):
     raw = image_object.load_step(raw_name)
     seg = image_object.load_step(seg_step)
+    min_im_shape = np.min([raw.shape, seg.shape], axis=0)
+    raw = raw[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
+    seg = seg[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
     regions = find_objects(seg)
     cells = []
     for val, coords in enumerate(regions, start=1):
