@@ -264,7 +264,10 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
         raw_images = [
             rescale_intensity(im, out_range=np.uint8).astype(np.uint8) for im in raw_images
         ]
-        raw_images = [resize(image, seg_images[0].shape, order=1) for image in raw_images]
+        raw_images = [
+            resize(image, seg_images[0].shape, order=len(image.shape), preserve_range=True)
+            for image in raw_images
+        ]
 
     # some cytodl models produce models off by 1 pix due to resizing/rounding errors
     minimum_shape = np.min([im.shape for im in seg_images + raw_images], axis=0)
