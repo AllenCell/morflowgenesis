@@ -61,7 +61,6 @@ def project_task(
 def run_object(
     image_object,
     input_steps,
-    step_name,
     output_name,
     scale,
     dtype,

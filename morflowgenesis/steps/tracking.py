@@ -194,9 +194,8 @@ def _do_tracking(image_objects, output_name):
     return run
 
 
-# TODO find out why this requires ~ 100GB mem per worker?
 @flow(task_runner=create_task_runner(), log_prints=True)
-def run_tracking(image_object_paths, output_name, input_step):
+def tracking(image_object_paths, output_name, input_step):
     image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
     Path(f"{image_objects[0].working_dir}/tracking/{output_name}").mkdir(
         parents=True, exist_ok=True
