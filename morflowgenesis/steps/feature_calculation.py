@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 import tqdm
+import vtk
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from prefect import flow, task
@@ -13,6 +14,13 @@ from torchmetrics.classification import BinaryF1Score
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
+def get_surface_area(img, sigma = 2):
+    mesh, _, _ = shtools.get_mesh_from_image(image=img, sigma=sigma)
+
+    massp = vtk.vtkMassProperties()
+    massp.SetInputData(mesh)
+    massp.Update()
+    return {"mesh_vol":massp.GetVolume(), "mesh_sa":massp.GetSurfaceArea()}
 
 def get_centroid(img):
     z, y, x = np.where(img)
@@ -80,6 +88,7 @@ FEATURE_EXTRACTION_FUNCTIONS = {
     "shcoeff": get_shcoeff,
     "n_pieces": get_n_pieces,
     "f1": get_f1,
+    "surface_area": get_surface_area,
 }
 
 
