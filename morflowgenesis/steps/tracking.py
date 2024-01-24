@@ -16,12 +16,19 @@ from morflowgenesis.utils.image_object import ImageObject
 from morflowgenesis.utils.step_output import StepOutput
 
 
-@task()
+def str_to_array(s):
+    elements = s[1:-1].strip().split()
+    return np.array(list(map(int, elements)))
+
+
+@task(tags=["benji_15"])
 def create_regionprops_csv(obj, input_step, output_name):
     inst_seg = obj.get_step(input_step).load_output()
-    save_path = Path(f"{obj.working_dir}/'tracking'/{output_name}/{obj.id}_regionprops.csv")
+    save_path = Path(f"{obj.working_dir}/tracking/{output_name}/{obj.id}_regionprops.csv")
     if save_path.exists():
-        return pd.read_csv(save_path)
+        out = pd.read_csv(save_path)
+        out["img_shape"] = out["img_shape"].apply(str_to_array)
+        return out
 
     timepoint = obj.metadata["T"]
 
@@ -187,10 +194,12 @@ def _do_tracking(image_objects, output_name):
     return run
 
 
-# TODO find out why this requires ~ 100GB mem per worker?
 @flow(task_runner=create_task_runner(), log_prints=True)
-def run_tracking(image_object_paths, output_name, input_step):
+def tracking(image_object_paths, output_name, input_step):
     image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
+    Path(f"{image_objects[0].working_dir}/tracking/{output_name}").mkdir(
+        parents=True, exist_ok=True
+    )
 
     if _do_tracking(image_objects, output_name):
         # create centroid/volume csv

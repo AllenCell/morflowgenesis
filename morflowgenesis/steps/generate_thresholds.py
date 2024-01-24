@@ -96,3 +96,4 @@ def threshold(
 
         for output in object_result:
             obj.add_step_output(output)
+        obj.save()

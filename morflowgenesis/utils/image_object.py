@@ -39,7 +39,7 @@ class ImageObject(BaseModel):
 
     def step_is_run(self, step_name):
         # for a step to be considered run, must be in history and output must exist
-        return step_name in self.steps and self.get_step(step_name).path.exists()  #
+        return step_name in self.steps and self.get_step(step_name).path.exists()
 
     def add_step_output(self, output):
         # add output to image object

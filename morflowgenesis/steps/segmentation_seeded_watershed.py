@@ -1,10 +1,10 @@
 import numpy as np
-from mahotas import cwatershed
 from prefect import flow, task
-from scipy.ndimage import binary_dilation, binary_erosion, find_objects
-from skimage.filters import median
+from scipy.ndimage import binary_dilation, binary_erosion, find_objects, gaussian_filter
 from skimage.measure import label
-from skimage.morphology import disk
+
+# from mahotas import cwatershed as watershed
+from skimage.segmentation import watershed
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
@@ -40,14 +40,12 @@ def generate_bg_seed(seg, lab):
     border_mask[1:-1, 1:-1, 1:-1] = 0
     border_mask[binary_dilation(seg == lab, iterations=5)] = 0
 
-    combined_mask = border_mask + 2 * bg
-    combined_mask[combined_mask > 0] += 1
-
+    combined_mask = np.logical_or(border_mask, bg).astype(int) * 2
     return combined_mask
 
 
 @task
-def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5, smooth=False):
+def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5):
     if mode == "centroid":
         seed = np.zeros_like(seg)
         centroids = np.asarray(np.where(seg == lab)).mean(axis=1).astype(int)
@@ -67,21 +65,15 @@ def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5, smooth=False):
     bg_seed = generate_bg_seed(seg, lab)
     seed += bg_seed
 
-    if smooth:
-        raw = median(raw)
-    seg = cwatershed(raw, seed)
-
-    # dilate in xy into areas not covered by watershed on other objects
-    selem = np.zeros((3, 3, 3))
-    selem[1] = disk(1)
-    seg = binary_dilation(seg == 1, iterations=1, structure=selem, mask=seg != 3)
+    raw = np.clip(raw, np.percentile(raw, 1), np.percentile(raw, 99))
+    raw = gaussian_filter(raw, sigma=[0, 1, 1], truncate=3)
+    seg = watershed(raw, seed, watershed_line=True) != 2
 
     # remove non-target object segmentations and failed segmentations
-    border_mask = np.ones_like(seg)
-    border_mask[1:-1, 1:-1, 1:-1] = 0
+    border_mask = np.ones_like(seg, dtype=bool)
+    border_mask[1:-1, 1:-1, 1:-1] = False
     if (not is_edge and np.sum(seg[border_mask]) > 1000) or (is_edge and np.mean(seg) > 0.5):
         return np.zeros_like(seg)
-
     return seg
 
 
@@ -107,7 +99,6 @@ def run_object(
     include_edge,
     mode,
     erosion,
-    smooth,
     min_seed_size,
     run_within_object,
 ):
@@ -120,9 +111,9 @@ def run_object(
     raw = image_object.load_step(raw_input_step)
     seg = image_object.load_step(seg_input_step)
 
-    # DELETE
-    if seg.shape != raw.shape:
-        seg = seg[: raw.shape[0], : raw.shape[1], : raw.shape[2]]
+    min_im_shape = np.min([raw.shape, seg.shape], axis=0)
+    raw = raw[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
+    seg = seg[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
 
     seg = label(seg)
     regions = find_objects(seg.astype(int))
@@ -136,8 +127,8 @@ def run_object(
         if not include_edge and is_edge:
             continue
         crop_raw, crop_seg = raw[coords], seg[coords]
-        # skip too small seeds
-        if np.sum(crop_seg == lab) < min_seed_size:
+        # skip too small seeds not touching border
+        if not is_edge and np.sum(crop_seg == lab) < min_seed_size:
             continue
         results.append(
             submit(
@@ -149,11 +140,10 @@ def run_object(
                 mode=mode,
                 is_edge=is_edge,
                 erosion=erosion,
-                smooth=smooth,
             )
         )
         all_coords.append(coords)
-
+        print(lab, "done")
     return results, all_coords, raw.shape
 
 
@@ -168,7 +158,6 @@ def run_watershed(
     min_seed_size=1000,
     include_edge=True,
     padding=10,
-    smooth=False,
 ):
     # if only one image is passed, run across objects within that image. Otherwise, run across images
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
@@ -187,7 +176,6 @@ def run_watershed(
                 include_edge=include_edge,
                 mode=mode,
                 erosion=erosion,
-                smooth=smooth,
                 min_seed_size=min_seed_size,
                 run_within_object=run_within_object,
             )

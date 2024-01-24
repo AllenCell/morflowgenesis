@@ -162,12 +162,11 @@ def summary_plot(feats):
     return fig
 
 
-def plot(x_df, y_df, destdir, xlabel, ylabel):
+def plot(df, pred_level, label_level, destdir, xlabel, ylabel):
     all_feats = {}
-    for i, name in enumerate(x_df.columns):
-        x, y, feats = target_vs_prediction_scatter_metrics(
-            x_df.iloc[:, i], y_df.iloc[:, i], niter=200
-        )
+    for i, name in enumerate(df.columns):
+        x, y = subset_data(df.iloc[:, i], pred_level, label_level)
+        x, y, feats = target_vs_prediction_scatter_metrics(x, y, niter=200)
         fig, ax = target_vs_prediction_scatter_plot(
             x, y, feats, name, xlabel=xlabel, ylabel=ylabel
         )
@@ -176,11 +175,21 @@ def plot(x_df, y_df, destdir, xlabel, ylabel):
         )
         plt.close(fig)
         all_feats[name] = feats
-    if len(x_df.columns) > 1:
+    if len(df.columns) > 1:
         summary = summary_plot(all_feats)
         summary.savefig(
             os.path.join(destdir, f"{xlabel}_vs_{ylabel}_summary.png"), transparent=True
         )
+
+
+def subset_data(features, pred_level, label_level):
+    pred = features.xs(pred_level, level="Name")
+    label = features.xs(label_level, level="Name")
+    # select cellids present in both
+    cellids = set(pred.index.get_level_values(0)).intersection(
+        set(label.index.get_level_values(0))
+    )
+    return label.loc[cellids], pred.loc[cellids]
 
 
 @flow(log_prints=True)
@@ -188,36 +197,35 @@ def run_plot(image_object_paths, output_name, input_step, features, label, pred)
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
 
     features_df = pd.concat([obj.load_step(input_step) for obj in image_objects]).drop_duplicates()
-    features_df.dropna(inplace=True)
-
-    # drop cellids that don't have values for name gt and pred
-    unmatched_cells = features_df.groupby('CellId').size()==1
-    unmatched_cells = unmatched_cells[unmatched_cells].index
-    features_df.drop(unmatched_cells, inplace=True)
-
-    label_features = features_df.xs(label["segmentation_name"], level="Name")[features]
+    features_df = features_df[features]
 
     for pred_filter in pred:
         if "*" in pred_filter["segmentation_name"]:
             available_levels = features_df.index.get_level_values("Name").unique().values
             for level in available_levels:
                 if re.search(pred_filter["segmentation_name"], level):
-                    save_dir = image_objects[0].working_dir / "run_plot" / level
+                    save_dir = image_objects[0].working_dir / "run_plot" / output_name / level
                     save_dir.mkdir(exist_ok=True, parents=True)
                     plot(
-                        label_features,
-                        features_df.xs(level, level="Name")[features],
+                        features_df,
+                        level,
+                        label["segmentation_name"],
                         save_dir,
                         xlabel=label["description"],
                         ylabel=f"{pred_filter['description']} {level}",
                     )
         else:
-            save_dir = image_objects[0].working_dir / "run_plot" / pred_filter["segmentation_name"]
+            save_dir = (
+                image_objects[0].working_dir
+                / "run_plot"
+                / output_name
+                / pred_filter["segmentation_name"]
+            )
             save_dir.mkdir(exist_ok=True, parents=True)
-            pred_data = features_df.xs(pred_filter["segmentation_name"], level="Name")[features]
             plot(
-                label_features,
-                pred_data,
+                features_df,
+                pred_filter["segmentation_name"],
+                label["segmentation_name"],
                 save_dir,
                 xlabel=label["description"],
                 ylabel=pred_filter["description"],
