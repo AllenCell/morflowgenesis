@@ -8,6 +8,7 @@ Morflowgenesis is a python package for creating modular and configurable workflo
 ______________________________________________________________________
 
 ## Installation
+
 ```
 python3 -m venv morflowgenesis
 source morflowgenesis/bin/activate
@@ -17,10 +18,12 @@ cd morflowgenesis
 pip install -r requirements.txt
 pip install -e .
 ```
+
 ## Running Example Workflows
 
 1. Create Personal Access Token on GitHub with access to morflowgenesis repo (if one doesn't exist)
-2. Create a [Secret block](https://prefect.a100.int.allencell.org/blocks/catalog/secret) that has the value of your PAT and copy the name of the block into your config under the `pull:secret_block_name` key. Under `pull`, also specify the name of the branch that you want to pull from. 
+2. Create a [Secret block](https://prefect.a100.int.allencell.org/blocks/catalog/secret) that has the value of your PAT and copy the name of the block into your config under the `pull:secret_block_name` key. Under `pull`, also specify the name of the branch that you want to pull from.
+
 ```
 prefect config set PREFECT_API_DATABASE_CONNECTION_URL="https://prefect.a100.int.allencell.org/api"
 
@@ -33,6 +36,6 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for information related to developing the
 
 ### Developer installation
 
-pip install -e .[dev]
+pip install -e .\[dev\]
 
 ***Free software: Allen Institute Software License***
