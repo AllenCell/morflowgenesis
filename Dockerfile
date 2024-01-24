@@ -17,4 +17,3 @@ RUN --mount=type=ssh,id=github \
 RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
-

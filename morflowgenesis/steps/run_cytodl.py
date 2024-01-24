@@ -59,10 +59,8 @@ def load_model(
                 {model.cfg.model.x_key: str(im.get_step(input_step).path)} for im in image_objects
             ],
             "model.save_dir": str(save_dir),
-            "hydra.runtime.output_dir": str(save_dir),
-            "hydra.run_dir": str(save_dir),
-            "hydra.job.num": 0,
-            "hydra.job.id": 0,
+            "paths.output_dir": str(save_dir),
+            "paths.work_dir": str(save_dir),
         }
     )
     model.override_config(overrides)
@@ -131,3 +129,4 @@ def run_cytodl(
                         image_objects[i].add_step_output(output)
                         image_objects[i].save()
                         shutil.move(str(save_path), str(output.path))
+
