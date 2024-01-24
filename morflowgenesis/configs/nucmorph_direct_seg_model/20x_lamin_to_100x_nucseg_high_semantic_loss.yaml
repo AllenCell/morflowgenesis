@@ -113,9 +113,9 @@ data:
           keys: raw
         - _target_: monai.transforms.NormalizeIntensityd
           keys: raw
-        - _target_: monai.transforms.CenterSpatialCropd
-          keys: raw
-          roi_size: [24, -1, -1]
+        # - _target_: monai.transforms.CenterSpatialCropd
+        #   keys: raw
+        #   roi_size: [24, -1, -1]
 
     num_workers: 1
     batch_size: 1

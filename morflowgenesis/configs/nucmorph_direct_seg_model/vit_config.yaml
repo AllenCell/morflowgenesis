@@ -1,0 +1,131 @@
+experiment_name: flexi_mae
+run_name: offset_aug_finetune
+task_name: train
+tags:
+- dev
+train: true
+test: false
+ckpt_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/aics-im2im/logs/train/runs/flexi_mae/offset_aug_finetune/2024-01-22_16-41-05/checkpoints/last_mod.ckpt
+seed: 12345
+data:
+    _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader
+    data: 
+      - lr: "//allen/aics/assay-dev/users/Benji/hydra_workflow/nuc_morph_new_model/split_image/20x_raw/SP8-B4_T0000.tif"
+    transforms:
+        - _target_: monai.transforms.LoadImaged
+          keys:
+              - ${source_col}
+          reader:
+              - _target_: cyto_dl.image.io.MonaiBioReader
+                dimension_order_out: CZYX
+                C: 0
+        - _target_: monai.transforms.CenterSpatialCropd
+          keys: ${source_col}
+          roi_size: [24,512, 512]
+        - _target_: monai.transforms.NormalizeIntensityd
+          keys: ${source_col}
+        - _target_: monai.transforms.ToTensord
+          keys:
+              - ${source_col}
+          dtype: float16
+    _aux:
+        patch_shape:
+            - 24
+            - 128
+            - 128
+    num_workers: 1
+    batch_size: 1
+    pin_memory: true
+    persistent_workers: false
+model:
+  _target_: cyto_dl.models.im2im.MultiTaskIm2Im
+  save_images_every_n_epochs: 1
+  x_key: ${source_col}
+  save_dir: ${paths.output_dir}
+  backbone:
+    _target_: cyto_dl.nn.vits.Seg_ViT
+    base_patch_size:
+    - 4
+    - 8
+    - 8
+    num_patches:
+    - 6
+    - 16
+    - 16
+    emb_dim: 1024
+    encoder_layer: 24
+    encoder_head: 16
+    decoder_layer: 3
+    mask_ratio: 0.75
+  task_heads: ${kv_to_dict:${model._aux._tasks}}
+  _aux:
+    _tasks:
+      - - ${target_col}
+        - _target_: cyto_dl.nn.BaseHead
+          loss:
+            _target_: cyto_dl.models.im2im.utils.InstanceSegLoss
+            dim: 3
+          save_raw: True
+          postprocess:
+            input:
+              _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
+              dtype: numpy.float32
+            prediction:
+              _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegCluster
+              dim: 3
+              min_size: 100
+              skel_threshold: -4
+              semantic_threshold: -4
+  optimizer:
+    generator:
+      _partial_: true
+      _target_: torch.optim.AdamW
+      weight_decay: 0.01
+  lr_scheduler:
+    generator:
+      _partial_: true
+      _target_: torch.optim.lr_scheduler.OneCycleLR
+      max_lr: 0.0001
+      epochs: ${trainer.max_epochs}
+      steps_per_epoch: 1
+      pct_start: 0.05
+
+  inference_args:
+    roi_size:
+    - 24
+    - 128
+    - 128
+    sw_batch_size: 1
+    overlap: 0.25
+    mode: gaussian
+    progress: true
+
+trainer:
+  _target_: lightning.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 300
+  accelerator: gpu
+  devices:
+  - 0
+  precision: 16
+  check_val_every_n_epoch: 10
+  deterministic: false
+  detect_anomaly: false
+  gradient_clip_val: 10
+paths:
+  root_dir: .
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+extras:
+  ignore_warnings: true
+  enforce_tags: false
+  print_config: true
+  precision:
+    _target_: torch.set_float32_matmul_precision
+    precision: medium
+source_col: lr
+target_col: nucseg
+persist_cache: true
