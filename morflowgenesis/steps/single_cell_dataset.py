@@ -117,8 +117,6 @@ def extract_cell(
                 "track_id": tracking_df.track_id.iloc[0],
                 "lineage_id": tracking_df.lineage_id.iloc[0],
                 "is_outlier": tracking_df.is_outlier.iloc[0],
-                "has_outlier": tracking_df.has_outlier.iloc[0],
-                "past_outlier": tracking_df.past_outlier.iloc[0],
                 "edge_cell": tracking_df.edge_cell.iloc[0],
             }
         )

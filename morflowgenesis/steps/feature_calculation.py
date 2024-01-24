@@ -51,14 +51,14 @@ def get_n_pieces(img):
     return {"n_pieces": len(np.unique(label(img))) - 1}
 
 
-def get_shcoeff(img, transform_params=None, lmax=16, return_transform=False):
+def get_shcoeff(img, transform_params=None, lmax=16, sigma=2, return_transform=False):
     alignment_2d = True
     if transform_params is not None:
         img = shtools.apply_image_alignment_2d(img, transform_params[-1])[0]
         alignment_2d = False
     try:
         (coeffs, _), (_, _, _, transform_params) = shparam.get_shcoeffs(
-            image=img, lmax=lmax, alignment_2d=alignment_2d
+            image=img, lmax=lmax, alignment_2d=alignment_2d, sigma=sigma
         )
     except ValueError as e:
         print(e)
