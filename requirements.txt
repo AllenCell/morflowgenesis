@@ -21,3 +21,4 @@ scikit_learn==1.3.0
 scipy==1.9.1
 scikit-image==0.19.2
 timelapsetracking @ git+ssh://git@github.com/aics-int/aics-timelapse-tracking.git@496c1441d373b281eefba6cc6f188e1f4cbd020c#egg=timelapsetracking
+vtk==9.2.6
