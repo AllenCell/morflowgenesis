@@ -3,20 +3,18 @@ from pathlib import Path
 
 import pandas as pd
 from aicsimageio import AICSImage
-from prefect import flow, task
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images, submit, run_flow
 
-
-@task
 def generate_object(
-    existing_ids,
     row,
+    existing_ids,
     working_dir,
     source_column,
     non_source_columns,
     metadata_column=None,
 ):
+    row = row._asdict()
     source_img = AICSImage(row[source_column])
     # add metadata
     metadata = {"S": source_img.scenes, "T": source_img.dims.T - 1, "C": source_img.dims.C - 1}
@@ -35,35 +33,27 @@ def generate_object(
         obj.add_step_output(step_output)
     obj.save()
 
-
-@flow(task_runner=create_task_runner(), log_prints=True)
 def generate_objects(
     working_dir,
     csv_path,
     source_column,
     non_source_columns=[],
     metadata_column=None,
+    image_object_paths = [],
+    tags = [],
+    run_type=None,
 ):
-    image_objects = [
-        ImageObject.parse_file(obj_path)
-        for obj_path in (Path(working_dir) / "_ImageObjectStore").glob("*")
-    ]
+
+    existing_ids = [Path(p).stem for p in image_object_paths]
 
     """Generate a new image object for each row in the csv file."""
     df = pd.read_csv(csv_path)
+    parallelize_across_images(df.itertuples(), generate_object, tags=tags, data_name = 'row', existing_ids = existing_ids, working_dir = working_dir, source_column = source_column, non_source_columns = non_source_columns, metadata_column = metadata_column)
 
-    existing_ids = [im_obj.id for im_obj in image_objects]
-    new_image_objects = []
-    for row in df.itertuples():
-        new_image_objects.append(
-            generate_object.submit(
-                existing_ids,
-                row._asdict(),
-                working_dir,
-                source_column,
-                non_source_columns,
-                metadata_column,
-            )
-        )
 
-    [im_obj.result() for im_obj in new_image_objects]
+if __name__ == '__main__':
+    from prefect.task_runners import ConcurrentTaskRunner
+    from pathlib import Path
+
+
+    run_flow(generate_objects, ConcurrentTaskRunner(), 'images',working_dir='//allen/aics/assay-dev/users/Benji/CurrentProjects/validation/all_nuc_tf_validation_new_gt', csv_path='//allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/local/all_nuc_tf_validation/test_vit.csv', source_column='lr', non_source_columns=['hr'])

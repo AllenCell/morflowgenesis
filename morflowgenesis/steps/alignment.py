@@ -1,11 +1,12 @@
 import numpy as np
-from prefect import flow, task
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
+from morflowgenesis.utils import ImageObject, StepOutput, submit
 
+from prefect.flows import Flow
+from prefect.tasks import Task
+from morflowgenesis.utils.utils import submit, parallelize_across_images, parallelize_across_objects, run_flow
 
-@task
 def align(
     image_object,
     image_step,
@@ -47,58 +48,10 @@ def align(
     return output
 
 
-@task(name="align")
-def run_object(
-    image_object,
-    image_step,
-    segmentation_steps,
-    run_within_object,
-    boundary=False,
-):
-    results = []
-    for step in segmentation_steps:
-        results.append(
-            submit(
-                align,
-                as_task=run_within_object,
-                image_object=image_object,
-                image_step=image_step,
-                segmentation_step=step,
-                boundary=boundary,
-            )
-        )
-    return image_object, results
-
-
-@flow(task_runner=create_task_runner(), log_prints=True)
 def align_segmentations_to_image(
-    image_object_paths, image_step, segmentation_steps, boundary=False
+    image_object_paths, run_type, image_step, segmentation_steps, boundary=False
 ):
+    assert run_type == 'images', "Only images run type is supported"
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
-
-    all_results = []
-    for obj in image_objects:
-        all_results.append(
-            submit(
-                run_object,
-                as_task=not run_within_object,
-                image_object=obj,
-                image_step=image_step,
-                segmentation_steps=segmentation_steps,
-                run_within_object=run_within_object,
-                boundary=boundary,
-            )
-        )
-
-    for results in all_results:
-        if run_within_object:
-            # parallelizing within fov
-            object, results = results
-            results = [r.result() for r in results]
-        else:
-            # parallelizing across fovs
-            object, results = results.result()
-        for result in results:
-            object.add_step_output(result)
-        object.save()
+    for step in segmentation_steps:
+        parallelize_across_images(image_objects, align, image_step=image_step, segmentation_step=step, boundary=boundary)
