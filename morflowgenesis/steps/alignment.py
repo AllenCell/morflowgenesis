@@ -47,7 +47,7 @@ def align(
     return output
 
 
-@task
+@task(name="align")
 def run_object(
     image_object,
     image_step,

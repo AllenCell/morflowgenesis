@@ -19,6 +19,29 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
+## Setup
+
+1. Set up a postgres database for tracking workflow artifacts
+
+```
+docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=prefect postgres:latest postgres -N 100
+```
+
+2. Set up a prefect server
+
+```
+prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"
+prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
+prefect server start
+```
+
+3. \[OPTIONAL\] For workflows generating LOTS of tasks (e.g. 1000s), you may need to increase the number of connections in the postgres database.
+
+```
+export PREFECT_SQLALCHEMY_POOL_SIZE=10
+export PREFECT_SQLALCHEMY_MAX_OVERFLOW=100
+```
+
 ## Running Example Workflows
 
 1. Create Personal Access Token on GitHub with access to morflowgenesis repo (if one doesn't exist)

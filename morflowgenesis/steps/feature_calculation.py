@@ -14,13 +14,15 @@ from torchmetrics.classification import BinaryF1Score
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
-def get_surface_area(img, sigma = 2):
+
+def get_surface_area(img, sigma=2):
     mesh, _, _ = shtools.get_mesh_from_image(image=img, sigma=sigma)
 
     massp = vtk.vtkMassProperties()
     massp.SetInputData(mesh)
     massp.Update()
-    return {"mesh_vol":massp.GetVolume(), "mesh_sa":massp.GetSurfaceArea()}
+    return {"mesh_vol": massp.GetVolume(), "mesh_sa": massp.GetSurfaceArea()}
+
 
 def get_centroid(img):
     z, y, x = np.where(img)
@@ -51,14 +53,14 @@ def get_n_pieces(img):
     return {"n_pieces": len(np.unique(label(img))) - 1}
 
 
-def get_shcoeff(img, transform_params=None, lmax=16, return_transform=False):
+def get_shcoeff(img, transform_params=None, lmax=16, sigma=2, return_transform=False):
     alignment_2d = True
     if transform_params is not None:
         img = shtools.apply_image_alignment_2d(img, transform_params[-1])[0]
         alignment_2d = False
     try:
         (coeffs, _), (_, _, _, transform_params) = shparam.get_shcoeffs(
-            image=img, lmax=lmax, alignment_2d=alignment_2d
+            image=img, lmax=lmax, alignment_2d=alignment_2d, sigma=sigma
         )
     except ValueError as e:
         print(e)
@@ -276,7 +278,7 @@ def get_matched_cell_features(row, features, channels, reference_channel):
     )
 
 
-@task()
+@task(name="calculate_features")
 def run_object(
     image_object,
     output_name,

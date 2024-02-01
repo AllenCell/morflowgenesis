@@ -2,7 +2,6 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import tqdm
 from prefect import flow, task
 from scipy.ndimage import find_objects
 from scipy.signal import medfilt
@@ -21,7 +20,7 @@ def str_to_array(s):
     return np.array(list(map(int, elements)))
 
 
-@task(tags=["benji_15"])
+@task(tags=["benji_100_s8"])
 def create_regionprops_csv(obj, input_step, output_name):
     inst_seg = obj.get_step(input_step).load_output()
     save_path = Path(f"{obj.working_dir}/tracking/{output_name}/{obj.id}_regionprops.csv")
@@ -186,11 +185,11 @@ def _do_tracking(image_objects, output_name):
     # check if any step does not have tracking output
     run = False
     for obj in image_objects:
-        if not obj.step_is_run(f"tracking_{output_name}"):
+        if not obj.step_is_run(f"tracking/{output_name}"):
             run = True
             break
     if not run:
-        print(f"Skipping step `tracking_{output_name}`")
+        print(f"Skipping step `tracking/{output_name}`")
     return run
 
 

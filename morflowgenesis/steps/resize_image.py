@@ -32,7 +32,7 @@ def run_resize(image_object, output_name, input_step, output_shape=None, scale=N
     return output
 
 
-@task
+@task(name="resize")
 def run_object(
     image_object,
     output_name,

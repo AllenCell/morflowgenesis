@@ -57,7 +57,7 @@ def project_task(
     return output
 
 
-@task
+@task(name="project")
 def run_object(
     image_object,
     input_steps,
@@ -145,3 +145,4 @@ def project(
             object_result = object_result.result()
         for output in object_result:
             obj.add_step_output(output)
+        obj.save()

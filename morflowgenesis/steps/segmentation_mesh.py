@@ -41,7 +41,7 @@ def create_mesh(image_object, output_name, seg_step, resize):
     return step_output
 
 
-@task
+@task(name="create_mesh")
 def run_object(
     image_object,
     input_steps,
