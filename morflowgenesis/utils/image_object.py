@@ -1,7 +1,6 @@
 import hashlib
-import json
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Optional
 
 from pydantic import BaseModel
 
@@ -43,7 +42,7 @@ class ImageObject(BaseModel):
 
     def add_step_output(self, output):
         # add output to image object
-        step_name = f"{output.step_name}_{output.output_name}"
+        step_name = f"{output.step_name}/{output.output_name}"
         self.steps[step_name] = output
 
     def get_step(self, step_name):
