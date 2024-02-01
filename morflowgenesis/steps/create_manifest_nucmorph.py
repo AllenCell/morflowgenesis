@@ -1,5 +1,6 @@
 import re
-from typing import List
+from pathlib import Path
+from typing import List, Union
 
 import pandas as pd
 from prefect import flow
@@ -10,13 +11,15 @@ from morflowgenesis.utils.step_output import StepOutput
 
 @flow(log_prints=True)
 def create_manifest(
-    image_object_paths,
-    output_name,
-    feature_step,
-    single_cell_step,
+    image_object_paths: List[Union[str, Path]],
+    output_name: str,
+    feature_step: str,
+    single_cell_step: str,
+    breakdown_classification_step: str,
 ):
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
 
+    # load features and single cell data
     manifest = []
     for obj in image_objects:
         features = obj.load_step(feature_step)
@@ -28,9 +31,17 @@ def create_manifest(
         ]
         cells_with_feats = cells_with_feats.drop(columns=drop_cols, errors="ignore")
         manifest.append(cells_with_feats)
-
     manifest = pd.concat(manifest)
+
+    # add formation/breakdown information based on track_id
+    # same for all objects, just load once
+    breakdown_classification = obj.load_step(breakdown_classification_step)
+    manifest = pd.merge(manifest, breakdown_classification, on="track_id")
+
+    # sort manifest
     manifest = manifest.sort_values(by="index_sequence")
+
+    # rename columns
     shcoeff_cols = [col for col in manifest.columns if re.search("shcoeff", col)]
     shcoeff_rename_dict = {col: f"NUC_{col}" for col in shcoeff_cols}
     manifest = manifest.rename(columns=shcoeff_rename_dict)
@@ -40,6 +51,8 @@ def create_manifest(
             "nuc_seg_path": "seg_full_zstack_path",
         }
     )
+
+    # save
     step_output = StepOutput(
         image_objects[0].working_dir, "create_manifest", output_name, "csv", image_id="manifest"
     )
