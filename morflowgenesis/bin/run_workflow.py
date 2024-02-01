@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from copy import deepcopy
 from pathlib import Path
 
@@ -13,6 +14,9 @@ from slugify import slugify
 from morflowgenesis.bin.deploy_step import deploy_step
 from morflowgenesis.bin.run_step import run_step, run_step_local
 from morflowgenesis.utils import BlockDeployment
+
+# suppress info logging from dask
+logging.getLogger("distributed").setLevel(logging.ERROR)
 
 
 def save_workflow_config(working_dir, cfg):
