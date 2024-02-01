@@ -1,41 +1,67 @@
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/api_test
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/all_nucmorph/${scene}
+scene: # run on [4, 5, 8]
 
 local_run: true
 
 steps:
-    - function: morflowgenesis.steps.split_image
-      args:
-          image_path: //allen/programs/allencell/data/proj0/935/c72/962/3cc/7a4/37b/f4f/6d8/69c/91a/71/20200323_F01_001.czi
-          working_dir: ${working_dir}
-          output_name: 20x_raw
-          channels: [0]
-          dimension_order_out: CZYX
-          timepoints: [0, 1, 2, 3, 4]
-          scenes: ["P8-B4"]
-      step_type: "init"
+    # - function: morflowgenesis.steps.split_image
+    #   args:
+    #       image_path: //allen/programs/allencell/data/proj0/935/c72/962/3cc/7a4/37b/f4f/6d8/69c/91a/71/20200323_F01_001.czi
+    #       working_dir: ${working_dir}
+    #       output_name: 20x_raw
+    #       channels: [0]
+    #       dimension_order_out: CZYX
+    #       timepoints: -1
+    #       scenes:
+    #         - ${scene}
+    #   step_type: "init"
 
-    # run segmentation from 20x
-    - function: morflowgenesis.steps.run_cytodl
-      args:
-          input_step: split_image_20x_raw
-          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/vit_config.yaml
+    # - function: morflowgenesis.steps.center_crop.center_crop
+    #   args:
+    #     image_step: split_image/20x_raw
+    #     output_name: center_crop
+    #     sigma_cutoff: [2, 3]
+
+    # - function: morflowgenesis.steps.run_cytodl
+    #   args:
+    #       input_step: center_crop/center_crop
+    #       config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/vit_config.yaml
+    #       overrides:
+    #         ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/offset_aug_finetune_aligned_large/2024-01-28_19-42-12/checkpoints/last.ckpt"
+
+    # - function: morflowgenesis.steps.center_crop.center_pad
+    #   args:
+    #     image_step: run_cytodl/nucseg
+    #     cropping_step: center_crop/center_crop
+    #     output_name: center_pad
+    #     pad_rescale: 2.6134
 
     - function: morflowgenesis.steps.tracking
       args:
           output_name: tracking
-          input_step: run_cytodl_nucseg
+          input_step: run_cytodl/nucseg
 
     - function: morflowgenesis.steps.single_cell_dataset
       args:
           output_name: cells
-          splitting_step: run_cytodl_nucseg
-          raw_steps: [split_image_20x_raw]
+          splitting_step: run_cytodl/nucseg
+          raw_steps: [split_image/20x_raw]
           raw_steps_rename: [20x_lamin]
-          seg_steps: [run_cytodl_nucseg]
+          seg_steps: [run_cytodl/nucseg]
           seg_steps_rename: [nuc_seg]
-          tracking_step: tracking_tracking
+          tracking_step: tracking/tracking
           mask: False
           keep_lcc: False
+          padding: [10, 25, 25]
+
+    - function: morflowgenesis.steps.track_classification.formation_breakdown
+      args:
+          output_name: formation_breakdown
+          image_step: split_image/20x_raw
+          single_cell_step: tracking/tracking
+          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/breakdown_classifier.yaml
+          overrides:
+              ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/breakdown_classifier_cyto_dl/add_shift_aug/2024-01-25_16-06-21/checkpoints/epoch_089.ckpt"
 
     - function: morflowgenesis.steps.calculate_features
       args:
@@ -43,12 +69,16 @@ steps:
           input_step: single_cell_dataset_cells
           features:
               - height
+              - height_percentile
+              - surface_area
               - volume
               - shcoeff
+              - length_width
 
     - function: morflowgenesis.steps.create_manifest
       args:
           output_name: manifest
-          feature_step: calculate_features_features
-          tracking_step: tracking_tracking
-          single_cell_step: single_cell_dataset_cells
+          feature_step: calculate_features/features
+          tracking_step: tracking/tracking
+          single_cell_step: single_cell_dataset/cells
+          breakdown_classification_step: formation_breakdown/formation_breakdown
