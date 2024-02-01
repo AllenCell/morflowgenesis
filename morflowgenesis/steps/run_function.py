@@ -29,7 +29,7 @@ def apply_function(image_object, input_step, output_name, ch, function, function
     return output
 
 
-@task
+@task(name="apply_function")
 def run_object(
     image_object,
     input_steps,

@@ -14,13 +14,15 @@ from torchmetrics.classification import BinaryF1Score
 
 from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
 
-def get_surface_area(img, sigma = 2):
+
+def get_surface_area(img, sigma=2):
     mesh, _, _ = shtools.get_mesh_from_image(image=img, sigma=sigma)
 
     massp = vtk.vtkMassProperties()
     massp.SetInputData(mesh)
     massp.Update()
-    return {"mesh_vol":massp.GetVolume(), "mesh_sa":massp.GetSurfaceArea()}
+    return {"mesh_vol": massp.GetVolume(), "mesh_sa": massp.GetSurfaceArea()}
+
 
 def get_centroid(img):
     z, y, x = np.where(img)
@@ -276,7 +278,7 @@ def get_matched_cell_features(row, features, channels, reference_channel):
     )
 
 
-@task()
+@task(name="calculate_features")
 def run_object(
     image_object,
     output_name,

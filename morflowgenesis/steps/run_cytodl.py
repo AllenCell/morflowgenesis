@@ -129,4 +129,3 @@ def run_cytodl(
                         image_objects[i].add_step_output(output)
                         image_objects[i].save()
                         shutil.move(str(save_path), str(output.path))
-

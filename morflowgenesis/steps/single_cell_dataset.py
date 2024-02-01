@@ -7,6 +7,7 @@ from shutil import rmtree
 
 import numpy as np
 import pandas as pd
+import tqdm
 from aicsimageio.writers import OmeTiffWriter
 from omegaconf import ListConfig
 from prefect import flow, task
@@ -184,11 +185,11 @@ def pad_slice(s, padding, constraints):
     # pad slice by padding subject to image size constraints
     is_edge = False
     new_slice = [slice(None, None)]
-    for slice_part, c in zip(s, constraints):
+    for slice_part, c, p in zip(s, constraints, padding):
         if slice_part.start == 0 or slice_part.stop >= c:
             is_edge = True
-        start = max(0, slice_part.start - padding)
-        stop = min(c, slice_part.stop + padding)
+        start = max(0, slice_part.start - p)
+        stop = min(c, slice_part.stop + p)
         new_slice.append(slice(start, stop, None))
     return tuple(new_slice), is_edge
 
@@ -252,21 +253,29 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
                 )
     assert splitting_step in seg_steps, "Splitting step must be included in `seg_steps`"
 
-    seg_images = [image_object.load_step(step_name) for step_name in seg_steps]
-    raw_images = [image_object.load_step(step_name) for step_name in raw_steps]
+    seg_images = [
+        image_object.load_step(step_name)
+        for step_name in tqdm.tqdm(seg_steps, desc="Loading Segmentation Images")
+    ]
+    raw_images = [
+        image_object.load_step(step_name)
+        for step_name in tqdm.tqdm(raw_steps, desc="Loading Raw Images")
+    ]
     has_raw = len(raw_images) > 0
     if has_raw:
         raw_images = [
             np.clip(im, np.percentile(im, 0.01), np.percentile(im, 99.99)) for im in raw_images
         ]
+        print("rescaling raw intensity")
         raw_images = [
             rescale_intensity(im, out_range=np.uint8).astype(np.uint8) for im in raw_images
         ]
+        print("resizing raw images")
         raw_images = [
-            resize(image, seg_images[0].shape, order=len(image.shape), preserve_range=True)
+            resize(image, seg_images[0].shape, order=0, preserve_range=True)
             for image in raw_images
         ]
-
+    print("cropping images")
     # some cytodl models produce models off by 1 pix due to resizing/rounding errors
     minimum_shape = np.min([im.shape for im in seg_images + raw_images], axis=0)
     minimum_shape_slice = tuple(slice(0, s) for s in minimum_shape)
@@ -274,10 +283,11 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
     raw_images = np.stack([im[minimum_shape_slice] for im in raw_images]) if has_raw else None
 
     splitting_ch = seg_steps.index(splitting_step)
+    print("done")
     return raw_images, seg_images, raw_steps, seg_steps, splitting_ch
 
 
-@task(log_prints=True, tags=["benji_50"])
+@task(log_prints=True, tags=["benji_100_s4"])
 def process_image(
     image_object,
     splitting_step,
@@ -401,6 +411,10 @@ def single_cell_dataset(
     tracking_df = None
     if tracking_step is not None:
         tracking_df = image_objects[0].load_step(tracking_step)
+
+    # allow per-dimensional padding
+    if isinstance(padding, int):
+        padding = [padding] * 3
 
     all_results = []
     for obj in image_objects:

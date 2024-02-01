@@ -90,7 +90,7 @@ def merge_instance_segs(segs, coords, img):
     return img
 
 
-@task
+@task(name="watershed")
 def run_object(
     image_object,
     raw_input_step,

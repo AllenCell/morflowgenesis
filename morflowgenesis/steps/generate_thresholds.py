@@ -21,7 +21,7 @@ def run_threshold(image_object, img, output_name, thresh, label):
     return step
 
 
-@task
+@task(name="threshold")
 def run_object(image_object, output_name, input_step, threshold_range, run_within_object, label):
     """General purpose function to run a task across an image object.
 
