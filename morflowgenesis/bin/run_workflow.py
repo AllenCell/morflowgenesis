@@ -5,7 +5,6 @@ from pathlib import Path
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from prefect import flow
-from prefect.server.schemas.states import StateType
 from prefect.task_runners import SequentialTaskRunner
 
 from morflowgenesis.bin.run_step import run_step
@@ -17,13 +16,6 @@ logging.getLogger("distributed").setLevel(logging.ERROR)
 def save_workflow_config(working_dir, cfg):
     with open(Path(working_dir) / "workflow_config.yaml", "w") as f:
         OmegaConf.save(config=cfg, f=f)
-
-
-def check_state(state_list, step_cfg):
-    for r in state_list:
-        if r.state.type != StateType.COMPLETED:
-            raise RuntimeError(f"Step {step_cfg['function']} completed with state {r.state_name}")
-
 
 @flow(log_prints=True, task_runner=SequentialTaskRunner())
 async def morflowgenesis(cfg):
