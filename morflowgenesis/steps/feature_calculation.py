@@ -4,25 +4,22 @@ from typing import List, Optional, Union
 import numpy as np
 import pandas as pd
 import torch
-import tqdm
 import vtk
+import tqdm
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
-from prefect import flow, task
 from skimage.measure import label
 from torchmetrics.classification import BinaryF1Score
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
-
-def get_surface_area(img, sigma=2):
+def get_surface_area(img, sigma = 2):
     mesh, _, _ = shtools.get_mesh_from_image(image=img, sigma=sigma)
 
     massp = vtk.vtkMassProperties()
     massp.SetInputData(mesh)
     massp.Update()
-    return {"mesh_vol": massp.GetVolume(), "mesh_sa": massp.GetSurfaceArea()}
-
+    return {"mesh_vol":massp.GetVolume(), "mesh_sa":massp.GetSurfaceArea()}
 
 def get_centroid(img):
     z, y, x = np.where(img)
@@ -30,8 +27,9 @@ def get_centroid(img):
 
 
 def get_axis_lengths(img):
+    # alignment adds a channel dimension
     img, _ = shtools.align_image_2d(img.copy(), compute_aligned_image=True)
-    _, y, x = np.where(img)
+    _, _, y, x = np.where(img)
     return {"width": np.ptp(y) + 1, "length": np.ptp(x) + 1}
 
 
@@ -91,6 +89,7 @@ FEATURE_EXTRACTION_FUNCTIONS = {
     "n_pieces": get_n_pieces,
     "f1": get_f1,
     "surface_area": get_surface_area,
+    "length_width": get_axis_lengths,
 }
 
 
@@ -163,7 +162,7 @@ def get_channels(img, channel_names, run_channels):
     return channel_names
 
 
-@task
+
 def get_roi_features(img, features, channels):
     features = get_valid_features(features)
     img = ensure_channel_first(img)
@@ -182,7 +181,6 @@ def get_roi_features(img, features, channels):
     return pd.DataFrame(features_dict)
 
 
-@task
 def get_matched_roi_features(img, features, channels, reference):
     features = get_valid_features(features)
 
@@ -202,8 +200,8 @@ def get_matched_roi_features(img, features, channels, reference):
     return pd.DataFrame(features_dict)
 
 
-@task
 def get_cell_features(row, features, channels):
+    row = row._asdict()
     valid_features = get_valid_features(features)
 
     img = AICSImage(row["crop_seg_path"])
@@ -234,8 +232,8 @@ def get_cell_features(row, features, channels):
         return None
 
 
-@task
 def get_matched_cell_features(row, features, channels, reference_channel):
+    row = row._asdict()
     valid_features = get_valid_features(features)
 
     features_dict = {}
@@ -278,93 +276,45 @@ def get_matched_cell_features(row, features, channels, reference_channel):
     )
 
 
-@task(name="calculate_features")
-def run_object(
-    image_object,
-    output_name,
-    input_step,
-    reference_channel,
-    features,
-    channels,
-    reference_step,
-    run_within_object,
-):
-    """General purpose function to run a task across an image object.
-
-    If run_within_object is True, run the task across cells within the image object and return a
-    list of futures and the output object. Otherwise, run the task as a function and return the
-    results and an output object
-    """
-    input = image_object.load_step(input_step)
-    # single cell calculations
+def get_objects(object, input_step, reference_step):
+    input= object.load_step(input_step)
     if isinstance(input, pd.DataFrame):
-        results = []
-        for row in tqdm.tqdm(input.itertuples()):
-            row = row._asdict()
-            if reference_channel is None:
-                results.append(
-                    submit(
-                        get_cell_features,
-                        as_task=run_within_object,
-                        row=row,
-                        features=features,
-                        channels=channels,
-                    )
-                )
-            else:
-                results.append(
-                    submit(
-                        get_matched_cell_features,
-                        as_task=run_within_object,
-                        row=row,
-                        features=features,
-                        channels=channels,
-                        reference_channel=reference_channel,
-                    )
-                )
-    # fov calculations
-    elif isinstance(input, np.ndarray):
-        if reference_step is None:
-            results = [
-                submit(
-                    get_roi_features,
-                    as_task=run_within_object,
-                    img=input,
-                    features=features,
-                    channels=channels,
-                )
-            ]
-        else:
-            reference = image_object.load_step(reference_step)
-            results = [
-                submit(
-                    get_matched_roi_features,
-                    as_task=run_within_object,
-                    img=input,
-                    features=features,
-                    channels=channels,
-                    reference=reference,
-                )
-            ]
-    output = StepOutput(
+        return input.itertuples(), None, pd.DataFrame
+
+    reference_step = object.load_step(reference_step) if reference_step is not None else None
+    return [input], reference_step,  np.array
+
+def create_output(image_object, output_name, results):
+    image_df= pd.concat(results)
+    step_output = StepOutput(
         image_object.working_dir,
         "calculate_features",
         output_name,
         output_type="csv",
         image_id=image_object.id,
-        index_col=["CellId", "Name"],
     )
-    features_df = pd.concat(results)
-    output.save(features_df)
-    image_object.add_step_output(output)
-    image_object.save()
+    step_output.save(image_df)
+    return step_output
 
-    return results, output
+def process_object(image_object, input_step, output_name, features, reference_channel, channels, reference_step):
+    data, reference, data_type = get_objects(image_object, input_step, reference_step)
+    if data_type == pd.DataFrame:
+        if reference_channel is not None:
+            features = [get_matched_cell_features(d, features, channels, reference_channel) for d in data]
+        else:
+            features = [get_cell_features(d, features, channels) for d in data]
+    if data_type == np.array:
+        if reference is not None:
+            features = [get_matched_roi_features(d, features,channels, reference) for d in data]
+        else:
+            features = [get_roi_features(d, features) for d in data]
+    return create_output(image_object, output_name, features)
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
 def calculate_features(
     image_object_paths: List[Union[str, Path]],
+    tags: List[str],
+    run_type: str,
     output_name: str,
     input_step: str,
     features: List[str],
@@ -391,34 +341,9 @@ def calculate_features(
         For FOV-based features, another image can be used to calculate FOV similarity features (like F1, Dice, etc.)
     """
     # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
+    image_objects = [ImageObject.parse_file(path) for path in tqdm.tqdm(image_object_paths, desc="Loading image objects")]
 
-    all_results = []
-    for obj in image_objects:
-        all_results.append(
-            submit(
-                run_object,
-                as_task=not run_within_object,
-                image_object=obj,
-                output_name=output_name,
-                input_step=input_step,
-                reference_channel=reference_channel,
-                features=features,
-                channels=channels,
-                reference_step=reference_step,
-                run_within_object=run_within_object,
-            )
-        )
-    for object_result, obj in zip(all_results, image_objects):
-        if not run_within_object:
-            # parallelizing across fovs
-            object_result = object_result.result()
-        # results, output = object_result
-        # if run_within_object:
-        #     # parallelizing within fov
-        #     results = [r.result() for r in results]
-        # features_df = pd.concat(results)
-        # output.save(features_df)
-        # obj.add_step_output(output)
-        # obj.save()
+    if run_type == 'images':
+        parallelize_across_images(image_objects, process_object, tags=tags, input_step=input_step, output_name=output_name, features=features, reference_channel=reference_channel, channels=channels, reference_step=reference_step)
+
+
