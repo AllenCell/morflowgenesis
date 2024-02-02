@@ -2,13 +2,11 @@ import re
 from typing import List
 
 import pandas as pd
-from prefect import flow
 from sklearn.decomposition import PCA
 
 from morflowgenesis.utils import ImageObject, StepOutput
 
 
-@flow(log_prints=True)
 def run_pca(
     image_object_paths,
     output_name,
@@ -17,6 +15,8 @@ def run_pca(
     calculate_name: str,
     apply_names: List,
     n_components=10,
+    tags=[],
+    run_type=None,
 ):
     if calculate_name in apply_names:
         raise ValueError("Calculate_name cannot be in apply_names")
