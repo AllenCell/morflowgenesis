@@ -1,13 +1,11 @@
 import numpy as np
 from typing import Union, List
-from prefect import flow, task
 from scipy.optimize import curve_fit
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 def gaussian(x, a, x0, sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
 
-@task
 def crop(
     image_object: ImageObject,
     output_name: str,
@@ -75,30 +73,6 @@ def crop(
     return output
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def center_crop(
-    image_object_paths, image_step, output_name, pad = 5, min_slices = 24, sigma_cutoff = 2
-):
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-
-    results = []
-    for obj in image_objects:
-        results.append(
-            crop.submit(
-                obj,
-                output_name,
-                image_step,
-                pad = pad,
-                min_slices = min_slices,
-                sigma_cutoff = sigma_cutoff,
-            )
-        )
-    step_outputs = [result.result() for result in results]
-    for obj, step_output in zip(image_objects, step_outputs):
-        obj.add_step_output(step_output)
-        obj.save()
-
-@task(log_prints=True, tags = ['benji_50'])
 def uncrop(image_object, output_name, image_step, cropping_step, mode = 'constant', pad_rescale = 1):
     img = image_object.load_step(image_step)
     print('image loaded')
@@ -122,25 +96,15 @@ def uncrop(image_object, output_name, image_step, cropping_step, mode = 'constan
     print('image saved')
     return output
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def center_pad(
-    image_object_paths,image_step, cropping_step, output_name, mode = 'constant', pad_rescale = 1
+
+def center_crop(
+    image_object_paths, tags, image_step, output_name, pad = 5, min_slices = 24, sigma_cutoff = 2, run_type=None
 ):
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
+    parallelize_across_images(image_objects, crop, tags=tags, image_step=image_step, output_name=output_name, pad = pad, min_slices = min_slices, sigma_cutoff = sigma_cutoff)
 
-    results = []
-    for obj in image_objects:
-        results.append(
-            uncrop.submit(
-                obj,
-                output_name,
-                image_step,
-                cropping_step,
-                mode=mode,
-                pad_rescale = pad_rescale,
-            )
-        )
-    step_outputs = [result.result() for result in results]
-    for obj, step_output in zip(image_objects, step_outputs):
-        obj.add_step_output(step_output)
-        obj.save()
+def center_pad(
+    image_object_paths, tags, image_step, cropping_step, output_name, mode = 'constant', pad_rescale = 1
+):
+    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
+    parallelize_across_images(image_objects, uncrop, tags=tags, image_step=image_step, cropping_step=cropping_step, output_name=output_name, mode = mode, pad_rescale = pad_rescale)

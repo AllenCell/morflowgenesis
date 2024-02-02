@@ -2,7 +2,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from prefect import flow, task
+from prefect import task
 from scipy.ndimage import find_objects
 from scipy.signal import medfilt
 from timelapsetracking import csv_to_nodes
@@ -10,9 +10,7 @@ from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
-from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils.image_object import ImageObject, StepOutput, parallelize_across_images
 
 
 def str_to_array(s):
@@ -20,7 +18,6 @@ def str_to_array(s):
     return np.array(list(map(int, elements)))
 
 
-@task(tags=["benji_100_s8"])
 def create_regionprops_csv(obj, input_step, output_name):
     inst_seg = obj.get_step(input_step).load_output()
     save_path = Path(f"{obj.working_dir}/tracking/{output_name}/{obj.id}_regionprops.csv")
@@ -60,7 +57,7 @@ def create_regionprops_csv(obj, input_step, output_name):
         )
         data.append(row)
     out = pd.concat(data)
-    out.to_csv(f"{obj.working_dir}/tracking/{output_name}/{obj.id}_regionprops.csv", index=False)
+    out.to_csv(save_path, index=False)
     return out
 
 
@@ -141,7 +138,7 @@ def outlier_detection(df_track):
     return df_track
 
 
-@task(tags=["tracking"])
+@task()
 def track(regionprops, working_dir, output_name, edge_thresh_dist=75):
     output_dir = working_dir / "tracking" / output_name
     tracking_output = StepOutput(
@@ -193,21 +190,17 @@ def _do_tracking(image_objects, output_name):
     return run
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def tracking(image_object_paths, output_name, input_step):
+# @flow(task_runner=create_task_runner(), log_prints=True)
+def tracking(image_object_paths, tags, run_type, output_name, input_step):
     image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
     Path(f"{image_objects[0].working_dir}/tracking/{output_name}").mkdir(
         parents=True, exist_ok=True
     )
-
     if _do_tracking(image_objects, output_name):
         # create centroid/volume csv
-        tasks = []
-        for obj in image_objects:
-            tasks.append(create_regionprops_csv.submit(obj, input_step, output_name))
-        regionprops = pd.concat([task.result() for task in tasks])
+        _, regionprops = parallelize_across_images(image_objects, create_regionprops_csv, tags=tags, input_step=input_step, output_name=output_name)
 
-        output = track(regionprops, image_objects[0].working_dir, output_name)
+        output = track(pd.concat(regionprops), image_objects[0].working_dir, output_name)
         for obj in image_objects:
             obj.add_step_output(output)
             obj.save()

@@ -4,7 +4,7 @@ from pathlib import Path
 import pandas as pd
 from aicsimageio import AICSImage
 
-from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images, submit, run_flow
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 def generate_object(
     row,
@@ -49,11 +49,3 @@ def generate_objects(
     """Generate a new image object for each row in the csv file."""
     df = pd.read_csv(csv_path)
     parallelize_across_images(df.itertuples(), generate_object, tags=tags, data_name = 'row', existing_ids = existing_ids, working_dir = working_dir, source_column = source_column, non_source_columns = non_source_columns, metadata_column = metadata_column)
-
-
-if __name__ == '__main__':
-    from prefect.task_runners import ConcurrentTaskRunner
-    from pathlib import Path
-
-
-    run_flow(generate_objects, ConcurrentTaskRunner(), 'images',working_dir='//allen/aics/assay-dev/users/Benji/CurrentProjects/validation/all_nuc_tf_validation_new_gt', csv_path='//allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/local/all_nuc_tf_validation/test_vit.csv', source_column='lr', non_source_columns=['hr'])
