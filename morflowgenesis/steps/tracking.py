@@ -10,7 +10,7 @@ from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
-from morflowgenesis.utils.image_object import ImageObject, StepOutput, parallelize_across_images
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
 def str_to_array(s):
