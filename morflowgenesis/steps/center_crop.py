@@ -1,10 +1,19 @@
 import numpy as np
 from typing import Union, List
+from numbers import Number
 from scipy.optimize import curve_fit
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 def gaussian(x, a, x0, sigma):
     return a*np.exp(-(x-x0)**2/(2*sigma**2))
+
+def extract_values(x):
+    if isinstance(x, list):
+        return x[0], x[1]
+    elif isinstance(x, Number):
+        return x, x
+    else:
+        raise ValueError("Input must be tuple, list, or number")
 
 def crop(
     image_object: ImageObject,
@@ -32,15 +41,8 @@ def crop(
         popt, _ = curve_fit(gaussian, np.arange(len(z_prof)), z_prof, p0=[1, len(z_prof)/2, 0.3])
         _, center, sigma = popt
 
-        if isinstance(sigma_cutoff, list):
-            sigma_cutoff_low, sigma_cutoff_high = sigma_cutoff
-        else:
-            sigma_cutoff_low = sigma_cutoff_high = sigma_cutoff
-
-        if isinstance(pad, list):
-            pad_low, pad_high = pad
-        else:
-            pad_low = pad_high = pad
+        sigma_cutoff_low, sigma_cutoff_high = extract_values(sigma_cutoff)
+        pad_low, pad_high = extract_values(pad)
 
         # ensure crop is within bounds of image
         bottom_z = max(0, int(center - sigma * sigma_cutoff_low)-pad_low)
