@@ -4,10 +4,9 @@ from typing import Any, Dict, List, Optional, Union
 
 import mlflow
 from cyto_dl.api import CytoDLModel
-from prefect import flow, task
+from prefect import task
 
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput
 
 
 def download_mlflow_model(
@@ -72,7 +71,6 @@ def run_evaluate(model):
     return model.predict()
 
 
-@flow(log_prints=True)
 def run_cytodl(
     image_object_paths: List[Union[str, Path]],
     input_step: str,
@@ -81,6 +79,8 @@ def run_cytodl(
     overrides: Dict[str, Any] = {},
     run_id: Optional[str] = None,
     checkpoint_path: Optional[str] = "checkpoints/val/loss/best.ckpt",
+    tags=[],
+    run_type=None,
 ):
     """Wrapper function to run cytoDL on a list of image objects. Note that the output will be
     saved to `working_dir/run_cytodl/head_name` for each output task head of your model.
