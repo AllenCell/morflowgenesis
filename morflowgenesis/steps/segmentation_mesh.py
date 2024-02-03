@@ -46,7 +46,6 @@ def mesh(
     resize=0.2,
     run_type=None,
 ):
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
 
     input_steps = to_list(input_steps)

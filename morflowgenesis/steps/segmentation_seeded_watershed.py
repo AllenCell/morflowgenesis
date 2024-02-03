@@ -1,9 +1,7 @@
 import numpy as np
-from prefect import flow, task
 from scipy.ndimage import binary_dilation, binary_erosion, find_objects, gaussian_filter
 from skimage.measure import label
 
-# from mahotas import cwatershed as watershed
 from skimage.segmentation import watershed
 
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
