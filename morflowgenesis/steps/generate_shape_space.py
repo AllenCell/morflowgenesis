@@ -4,13 +4,11 @@ from aics_shape_modes.projection import (
     compute_pca_on_reps,
     write_all_shape_modes_latent_walk,
 )
-from prefect import flow
 
 from morflowgenesis.utils import ImageObject, StepOutput
 
 
-@flow(log_prints=True)
-def make_shape_space(image_object_paths, output_name, feature_step, segmentation_names, n_pcs=10):
+def make_shape_space(image_object_paths, output_name, feature_step, segmentation_names, tags, run_type, n_pcs=10):
     image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
 
@@ -26,7 +24,7 @@ def make_shape_space(image_object_paths, output_name, feature_step, segmentation
         features = features.xs(seg_name, level="Name")
         shcoeffs = features[[col for col in features.columns if "shcoeff" in col]].to_numpy()
 
-        pca, axes, sm_df = compute_pca_on_reps(
+        pca, _, sm_df = compute_pca_on_reps(
             shcoeffs,
             projection_method="PCA",
             n_shapemodes=n_pcs,
