@@ -7,14 +7,12 @@ from skimage.transform import rescale
 from morflowgenesis.utils import (
     ImageObject,
     StepOutput,
-    create_task_runner,
     submit,
     to_list,
 )
 
 
-@task
-def project_task(
+def run_project(
     image_object,
     input_step,
     output_name,
@@ -56,51 +54,10 @@ def project_task(
     output.save(img)
     return output
 
-
-@task(name="project")
-def run_object(
-    image_object,
-    input_steps,
-    output_name,
-    scale,
-    dtype,
-    run_within_object,
-    project_type="max",
-    project_slice=None,
-    axis=None,
-    intensity_rescale_ranges=None,
-):
-    """General purpose function to run a task across an image object.
-
-    If run_within_object is True, run the task steps within the image object and return a list of
-    futures of output objects If run_within_object is False run the task as a function and return a
-    list of output objects
-    """
-    results = []
-    for i, step in enumerate(input_steps):
-        results.append(
-            submit(
-                project_task,
-                as_task=run_within_object,
-                image_object=image_object,
-                input_step=step,
-                output_name=output_name,
-                scale=scale,
-                dtype=dtype,
-                project_type=project_type,
-                project_slice=project_slice,
-                axis=axis,
-                intensity_rescale_range=intensity_rescale_ranges[i]
-                if intensity_rescale_ranges is not None
-                else None,
-            )
-        )
-    return results
-
-
-@flow(task_runner=create_task_runner(), log_prints=True)
+@flow(log_prints=True)
 def project(
     image_object_paths,
+    tags,
     output_name,
     input_steps,
     scale=1.0,
@@ -109,40 +66,11 @@ def project(
     project_slice=None,
     axis=None,
     intensity_rescale_ranges=None,
+    run_type=None
 ):
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
-
     input_steps = to_list(input_steps)
     dtype = get_class(dtype)
 
-    all_results = []
-    for obj in image_objects:
-        all_results.append(
-            submit(
-                run_object,
-                as_task=not run_within_object,
-                image_object=obj,
-                input_steps=input_steps,
-                output_name=output_name,
-                scale=scale,
-                dtype=dtype,
-                project_type=project_type,
-                project_slice=project_slice,
-                axis=axis,
-                intensity_rescale_ranges=intensity_rescale_ranges,
-                run_within_object=run_within_object,
-            )
-        )
-
-    for object_result, obj in zip(all_results, image_objects):
-        if run_within_object:
-            # parallelizing within fov
-            object_result = [r.result() for r in object_result]
-        else:
-            # parallelizing across fovs
-            object_result = object_result.result()
-        for output in object_result:
-            obj.add_step_output(output)
-        obj.save()
+    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
+    for i, step in enumerate(input_steps):
+        parallelize_across_images(image_objects, run_project, tags=tags, input_step=step, output_name=output_name, scale=scale, dtype=dtype, project_type=project_type, project_slice=project_slice, axis=axis, intensity_rescale_ranges=intensity_rescale_ranges[i])
