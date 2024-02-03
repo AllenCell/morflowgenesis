@@ -27,7 +27,7 @@ def run_resize(image_object, output_name, input_step, output_shape=None, scale=N
     output.save(img.astype(input_dtype))
     return output
 
-def resize(image_object_paths, tags = [], output_name, input_steps, output_shape=None, scale=None, order=0, run_type=None):
+def resize(image_object_paths, tags, output_name, input_steps, output_shape=None, scale=None, order=0, run_type=None):
     """
     Resize images to a specified shape or scale with a specified order of interpolation.
     """
