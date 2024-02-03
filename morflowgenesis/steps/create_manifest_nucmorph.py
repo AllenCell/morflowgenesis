@@ -5,8 +5,7 @@ from typing import List, Union
 import pandas as pd
 from prefect import flow
 
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput
 
 
 @flow(log_prints=True)
