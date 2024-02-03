@@ -53,5 +53,3 @@ def mesh(
         parallelize_across_images(
             image_objects, create_mesh, output_name=output_name, seg_step=step, resize=resize
         )
-
-

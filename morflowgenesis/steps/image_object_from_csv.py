@@ -6,6 +6,7 @@ from aicsimageio import AICSImage
 
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
+
 def generate_object(
     row,
     existing_ids,
@@ -33,14 +34,15 @@ def generate_object(
         obj.add_step_output(step_output)
     obj.save()
 
+
 def generate_objects(
     working_dir,
     csv_path,
     source_column,
     non_source_columns=[],
     metadata_column=None,
-    image_object_paths = [],
-    tags = [],
+    image_object_paths=[],
+    tags=[],
     run_type=None,
 ):
 
@@ -48,4 +50,14 @@ def generate_objects(
 
     """Generate a new image object for each row in the csv file."""
     df = pd.read_csv(csv_path)
-    parallelize_across_images(df.itertuples(), generate_object, tags=tags, data_name = 'row', existing_ids = existing_ids, working_dir = working_dir, source_column = source_column, non_source_columns = non_source_columns, metadata_column = metadata_column)
+    parallelize_across_images(
+        df.itertuples(),
+        generate_object,
+        tags=tags,
+        data_name="row",
+        existing_ids=existing_ids,
+        working_dir=working_dir,
+        source_column=source_column,
+        non_source_columns=non_source_columns,
+        metadata_column=metadata_column,
+    )

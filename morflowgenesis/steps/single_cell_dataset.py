@@ -2,6 +2,7 @@ import hashlib
 import json
 import os
 import re
+from functools import partial
 from pathlib import Path
 from shutil import rmtree
 
@@ -23,7 +24,7 @@ from morflowgenesis.utils import (
     run_flow,
     submit,
 )
-from functools import partial
+
 
 def upload_file(
     fms_env: str,
@@ -376,15 +377,17 @@ def extract_cells(
         )
     return cell_info
 
+
 def process_image(**kwargs):
     cell_df = []
     cell_info = extract_cells(**kwargs)
     for cell in cell_info:
         cell_df.append(process_cell(**cell))
-    return create_image_output(kwargs['image_object'], kwargs['output_name'], cell_df)
+    return create_image_output(kwargs["image_object"], kwargs["output_name"], cell_df)
+
 
 def create_image_output(image_object, output_name, results):
-    image_df= pd.concat(results)
+    image_df = pd.concat(results)
     step_output = StepOutput(
         image_object.working_dir,
         "single_cell_dataset",
@@ -415,7 +418,7 @@ def single_cell_dataset(
     upload_fms=False,
     iou_thresh=None,
     include_edge_cells=True,
-    run_type = 'images,'
+    run_type="images,",
 ):
     # if only one image is passed, run across objects within that image. Otherwise, run across images
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
@@ -429,11 +432,65 @@ def single_cell_dataset(
     if isinstance(padding, int):
         padding = [padding] * 3
 
-    if run_type == 'images':
-        parallelize_across_images(image_objects, process_image, tags = tags, output_name=output_name, splitting_step=splitting_step, padding=padding, mask=mask, keep_lcc=keep_lcc, iou_thresh=iou_thresh, seg_steps=seg_steps, raw_steps=raw_steps, seg_steps_rename=seg_steps_rename, raw_steps_rename=raw_steps_rename, xy_res=xy_res, z_res=z_res, qcb_res=qcb_res, upload_fms=upload_fms, include_edge_cells=include_edge_cells, tracking_df=tracking_df)
-    elif run_type == 'objects':
-        object_extraction_fn = partial( extract_cells, splitting_step=splitting_step, padding=padding, mask=mask, keep_lcc=keep_lcc, iou_thresh=iou_thresh, output_name=output_name, seg_steps=seg_steps, raw_steps=raw_steps, seg_steps_rename=seg_steps_rename, raw_steps_rename=raw_steps_rename, xy_res=xy_res, z_res=z_res, qcb_res=qcb_res, upload_fms=upload_fms, include_edge_cells=include_edge_cells, tracking_df=tracking_df)
+    if run_type == "images":
+        parallelize_across_images(
+            image_objects,
+            process_image,
+            tags=tags,
+            output_name=output_name,
+            splitting_step=splitting_step,
+            padding=padding,
+            mask=mask,
+            keep_lcc=keep_lcc,
+            iou_thresh=iou_thresh,
+            seg_steps=seg_steps,
+            raw_steps=raw_steps,
+            seg_steps_rename=seg_steps_rename,
+            raw_steps_rename=raw_steps_rename,
+            xy_res=xy_res,
+            z_res=z_res,
+            qcb_res=qcb_res,
+            upload_fms=upload_fms,
+            include_edge_cells=include_edge_cells,
+            tracking_df=tracking_df,
+        )
+    elif run_type == "objects":
+        object_extraction_fn = partial(
+            extract_cells,
+            splitting_step=splitting_step,
+            padding=padding,
+            mask=mask,
+            keep_lcc=keep_lcc,
+            iou_thresh=iou_thresh,
+            output_name=output_name,
+            seg_steps=seg_steps,
+            raw_steps=raw_steps,
+            seg_steps_rename=seg_steps_rename,
+            raw_steps_rename=raw_steps_rename,
+            xy_res=xy_res,
+            z_res=z_res,
+            qcb_res=qcb_res,
+            upload_fms=upload_fms,
+            include_edge_cells=include_edge_cells,
+            tracking_df=tracking_df,
+        )
 
-        combine_results_fn = partial( create_image_output, output_name=output_name)
+        combine_results_fn = partial(create_image_output, output_name=output_name)
 
-        parallelize_across_objects(image_objects,process_cell, object_extraction_fn, combine_results_fn, tags = tags, output_name=output_name, seg_steps=seg_steps, raw_steps=raw_steps, seg_steps_rename=seg_steps_rename, raw_steps_rename=raw_steps_rename, xy_res=xy_res, z_res=z_res, qcb_res=qcb_res, upload_fms=upload_fms,  tracking_df=tracking_df)
+        parallelize_across_objects(
+            image_objects,
+            process_cell,
+            object_extraction_fn,
+            combine_results_fn,
+            tags=tags,
+            output_name=output_name,
+            seg_steps=seg_steps,
+            raw_steps=raw_steps,
+            seg_steps_rename=seg_steps_rename,
+            raw_steps_rename=raw_steps_rename,
+            xy_res=xy_res,
+            z_res=z_res,
+            qcb_res=qcb_res,
+            upload_fms=upload_fms,
+            tracking_df=tracking_df,
+        )

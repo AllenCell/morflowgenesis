@@ -17,6 +17,7 @@ def save_workflow_config(working_dir, cfg):
     with open(Path(working_dir) / "workflow_config.yaml", "w") as f:
         OmegaConf.save(config=cfg, f=f)
 
+
 @flow(log_prints=True, task_runner=SequentialTaskRunner())
 async def morflowgenesis(cfg):
     """Sequentially run config-specified steps, starting with the previous workflow state and
@@ -28,6 +29,7 @@ async def morflowgenesis(cfg):
     for step_cfg in cfg["steps"]:
         step_cfg.update({"deployment_name": cfg.get("deployment_name", "default")})
         run_step(step_cfg, working_dir / "_ImageObjectStore")
+
 
 # default config is morflowgenesis/configs/workflow_config.yaml
 @hydra.main(version_base="1.3", config_path="../configs/", config_name="workflow_config.yaml")

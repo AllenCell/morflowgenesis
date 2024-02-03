@@ -4,9 +4,10 @@ from skimage.transform import resize as sk_resize
 from morflowgenesis.utils import (
     ImageObject,
     StepOutput,
-    to_list,
     parallelize_across_images,
+    to_list,
 )
+
 
 def run_resize(image_object, output_name, input_step, output_shape=None, scale=None, order=0):
     # image resizing
@@ -27,10 +28,18 @@ def run_resize(image_object, output_name, input_step, output_shape=None, scale=N
     output.save(img.astype(input_dtype))
     return output
 
-def resize(image_object_paths, tags, output_name, input_steps, output_shape=None, scale=None, order=0, run_type=None):
-    """
-    Resize images to a specified shape or scale with a specified order of interpolation.
-    """
+
+def resize(
+    image_object_paths,
+    tags,
+    output_name,
+    input_steps,
+    output_shape=None,
+    scale=None,
+    order=0,
+    run_type=None,
+):
+    """Resize images to a specified shape or scale with a specified order of interpolation."""
     input_steps = to_list(input_steps)
 
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]

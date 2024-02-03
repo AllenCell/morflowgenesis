@@ -1,7 +1,6 @@
 import numpy as np
 from scipy.ndimage import binary_dilation, binary_erosion, find_objects, gaussian_filter
 from skimage.measure import label
-
 from skimage.segmentation import watershed
 
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
@@ -40,6 +39,7 @@ def generate_bg_seed(seg, lab):
 
     combined_mask = np.logical_or(border_mask, bg).astype(int) * 2
     return combined_mask
+
 
 def watershed_cell(raw, seg, lab, mode, is_edge, erosion=5):
     if mode == "centroid":
@@ -88,6 +88,7 @@ def merge_instance_segs(segs, coords, img):
 
 def watershed_fov(
     image_object,
+    output_name,
     raw_input_step,
     seg_input_step,
     padding,
@@ -128,18 +129,17 @@ def watershed_fov(
             )
         )
         print(lab, "done")
-    seg = merge_instance_segs(results, regions, np.zeros(shape).astype(np.uint16))
+    seg = merge_instance_segs(results, regions, np.zeros(raw.shape).astype(np.uint16))
     output = StepOutput(
-        obj.working_dir,
+        image_object.working_dir,
         "run_watershed",
         output_name,
         output_type="image",
-        image_id=obj.id,
+        image_id=image_object.id,
     )
     output.save(seg)
 
 
-@flow( log_prints=True)
 def run_watershed(
     image_object_paths,
     tags,
@@ -155,4 +155,16 @@ def run_watershed(
 ):
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
 
-    parallelize_across_images(image_objects, watershed_fov, tags, raw_input_step=raw_input_step, seg_input_step=seg_input_step, mode=mode, erosion=erosion, min_seed_size=min_seed_size, include_edge=include_edge, padding=padding)
+    parallelize_across_images(
+        image_objects,
+        watershed_fov,
+        tags,
+        output_name=output_name,
+        raw_input_step=raw_input_step,
+        seg_input_step=seg_input_step,
+        mode=mode,
+        erosion=erosion,
+        min_seed_size=min_seed_size,
+        include_edge=include_edge,
+        padding=padding,
+    )

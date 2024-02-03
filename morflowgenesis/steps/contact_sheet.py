@@ -10,10 +10,8 @@ from skimage.segmentation import find_boundaries
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
-def make_rgb(img, contour):  
-    """
-    Creates RGB overlay of image and up to 3 contours in C, M, Y
-    """
+def make_rgb(img, contour):
+    """Creates RGB overlay of image and up to 3 contours in C, M, Y."""
     img = np.clip(img, np.percentile(img, 0.1), np.percentile(img, 99.9))
     img = rescale_intensity(img, out_range=(0, 255)).astype(np.uint8)
     rgb = np.stack([img] * 3, axis=-1).astype(float)
@@ -79,6 +77,7 @@ def project_cell(row, raw_name, seg_names):
     projection = project(raw, seg)
     return projection, row["CellId"].iloc[0]
 
+
 def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title="Contact Sheet"):
     fig, ax = plt.subplots(len(x_bins), len(y_bins), figsize=(4 * len(x_bins), 4 * len(y_bins)))
     fig.suptitle(title)
@@ -97,12 +96,14 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title=
     return fig
 
 
-def find_cells_to_plot(n_bins, feature_df, x_feature, y_feature, cell_df, raw_name, seg_names=None):
+def find_cells_to_plot(
+    n_bins, feature_df, x_feature, y_feature, cell_df, raw_name, seg_names=None
+):
     quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]
     # Use qcut to bin the DataFrame by percentiles across both features
     x_binned = pd.qcut(feature_df[x_feature], q=quantile_boundaries, duplicates="drop").unique()
     y_binned = pd.qcut(feature_df[y_feature], q=quantile_boundaries, duplicates="drop").unique()
-    cells = [] 
+    cells = []
     for x_bin in x_binned:
         for y_bin in y_binned:
             bin = np.logical_and(
@@ -116,7 +117,6 @@ def find_cells_to_plot(n_bins, feature_df, x_feature, y_feature, cell_df, raw_na
             else:
                 cells.append(None)
     return cells, x_binned, y_binned
-
 
 
 def generate_fov_contact_sheet(image_object, output_name, raw_name, seg_step):
@@ -167,7 +167,7 @@ def segmentation_contact_sheet(
     raw_name,
     n_bins=10,
     seg_names=None,
-    run_type =None,
+    run_type=None,
 ):
     if isinstance(seg_names, (list, ListConfig)) and len(seg_names) > 3:
         raise ValueError("Only three segmentation names can be used to create a contact sheet")
@@ -182,8 +182,18 @@ def segmentation_contact_sheet(
     feature_df = feature_df.xs(segmentation_name, level="Name")
 
     # project random cells from each quantile bin
-    plotting_cells, x_binned, y_binned= find_cells_to_plot(n_bins, feature_df, x_feature, y_feature, cell_df, raw_name, seg_names)
-    _, results = parallelize_across_images(plotting_cells, project_cell, tags, data_name='row', create_output = False, raw_name=raw_name, seg_names=seg_names)
+    plotting_cells, x_binned, y_binned = find_cells_to_plot(
+        n_bins, feature_df, x_feature, y_feature, cell_df, raw_name, seg_names
+    )
+    _, results = parallelize_across_images(
+        plotting_cells,
+        project_cell,
+        tags,
+        data_name="row",
+        create_output=False,
+        raw_name=raw_name,
+        seg_names=seg_names,
+    )
     results = [r if r is not None else (None, None) for r in results]
 
     # assemble contact sheet
@@ -209,12 +219,15 @@ def segmentation_contact_sheet(
 
 
 def segmentation_contact_sheet_all(
-    image_object_paths,
-    output_name,
-    raw_name,
-    seg_step,
-    tags,
-    run_type
+    image_object_paths, output_name, raw_name, seg_step, tags, run_type
 ):
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    parallelize_across_images(image_objects, generate_fov_contact_sheet, tags, data_name='image_object', output_name=output_name, raw_name=raw_name, seg_step=seg_step)
+    parallelize_across_images(
+        image_objects,
+        generate_fov_contact_sheet,
+        tags,
+        data_name="image_object",
+        output_name=output_name,
+        raw_name=raw_name,
+        seg_step=seg_step,
+    )

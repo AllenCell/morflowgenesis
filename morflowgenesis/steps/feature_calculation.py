@@ -4,8 +4,8 @@ from typing import List, Optional, Union
 import numpy as np
 import pandas as pd
 import torch
-import vtk
 import tqdm
+import vtk
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from skimage.measure import label
@@ -13,13 +13,15 @@ from torchmetrics.classification import BinaryF1Score
 
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
-def get_surface_area(img, sigma = 2):
+
+def get_surface_area(img, sigma=2):
     mesh, _, _ = shtools.get_mesh_from_image(image=img, sigma=sigma)
 
     massp = vtk.vtkMassProperties()
     massp.SetInputData(mesh)
     massp.Update()
-    return {"mesh_vol":massp.GetVolume(), "mesh_sa":massp.GetSurfaceArea()}
+    return {"mesh_vol": massp.GetVolume(), "mesh_sa": massp.GetSurfaceArea()}
+
 
 def get_centroid(img):
     z, y, x = np.where(img)
@@ -162,7 +164,6 @@ def get_channels(img, channel_names, run_channels):
     return channel_names
 
 
-
 def get_roi_features(img, features, channels):
     features = get_valid_features(features)
     img = ensure_channel_first(img)
@@ -277,15 +278,16 @@ def get_matched_cell_features(row, features, channels, reference_channel):
 
 
 def get_objects(object, input_step, reference_step):
-    input= object.load_step(input_step)
+    input = object.load_step(input_step)
     if isinstance(input, pd.DataFrame):
         return input.itertuples(), None, pd.DataFrame
 
     reference_step = object.load_step(reference_step) if reference_step is not None else None
-    return [input], reference_step,  np.array
+    return [input], reference_step, np.array
+
 
 def create_output(image_object, output_name, results):
-    image_df= pd.concat(results)
+    image_df = pd.concat(results)
     step_output = StepOutput(
         image_object.working_dir,
         "calculate_features",
@@ -296,16 +298,21 @@ def create_output(image_object, output_name, results):
     step_output.save(image_df)
     return step_output
 
-def process_object(image_object, input_step, output_name, features, reference_channel, channels, reference_step):
+
+def process_object(
+    image_object, input_step, output_name, features, reference_channel, channels, reference_step
+):
     data, reference, data_type = get_objects(image_object, input_step, reference_step)
     if data_type == pd.DataFrame:
         if reference_channel is not None:
-            features = [get_matched_cell_features(d, features, channels, reference_channel) for d in data]
+            features = [
+                get_matched_cell_features(d, features, channels, reference_channel) for d in data
+            ]
         else:
             features = [get_cell_features(d, features, channels) for d in data]
     if data_type == np.array:
         if reference is not None:
-            features = [get_matched_roi_features(d, features,channels, reference) for d in data]
+            features = [get_matched_roi_features(d, features, channels, reference) for d in data]
         else:
             features = [get_roi_features(d, features) for d in data]
     return create_output(image_object, output_name, features)
@@ -341,9 +348,20 @@ def calculate_features(
         For FOV-based features, another image can be used to calculate FOV similarity features (like F1, Dice, etc.)
     """
     # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in tqdm.tqdm(image_object_paths, desc="Loading image objects")]
+    image_objects = [
+        ImageObject.parse_file(path)
+        for path in tqdm.tqdm(image_object_paths, desc="Loading image objects")
+    ]
 
-    if run_type == 'images':
-        parallelize_across_images(image_objects, process_object, tags=tags, input_step=input_step, output_name=output_name, features=features, reference_channel=reference_channel, channels=channels, reference_step=reference_step)
-
-
+    if run_type == "images":
+        parallelize_across_images(
+            image_objects,
+            process_object,
+            tags=tags,
+            input_step=input_step,
+            output_name=output_name,
+            features=features,
+            reference_channel=reference_channel,
+            channels=channels,
+            reference_step=reference_step,
+        )

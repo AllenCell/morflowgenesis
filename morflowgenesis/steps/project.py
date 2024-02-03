@@ -1,13 +1,12 @@
 import numpy as np
 from hydra.utils import get_class
-from prefect import flow, task
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 
 from morflowgenesis.utils import (
     ImageObject,
     StepOutput,
-    submit,
+    parallelize_across_images,
     to_list,
 )
 
@@ -54,7 +53,7 @@ def run_project(
     output.save(img)
     return output
 
-@flow(log_prints=True)
+
 def project(
     image_object_paths,
     tags,
@@ -66,11 +65,23 @@ def project(
     project_slice=None,
     axis=None,
     intensity_rescale_ranges=None,
-    run_type=None
+    run_type=None,
 ):
     input_steps = to_list(input_steps)
     dtype = get_class(dtype)
 
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     for i, step in enumerate(input_steps):
-        parallelize_across_images(image_objects, run_project, tags=tags, input_step=step, output_name=output_name, scale=scale, dtype=dtype, project_type=project_type, project_slice=project_slice, axis=axis, intensity_rescale_ranges=intensity_rescale_ranges[i])
+        parallelize_across_images(
+            image_objects,
+            run_project,
+            tags=tags,
+            input_step=step,
+            output_name=output_name,
+            scale=scale,
+            dtype=dtype,
+            project_type=project_type,
+            project_slice=project_slice,
+            axis=axis,
+            intensity_rescale_ranges=intensity_rescale_ranges[i],
+        )

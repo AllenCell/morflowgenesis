@@ -197,7 +197,13 @@ def tracking(image_object_paths, tags, run_type, output_name, input_step):
     )
     if _do_tracking(image_objects, output_name):
         # create centroid/volume csv
-        _, regionprops = parallelize_across_images(image_objects, create_regionprops_csv, tags=tags, input_step=input_step, output_name=output_name)
+        _, regionprops = parallelize_across_images(
+            image_objects,
+            create_regionprops_csv,
+            tags=tags,
+            input_step=input_step,
+            output_name=output_name,
+        )
 
         output = track(pd.concat(regionprops), image_objects[0].working_dir, output_name)
         for obj in image_objects:

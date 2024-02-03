@@ -7,7 +7,6 @@ from camera_alignment_core.alignment_core import align_image, crop
 from camera_alignment_core.channel_info import CameraPosition, channel_info_factory
 from prefect import flow, task
 
-from morflowgenesis.utils import create_task_runner
 from morflowgenesis.utils.image_object import ImageObject, StepOutput
 
 
@@ -64,9 +63,9 @@ def _validate_list(val):
     return list(val)
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
 def split_image(
     image_path,
+    tags,
     working_dir,
     output_name,
     scenes=-1,
@@ -74,6 +73,7 @@ def split_image(
     channels=-1,
     dimension_order_out="CZYX",
     optical_control_path=None,
+    run_type=None,
 ):
     working_dir = Path(working_dir)
     (working_dir / "split_image").mkdir(exist_ok=True, parents=True)

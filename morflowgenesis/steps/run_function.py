@@ -7,6 +7,7 @@ from morflowgenesis.utils import (
     to_list,
 )
 
+
 def apply_function(image_object, input_step, output_name, ch, function, function_args):
     data = image_object.load_step(input_step)
     if ch is not None:
@@ -24,6 +25,7 @@ def apply_function(image_object, input_step, output_name, ch, function, function
     output.save(applied)
     return output
 
+
 def array_to_array(
     image_object_paths, output_name, input_steps, function, ch=None, function_args={}
 ):
@@ -40,4 +42,3 @@ def array_to_array(
             function=function,
             function_args=function_args,
         )
-
