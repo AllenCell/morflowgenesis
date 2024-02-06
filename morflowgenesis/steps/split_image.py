@@ -74,6 +74,7 @@ def split_image(
     dimension_order_out="CZYX",
     optical_control_path=None,
     run_type=None,
+    image_object_paths=None,
 ):
     working_dir = Path(working_dir)
     (working_dir / "split_image").mkdir(exist_ok=True, parents=True)
