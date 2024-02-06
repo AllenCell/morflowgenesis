@@ -29,6 +29,16 @@ def crop(
     sigma_cutoff: Union[int, List[int]] = 2,
 ):
     """Crop to center of an image assuming a Gaussian-like profile along the z-axis."""
+        # add result to image object
+    output = StepOutput(
+        image_object.working_dir,
+        step_name="center_crop",
+        output_name=output_name,
+        output_type="image",
+        image_id=image_object.id,
+    )
+    if output.path.exists():
+        return output
     img = image_object.load_step(image_step)
     padding = np.array([(0, 0), (0, 0), (0, 0)])
     if len(img.shape) != 3:
@@ -64,15 +74,6 @@ def crop(
                 top_z = min(img.shape[0], top_z + (min_slices - num_slices) // 2)
         padding[0] = [bottom_z, img.shape[0] - top_z]
         img = img[bottom_z:top_z]
-
-    # add result to image object
-    output = StepOutput(
-        image_object.working_dir,
-        step_name="center_crop",
-        output_name=output_name,
-        output_type="image",
-        image_id=image_object.id,
-    )
     output.save(img)
     np.save(
         image_object.working_dir / "center_crop" / output_name / f"{image_object.id}.npy", padding
