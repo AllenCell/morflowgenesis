@@ -80,7 +80,6 @@ def process_cell(
     raw_images,
     seg_images,
     roi,
-    coords,
     lab,
     raw_steps,
     seg_steps,
@@ -95,10 +94,10 @@ def process_cell(
     raw_steps_rename=None,
 ):
     # prepare metadata for csv
+    centroid = centroid_from_slice(roi)
     roi = roi_from_slice(roi)
     cell_id = hashlib.sha224(bytes(image_object.id + roi, "utf-8")).hexdigest()
 
-    centroid = centroid_from_slice(coords)
 
     df = {
         "CellId": cell_id,
@@ -363,8 +362,8 @@ def extract_cells_from_fov(
                 "output_name": output_name,
                 "raw_images": crop_raw_images,
                 "seg_images": crop_seg_images,
-                "roi": padded_coords,
-                "coords": padded_coords,
+                #remove channel dimension from coords
+                "roi": padded_coords[1:],
                 "lab": lab,
                 "raw_steps": raw_steps,
                 "seg_steps": seg_steps,
