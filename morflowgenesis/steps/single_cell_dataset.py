@@ -287,7 +287,7 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
     return raw_images, seg_images, raw_steps, seg_steps, splitting_ch
 
 
-def extract_cells(
+def extract_cells_from_fov(
     image_object,
     splitting_step,
     padding,
@@ -329,6 +329,10 @@ def extract_cells(
         keep_lcc = sorted(seg_steps.index(m) for m in keep_lcc)
     else:
         keep_lcc = []
+
+    if tracking_df is not None:
+        tracking_df = tracking_df[tracking_df.index_sequence == image_object.metadata["T"]]
+        print("tracking data loaded for", tracking_df.index_sequence.unique())
 
     cell_info = []
     for lab, coords in enumerate(regions, start=1):
@@ -380,7 +384,7 @@ def extract_cells(
 
 def process_image(**kwargs):
     cell_df = []
-    cell_info = extract_cells(**kwargs)
+    cell_info = extract_cells_from_fov(**kwargs)
     for cell in cell_info:
         cell_df.append(process_cell(**cell))
     return create_image_output(kwargs["image_object"], kwargs["output_name"], cell_df)
@@ -423,7 +427,7 @@ def single_cell_dataset(
     # if only one image is passed, run across objects within that image. Otherwise, run across images
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
 
-    # load timepoint's tracking data if available
+    # load tracking data if available (same for all images)
     tracking_df = None
     if tracking_step is not None:
         tracking_df = image_objects[0].load_step(tracking_step)
@@ -456,7 +460,7 @@ def single_cell_dataset(
         )
     elif run_type == "objects":
         object_extraction_fn = partial(
-            extract_cells,
+            extract_cells_from_fov,
             splitting_step=splitting_step,
             padding=padding,
             mask=mask,

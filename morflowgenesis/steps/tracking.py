@@ -18,48 +18,36 @@ def str_to_array(s):
     return np.array(list(map(int, elements)))
 
 
-def create_regionprops_csv(obj, input_step, output_name):
-    inst_seg = obj.get_step(input_step).load_output()
-    save_path = Path(f"{obj.working_dir}/tracking/{output_name}/{obj.id}_regionprops.csv")
+def create_regionprops_csv(image_object, input_step, output_name):
+    inst_seg = image_object.get_step(input_step).load_output()
+    save_path = Path(f"{image_object.working_dir}/tracking/{output_name}/{image_object.id}_regionprops.csv")
     if save_path.exists():
         out = pd.read_csv(save_path)
         out["img_shape"] = out["img_shape"].apply(str_to_array)
         return out
 
-    timepoint = obj.metadata["T"]
+    timepoint = image_object.metadata["T"]
 
     field_shape = np.array(inst_seg.shape, dtype=int)
     regions = find_objects(inst_seg.astype(int))
 
-    data = []
-    for lab, coords in enumerate(regions, start=1):
-        if coords is None:
-            continue
-        min_coors = np.asarray([s.start for s in coords])
-        max_coors = np.asarray([s.stop for s in coords])
+    data = [
+        {
+            "CellLabel": lab,
+            "Timepoint": timepoint,
+            "Centroid_z": (coords[0].start + coords[0].stop) // 2,
+            "Centroid_y": (coords[1].start + coords[1].stop) // 2,
+            "Centroid_x": (coords[2].start + coords[2].stop) // 2,
+            "Volume": np.sum(inst_seg[coords] == lab),
+            "Edge_Cell": np.any(np.logical_or(np.asarray([s.start for s in coords]) == 0, np.asarray([s.stop for s in coords]) == field_shape)),
+            "img_shape": field_shape,
+        }
+        for lab, coords in enumerate(regions, start=1) if coords is not None
+    ]
 
-        is_edge = np.any(np.logical_or(min_coors == 0, max_coors == field_shape))
-
-        centroid = [(s.start + s.stop) // 2 for s in coords]
-        row = pd.DataFrame(
-            [
-                {
-                    "CellLabel": lab,
-                    "Timepoint": timepoint,
-                    "Centroid_z": centroid[0],
-                    "Centroid_y": centroid[1],
-                    "Centroid_x": centroid[2],
-                    "Volume": np.sum(inst_seg[coords] == lab),
-                    "Edge_Cell": is_edge,
-                    "img_shape": field_shape,
-                }
-            ]
-        )
-        data.append(row)
-    out = pd.concat(data)
+    out = pd.DataFrame(data)
     out.to_csv(save_path, index=False)
     return out
-
 
 def find_outliers_by_volume(vol, thresh=0.10, pad_size=15, kernel=9):
     """detect errors in instance segmentation through changes in volume."""
@@ -203,6 +191,7 @@ def tracking(image_object_paths, tags, run_type, output_name, input_step):
             tags=tags,
             input_step=input_step,
             output_name=output_name,
+            create_output=False
         )
 
         output = track(pd.concat(regionprops), image_objects[0].working_dir, output_name)
