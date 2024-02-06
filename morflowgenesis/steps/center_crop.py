@@ -81,17 +81,6 @@ def crop(
 
 
 def uncrop(image_object, output_name, image_step, cropping_step, mode="constant", pad_rescale=1):
-    img = image_object.load_step(image_step)
-    print("image loaded")
-    # crop path is same as image path but with .npy extension
-    padding_path = str(image_object.get_step(cropping_step).path).replace(".tif", ".npy")
-    padding = np.load(padding_path, allow_pickle=True)
-    # in case images are at different resolutions
-    padding = padding * pad_rescale
-    print("padding loaded")
-    img = np.pad(img, padding.astype(int), mode=mode)
-    print("image padded")
-
     output = StepOutput(
         image_object.working_dir,
         step_name="center_pad",
@@ -99,7 +88,18 @@ def uncrop(image_object, output_name, image_step, cropping_step, mode="constant"
         output_type="image",
         image_id=image_object.id,
     )
-    output.save(img)
+    if not output.path.exists():
+        img = image_object.load_step(image_step)
+        print("image loaded")
+        # crop path is same as image path but with .npy extension
+        padding_path = str(image_object.get_step(cropping_step).path).replace(".tif", ".npy")
+        padding = np.load(padding_path, allow_pickle=True)
+        # in case images are at different resolutions
+        padding = padding * pad_rescale
+        print("padding loaded")
+        img = np.pad(img, padding.astype(int), mode=mode)
+        print("image padded")
+        output.save(img)
     print("image saved")
     return output
 
@@ -135,6 +135,7 @@ def center_pad(
     output_name,
     mode="constant",
     pad_rescale=1,
+    run_type=None,
 ):
     image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     parallelize_across_images(
