@@ -15,7 +15,11 @@ from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_ima
 
 
 def get_surface_area(img, sigma=2):
-    mesh, _, _ = shtools.get_mesh_from_image(image=img, sigma=sigma)
+    try:
+        mesh, _, _ = shtools.get_mesh_from_image(image=img, sigma=sigma)
+    except ValueError as e:
+        print(e)
+        return {"mesh_vol": np.nan, "mesh_sa": np.nan}
 
     massp = vtk.vtkMassProperties()
     massp.SetInputData(mesh)
@@ -302,6 +306,11 @@ def create_output(image_object, output_name, results):
 def process_object(
     image_object, input_step, output_name, features, reference_channel, channels, reference_step
 ):
+    save_path = image_object.working_dir / "calculate_features" / output_name / f"{image_object.id}.csv"
+    if save_path.exists():
+        print(f"Skipping step calculate_features for image {image_object.id}")
+        features = pd.read_csv(save_path)
+        return create_output(image_object, output_name, [features])
     data, reference, data_type = get_objects(image_object, input_step, reference_step)
     if data_type == pd.DataFrame:
         if reference_channel is not None:
