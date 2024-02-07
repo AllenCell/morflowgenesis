@@ -7,7 +7,7 @@ from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import pad_coords, StepOutput, parallelize_across_images
+from morflowgenesis.utils import pad_coords, StepOutput, parallelize_across_images, extract_objects
 
 
 def make_rgb(img, contour):
@@ -30,9 +30,9 @@ def project(raw, seg):
         mid_z, mid_y, mid_x = int(np.median(z)), int(np.median(y)), int(np.median(x))
 
     # raw is zyx, seg is czyx
-    z_project = make_rgb(raw[mid_z], seg[:, mid_z])  # overlay[mid_z]
-    y_project = make_rgb(raw[:, mid_y], seg[:, :, mid_y])  # overlay[:, mid_y]
-    x_project = make_rgb(raw[:, :, mid_x], seg[:, :, :, mid_x])  # overlay[:, :, mid_x]
+    z_project = make_rgb(raw[mid_z], seg[:, mid_z]) 
+    y_project = make_rgb(raw[:, mid_y], seg[:, :, mid_y])
+    x_project = make_rgb(raw[:, :, mid_x], seg[:, :, :, mid_x])
     x_project = np.transpose(x_project, (1, 0, 2))
 
     # Calculate the required output dimensions
@@ -86,7 +86,7 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title=
 
 
 def find_cells_to_plot(
-    n_bins, feature_df, x_feature, y_feature, cell_df, raw_name, seg_names=None
+    n_bins, feature_df, x_feature, y_feature, cell_df
 ):
     quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]
     # Use qcut to bin the DataFrame by percentiles across both features
@@ -114,15 +114,12 @@ def generate_fov_contact_sheet(image_object, output_name, raw_name, seg_step):
     min_im_shape = np.min([raw.shape, seg.shape], axis=0)
     raw = raw[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
     seg = seg[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
-    regions = find_objects(seg)
+
+    objects = extract_objects(seg, padding=10)
     cells = []
-    for val, coords in enumerate(regions, start=1):
-        if coords is None:
-            continue
-        coords = pad_coords(coords, 10, raw.shape, return_edge=False)
-        raw_crop = raw[coords]
+    for val, coords, is_edge in objects:
         seg_crop = find_boundaries(seg[coords] == val, mode="inner")[None]
-        cells.append((project(raw_crop, seg_crop), val))
+        cells.append((project(raw[coords], seg_crop), val))
 
     colors = ["Cyan", "Magenta", "Yellow"]
 

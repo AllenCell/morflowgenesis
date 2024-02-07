@@ -10,7 +10,7 @@ from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
-from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
+from morflowgenesis.utils import StepOutput, parallelize_across_images, extract_objects
 
 
 def str_to_array(s):
@@ -29,8 +29,8 @@ def create_regionprops_csv(image_object, input_step, output_name):
     timepoint = image_object.metadata["T"]
 
     field_shape = np.array(inst_seg.shape, dtype=int)
-    regions = find_objects(inst_seg.astype(int))
 
+    objects = extract_objects(inst_seg)
     data = [
         {
             "CellLabel": lab,
@@ -42,7 +42,7 @@ def create_regionprops_csv(image_object, input_step, output_name):
             "Edge_Cell": np.any(np.logical_or(np.asarray([s.start for s in coords]) == 0, np.asarray([s.stop for s in coords]) == field_shape)),
             "img_shape": field_shape,
         }
-        for lab, coords in enumerate(regions, start=1) if coords is not None
+        for lab, coords, _ in objects
     ]
 
     out = pd.DataFrame(data)

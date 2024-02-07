@@ -3,6 +3,7 @@ from prefect.flows import Flow
 from prefect.tasks import Task
 from scipy.ndimage import label
 import numpy as np
+from scipy.ndimage import find_objects
 
 def submit(task_function, tags=[], name = None,**kwargs):
     name = name or task_function.__name__
@@ -39,8 +40,11 @@ def to_list(x):
     return [x]
 
 
-def get_largest_cc(im, label = True):
-    im, n= label(im)
+def get_largest_cc(im, do_label = True):
+    if do_label:
+        im, n= label(im)
+    else:
+        n = im.max()
     if n > 0:
         largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
         return im == largest_cc
@@ -48,6 +52,8 @@ def get_largest_cc(im, label = True):
 
 
 def pad_coords(s, padding, constraints, include_ch=False, return_edge=True):
+    if isinstance(padding, int):
+        padding = [padding] * len(s)
     # pad slice by padding subject to image size constraints
     is_edge = False
     new_slice = [slice(None, None)] if include_ch else []
@@ -61,4 +67,26 @@ def pad_coords(s, padding, constraints, include_ch=False, return_edge=True):
         return tuple(new_slice), is_edge
     return tuple(new_slice)
 
-#extract_objects
+def extract_objects(img, padding=0, constraints=None, include_ch=False, zip = True):
+    """
+    takes in labeled image, amount to pad coordinates, and maximum value of coordinates
+    returns tuples of (lab, coords, is_edge)
+    """
+    if constraints is None:
+        constraints = img.shape
+
+    regions = find_objects(img.astype(int))
+    labels = []
+    rois = []
+    is_edge = []
+
+    for lab, coords in enumerate(regions, start=1):
+        if coords is None:
+            continue
+        labels.append(lab)
+        coords, is_edge = pad_coords(coords, padding, constraints, include_ch=include_ch, return_edge=True)
+        rois.append(coords)
+        is_edge.append(is_edge)
+    if zip:
+        return zip(labels, rois, is_edge)
+    return labels, rois, is_edge

@@ -10,7 +10,6 @@ import pandas as pd
 import tqdm
 from aicsimageio.writers import OmeTiffWriter
 from omegaconf import ListConfig
-from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale, resize
 
@@ -18,7 +17,7 @@ from morflowgenesis.utils import (
     StepOutput,
     parallelize_across_images,
     get_largest_cc,
-    pad_coords
+    extract_objects
 )
 
 #TODO save manifests to /manifests folder
@@ -287,7 +286,6 @@ def extract_cells_from_fov(
     )
     print("images loaded for", image_object.id)
     # find objects in segmentation
-    regions = find_objects(seg_images[splitting_ch].astype(int))
 
     # mask = True means mask all seg images, mask = list means mask only those seg images
     if mask is True:
@@ -309,11 +307,9 @@ def extract_cells_from_fov(
         tracking_df = tracking_df[tracking_df.index_sequence == image_object.metadata["T"]]
         print("tracking data loaded for", tracking_df.index_sequence.unique())
 
+    objects = extract_objects(seg_images[splitting_ch], padding=padding, include_ch=True)
     cell_info = []
-    for lab, coords in enumerate(regions, start=1):
-        if coords is None:
-            continue
-        padded_coords, is_edge = pad_coords(coords, padding, seg_images[splitting_ch].shape, include_ch = True)
+    for lab, coords, is_edge in objects:
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
             raw_images,
@@ -322,7 +318,7 @@ def extract_cells_from_fov(
             seg_steps,
             lab,
             splitting_ch,
-            padded_coords,
+            coords,
             mask=mask,
             keep_lcc=keep_lcc,
             iou_thresh=iou_thresh,
@@ -337,7 +333,7 @@ def extract_cells_from_fov(
                 "raw_images": crop_raw_images,
                 "seg_images": crop_seg_images,
                 #remove channel dimension from coords
-                "roi": padded_coords[1:],
+                "roi": coords[1:],
                 "lab": lab,
                 "raw_steps": raw_steps,
                 "seg_steps": seg_steps,
@@ -400,10 +396,6 @@ def single_cell_dataset(
     tracking_df = None
     if tracking_step is not None:
         tracking_df = image_objects[0].load_step(tracking_step)
-
-    # allow per-dimensional padding
-    if isinstance(padding, int):
-        padding = [padding] * 3
 
     parallelize_across_images(
         image_objects,
