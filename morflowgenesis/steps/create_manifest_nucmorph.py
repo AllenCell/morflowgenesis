@@ -3,21 +3,20 @@ from pathlib import Path
 from typing import List, Union
 
 import pandas as pd
-from prefect import flow
 
 from morflowgenesis.utils import ImageObject, StepOutput
 
 
-@flow(log_prints=True)
 def create_manifest(
-    image_object_paths: List[Union[str, Path]],
+    image_objects,
     output_name: str,
     feature_step: str,
     single_cell_step: str,
-    breakdown_classification_step: str,
+    dataset_name: str,
+    # breakdown_classification_step: str,
+    tags: List[str],
+    run_type: str,
 ):
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
-
     # load features and single cell data
     manifest = []
     for obj in image_objects:
@@ -34,8 +33,8 @@ def create_manifest(
 
     # add formation/breakdown information based on track_id
     # same for all objects, just load once
-    breakdown_classification = obj.load_step(breakdown_classification_step)
-    manifest = pd.merge(manifest, breakdown_classification, on="track_id")
+    # breakdown_classification = obj.load_step(breakdown_classification_step)
+    # manifest = pd.merge(manifest, breakdown_classification, on="track_id")
 
     # sort manifest
     manifest = manifest.sort_values(by="index_sequence")
@@ -50,6 +49,7 @@ def create_manifest(
             "nuc_seg_path": "seg_full_zstack_path",
         }
     )
+    manifest['dataset'] = dataset_name
 
     # save
     step_output = StepOutput(

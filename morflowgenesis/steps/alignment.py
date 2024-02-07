@@ -46,10 +46,9 @@ def align(
 
 
 def align_segmentations_to_image(
-    image_object_paths, run_type, image_step, segmentation_steps, boundary=False
+    image_objects, run_type, image_step, segmentation_steps, boundary=False
 ):
     assert run_type == "images", "Only images run type is supported"
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     for step in segmentation_steps:
         parallelize_across_images(
             image_objects, align, image_step=image_step, segmentation_step=step, boundary=boundary

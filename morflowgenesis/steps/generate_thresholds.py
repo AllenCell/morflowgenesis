@@ -29,7 +29,7 @@ def run_threshold(image_object, input_step, output_name, thresh, label):
 
 @flow(log_prints=True)
 def threshold(
-    image_object_paths,
+    image_objects,
     tags,
     output_name,
     input_step,
@@ -47,8 +47,6 @@ def threshold(
         threshold_range = np.linspace(start, stop, n)
     else:
         raise ValueError("Either `step` or `n` must be provided")
-
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
 
     # TODO this loads each image per threshold instead of loading once and applying all thresholds
     for thresh in threshold_range:

@@ -9,9 +9,8 @@ from morflowgenesis.utils import ImageObject, StepOutput
 
 
 def make_shape_space(
-    image_object_paths, output_name, feature_step, segmentation_names, tags, run_type, n_pcs=10
+    image_objects, output_name, feature_step, segmentation_names, tags, run_type, n_pcs=10
 ):
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
 
     for seg_name in segmentation_names:

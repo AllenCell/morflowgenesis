@@ -27,9 +27,8 @@ def apply_function(image_object, input_step, output_name, ch, function, function
 
 
 def array_to_array(
-    image_object_paths, output_name, input_steps, function, ch=None, function_args={}
+    image_objects, output_name, input_steps, function, ch=None, function_args={}
 ):
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     input_steps = to_list(input_steps)
 
     for step in input_steps:

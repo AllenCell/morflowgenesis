@@ -72,7 +72,7 @@ def run_evaluate(model):
 
 
 def run_cytodl(
-    image_object_paths: List[Union[str, Path]],
+    image_objects,
     input_step: str,
     config_path: str,
     output_name: Optional[str] = None,
@@ -87,8 +87,8 @@ def run_cytodl(
 
     Parameters
     ----------
-    image_object_paths : List[str]
-        List of paths to image objects to run
+    image_objects : 
+        image objects to run
     input_step : str
         Name of step to use as input data
     config_path : str
@@ -100,8 +100,6 @@ def run_cytodl(
     checkpoint_path : Optional[str], optional
         Path to checkpoint to download from MLFlow, by default "checkpoints/val/loss/best.ckpt"
     """
-    image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
-
     model = load_model(
         image_objects,
         output_name,

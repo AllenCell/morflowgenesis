@@ -328,7 +328,7 @@ def process_object(
 
 
 def calculate_features(
-    image_object_paths: List[Union[str, Path]],
+    image_objects,
     tags: List[str],
     run_type: str,
     output_name: str,
@@ -341,8 +341,8 @@ def calculate_features(
     """
     Parameters
     ----------
-    image_object_paths: List[Union(str, Path)]
-        List of paths to image objects to run the task on
+    image_object: List[Union(str, Path)]
+        image objects to run the task on
     output_name: str
         Name of the output
     input_step: str
@@ -356,12 +356,6 @@ def calculate_features(
     reference_step: Optional[str]
         For FOV-based features, another image can be used to calculate FOV similarity features (like F1, Dice, etc.)
     """
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [
-        ImageObject.parse_file(path)
-        for path in tqdm.tqdm(image_object_paths, desc="Loading image objects")
-    ]
-
     if run_type == "images":
         parallelize_across_images(
             image_objects,

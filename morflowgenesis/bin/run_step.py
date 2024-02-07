@@ -4,16 +4,17 @@ from prefect import flow, task
 from prefect.task_runners import ConcurrentTaskRunner
 
 from morflowgenesis.utils import ImageObject, run_flow
+from prefect.server.schemas.states import StateType
 
 
 @task()
 def _is_run(path, step_name, output_name):
     image_object = ImageObject.parse_file(path)
     # check if step already run
-    if image_object.step_is_run(f"{step_name}_{output_name}"):
-        print(f"Skipping step {step_name}_{output_name} for image {image_object.id}")
+    if image_object.step_is_run(f"{step_name}/{output_name}"):
+        print(f"Skipping step {step_name}/{output_name} for image {image_object.id}")
         return
-    return path
+    return image_object
 
 
 @flow(task_runner=ConcurrentTaskRunner, log_prints=True)
@@ -40,7 +41,7 @@ def run_step(step_cfg, object_store_path):
     # checking which objects to run here prevents overhead on the cluster and excess job creation.
     objects_to_run = get_objects_to_run(object_store_path, step_name, step_args.get("output_name"))
     if len(objects_to_run) == 0 and object_store_path.exists():
-        return
-    step_args.update({"image_object_paths": objects_to_run})
+        return StateType.COMPLETED
+    step_args.update({"image_objects": objects_to_run})
     run_type = "images" if step_type == "gather" else "objects"
-    run_flow(step_fn, task_runner, run_type, tags, **step_args)
+    return run_flow(step_fn, task_runner, run_type, tags, **step_args)

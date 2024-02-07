@@ -41,12 +41,12 @@ def generate_objects(
     source_column,
     non_source_columns=[],
     metadata_column=None,
-    image_object_paths=[],
+    image_objects=[],
     tags=[],
     run_type=None,
 ):
 
-    existing_ids = [Path(p).stem for p in image_object_paths]
+    existing_ids = [obj.id for obj in image_objects]
 
     """Generate a new image object for each row in the csv file."""
     df = pd.read_csv(csv_path)

@@ -30,7 +30,7 @@ def run_resize(image_object, output_name, input_step, output_shape=None, scale=N
 
 
 def resize(
-    image_object_paths,
+    image_objects,
     tags,
     output_name,
     input_steps,
@@ -42,7 +42,6 @@ def resize(
     """Resize images to a specified shape or scale with a specified order of interpolation."""
     input_steps = to_list(input_steps)
 
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     for step in input_steps:
         parallelize_across_images(
             image_objects,

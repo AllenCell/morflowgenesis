@@ -21,8 +21,6 @@ from morflowgenesis.utils import (
     StepOutput,
     parallelize_across_images,
     parallelize_across_objects,
-    run_flow,
-    submit,
 )
 
 
@@ -93,6 +91,8 @@ def process_cell(
     seg_steps_rename=None,
     raw_steps_rename=None,
 ):
+    print("processing cell", lab, "of", image_object.id)
+
     # prepare metadata for csv
     centroid = centroid_from_slice(roi)
     roi = roi_from_slice(roi)
@@ -351,8 +351,6 @@ def extract_cells_from_fov(
             keep_lcc=keep_lcc,
             iou_thresh=iou_thresh,
         )
-        print("processing cell", lab, "of", image_object.id)
-
         if crop_raw_images is None or crop_seg_images is None:
             print(f"Skipping cell {lab} due to low IoU")
             continue
@@ -403,7 +401,7 @@ def create_image_output(image_object, output_name, results):
 
 
 def single_cell_dataset(
-    image_object_paths,
+    image_objects,
     tags,
     output_name,
     splitting_step,
@@ -423,9 +421,6 @@ def single_cell_dataset(
     include_edge_cells=True,
     run_type="images,",
 ):
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-
     # load tracking data if available (same for all images)
     tracking_df = None
     if tracking_step is not None:

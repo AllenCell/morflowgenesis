@@ -55,7 +55,7 @@ def run_project(
 
 
 def project(
-    image_object_paths,
+    image_objects,
     tags,
     output_name,
     input_steps,
@@ -70,7 +70,6 @@ def project(
     input_steps = to_list(input_steps)
     dtype = get_class(dtype)
 
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     for i, step in enumerate(input_steps):
         parallelize_across_images(
             image_objects,

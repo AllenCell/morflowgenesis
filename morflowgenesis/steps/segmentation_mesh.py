@@ -39,15 +39,13 @@ def create_mesh(image_object, output_name, seg_step, resize):
 
 
 def mesh(
-    image_object_paths,
+    image_objects,
     tags,
     output_name,
     input_steps,
     resize=0.2,
     run_type=None,
 ):
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-
     input_steps = to_list(input_steps)
     for step in input_steps:
         parallelize_across_images(

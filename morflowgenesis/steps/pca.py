@@ -8,7 +8,7 @@ from morflowgenesis.utils import ImageObject, StepOutput
 
 
 def run_pca(
-    image_object_paths,
+    image_objects,
     output_name,
     feature_step,
     features_regex,
@@ -20,8 +20,6 @@ def run_pca(
 ):
     if calculate_name in apply_names:
         raise ValueError("Calculate_name cannot be in apply_names")
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
-
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
     feature_columns = [c for c in features.columns if re.search(features_regex, c)]
     target_df = features.xs(calculate_name, level="Name")

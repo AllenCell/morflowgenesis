@@ -106,7 +106,7 @@ def uncrop(image_object, output_name, image_step, cropping_step, mode="constant"
 
 
 def center_crop(
-    image_object_paths,
+    image_objects,
     tags,
     image_step,
     output_name,
@@ -115,7 +115,6 @@ def center_crop(
     sigma_cutoff=2,
     run_type=None,
 ):
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     parallelize_across_images(
         image_objects,
         crop,
@@ -129,7 +128,7 @@ def center_crop(
 
 
 def center_pad(
-    image_object_paths,
+    image_objects,
     tags,
     image_step,
     cropping_step,
@@ -138,7 +137,6 @@ def center_pad(
     pad_rescale=1,
     run_type=None,
 ):
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     parallelize_across_images(
         image_objects,
         uncrop,

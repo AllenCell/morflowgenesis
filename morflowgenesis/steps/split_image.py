@@ -74,7 +74,7 @@ def split_image(
     dimension_order_out="CZYX",
     optical_control_path=None,
     run_type=None,
-    image_object_paths=None,
+    image_objects=None,
 ):
     working_dir = Path(working_dir)
     (working_dir / "split_image").mkdir(exist_ok=True, parents=True)
@@ -106,10 +106,6 @@ def split_image(
     channels = range(img.dims.C) if channels == -1 else channels
     channels = _validate_list(channels)
 
-    image_objects = [
-        ImageObject.parse_file(obj_path)
-        for obj_path in (working_dir / "_ImageObjectStore").glob("*.json")
-    ]
     already_run = [
         (im_obj.metadata.get("T"), im_obj.metadata.get("S")) for im_obj in image_objects
     ]

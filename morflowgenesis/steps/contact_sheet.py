@@ -156,7 +156,7 @@ def generate_fov_contact_sheet(image_object, output_name, raw_name, seg_step):
 
 
 def segmentation_contact_sheet(
-    image_object_paths,
+    image_objects,
     tags,
     output_name,
     single_cell_dataset_step,
@@ -171,8 +171,6 @@ def segmentation_contact_sheet(
 ):
     if isinstance(seg_names, (list, ListConfig)) and len(seg_names) > 3:
         raise ValueError("Only three segmentation names can be used to create a contact sheet")
-    # load and subset data
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     cell_df = pd.concat(
         [image_object.load_step(single_cell_dataset_step) for image_object in image_objects]
     )
@@ -219,9 +217,8 @@ def segmentation_contact_sheet(
 
 
 def segmentation_contact_sheet_all(
-    image_object_paths, output_name, raw_name, seg_step, tags, run_type
+    image_objects, output_name, raw_name, seg_step, tags, run_type
 ):
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
     parallelize_across_images(
         image_objects,
         generate_fov_contact_sheet,

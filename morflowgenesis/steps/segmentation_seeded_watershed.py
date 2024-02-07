@@ -141,7 +141,7 @@ def watershed_fov(
 
 
 def run_watershed(
-    image_object_paths,
+    image_objects,
     tags,
     output_name,
     raw_input_step,
@@ -153,8 +153,6 @@ def run_watershed(
     padding=10,
     run_type=None,
 ):
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-
     parallelize_across_images(
         image_objects,
         watershed_fov,

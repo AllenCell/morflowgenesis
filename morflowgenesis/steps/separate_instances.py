@@ -4,7 +4,7 @@ from skimage.filters import gaussian, threshold_otsu
 from skimage.measure import label
 from skimage.segmentation import expand_labels
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
+from morflowgenesis.utils import ImageObject, StepOutput, submit
 
 
 @task
@@ -26,11 +26,9 @@ def create_mask(image_object, input_step, output_name, sigma, expand_distance):
     return step_output
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def generate_mask(image_object_paths, output_name, input_step, sigma=10, expand_distance=50):
+@flow(log_prints=True)
+def generate_mask(image_objects, output_name, input_step, sigma=10, expand_distance=50):
     # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
 
     all_results = []
     for obj in image_objects:
