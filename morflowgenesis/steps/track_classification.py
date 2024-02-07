@@ -2,45 +2,105 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from cyto_dl.api import CytoDLModel
-from skimage.transform import resize
-from prefect import flow, task
+import tqdm
+from copy import deepcopy
 from aicsimageio.writers import OmeTiffWriter
-from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from cyto_dl.api import CytoDLModel
+from prefect import task
+from skimage.transform import resize
 
-@task()
-def extract_fov_tracks(obj, image_step, single_cell_step, z_resize=2.5005, resize_shape=64):
-    timepoint = obj.metadata['T']
-    img = obj.load_step(image_step)
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
+
+
+def extract_fov_tracks(
+    data,
+    image_step,
+    resize_shape=64,
+):
+    image_object, rois = data
+    timepoint = image_object.metadata["T"]
+    img = image_object.load_step(image_step).max(0)
     img = (img - np.mean(img)) / np.std(img)
+    rois = rois[rois.index_sequence == timepoint]
 
-    single_cell_df = obj.load_step(single_cell_step)
-    single_cell_df = single_cell_df[single_cell_df.index_sequence == timepoint]
-    data = {}
-    #  remove [], split on commas, z coords, resize to 20x coords, convert to int
-    rois = (
-        single_cell_df["roi"]
-        .apply(lambda x: (np.array(x[1:-1].split(",")[2:], dtype=float) / z_resize).astype(int))
-        .values
-    )  #
-    for i, row in enumerate(single_cell_df.itertuples()):
-        crop = img[rois[i][0] : rois[i][1], rois[i][2] : rois[i][3]]
-        data[row.track_id] = resize(
-            crop, (resize_shape, resize_shape), anti_aliasing=True, preserve_range=True
-        ).astype(np.float16)
+    data = {track_id: 
+        resize(
+            img[roi[0] : roi[1], roi[2] : roi[3]], 
+            (resize_shape, resize_shape), 
+            anti_aliasing=True, 
+            preserve_range=True
+        ).astype(np.float16) for roi, track_id in zip(rois['roi'], rois['track_id'])
+    }
     data["timepoint"] = timepoint
-    print(f'Crops extracted from {timepoint}')
+    print(f"Crops extracted from {timepoint}")
     return data
 
-@task
-def save_track_dataset(data, save_dir):
+def pad(df, t_max, pad =3):
+    t0 = df.index_sequence.min()
+    row_min = df[df.index_sequence == t0].iloc[0].to_dict()
+
+    t1 = df.index_sequence.max()
+    row_max = df[df.index_sequence == t1].iloc[0].to_dict()
+
+    new_df = []
+    for i in range(-pad, 0, 1):
+        pad_timepoint= t0 + i
+        if pad_timepoint >= 0:
+            temp = deepcopy(row_min)
+            temp['index_sequence']= pad_timepoint
+            new_df.append(temp)
+
+    for i in range(1, pad+1, 1):
+        pad_timepoint= t1 + i
+        if pad_timepoint < t_max:
+            temp = deepcopy(row_max)
+            temp['index_sequence'] =  pad_timepoint
+            new_df.append(temp)
+    new_df = pd.concat([df, pd.DataFrame(new_df)])
+    return new_df
+
+def get_rois(image_objects, single_cell_step, padding= 2, xy_resize=2.5005):
+    """
+        returns padded rois to extract from each timestep
+    """
+    print('Extracting ROIs')
+    single_cell_df = pd.concat([obj.load_step(single_cell_step)[['roi', 'track_id', 'index_sequence']] for obj in image_objects])
+    #  remove [], split on commas, z coords, resize to 20x coords, convert to int
+    single_cell_df['roi'] = (
+        single_cell_df["roi"]
+        .apply(lambda x: (np.array(x[1:-1].split(",")[2:], dtype=float) / xy_resize).astype(int))
+        .values
+    )
+    t_max = single_cell_df.index_sequence.max()
+    print('Padding ROIs')
+    single_cell_df = single_cell_df.groupby('track_id').apply(lambda x: pad(x, t_max, pad = padding))
+    return single_cell_df
+
+def save_track(data, save_dir):
+    track_id, data = data
+    if len(data["img"]) < 50:
+        return
+    metadata = {
+        "track_start": data["track_start"],
+        "timepoints": data["timepoints"],
+        "track_id": track_id,
+        "img": save_dir / f"{track_id}.tif",
+    }
+    OmeTiffWriter.save(
+        uri=metadata["img"], data=np.stack(data["img"]).astype(float), dimension_order="CYX"
+    )
+    print(f"{track_id} saved")
+    return pd.DataFrame([metadata])
+
+
+def aggregate_by_track(data):
     # iterate by timepoint
+    tp_order = np.argsort([d["timepoint"] for d in data])
     data_by_track = {}
-    for timepoint_patch_dict in data:
-        # patch metadata
+    for idx in tqdm.tqdm(tp_order):
+        timepoint_patch_dict = data[idx]
         timepoint = timepoint_patch_dict["timepoint"]
+        # patch metadata
         del timepoint_patch_dict["timepoint"]
 
         # patch data
@@ -50,25 +110,12 @@ def save_track_dataset(data, save_dir):
                     "img": [],
                     "track_start": int(timepoint),
                     "track_id": track_id,
+                    "timepoints": [],
                 }
             data_by_track[track_id]["img"].append(patch)
+            data_by_track[track_id]["timepoints"].append(timepoint)
+    return data_by_track
 
-    metadata = []
-    # aggregate by track
-    for track_id, data in data_by_track.items():
-        img = np.stack(data["img"])
-
-        metadata.append(
-            {
-                'track_start': data["track_start"],
-                'track_id': track_id,
-                'path': save_dir/f'{track_id}.tiff'
-            }
-        )
-        OmeTiffWriter.save(uri = save_dir + f'{track_id}.tif', data = img.astype(float), dimension_order = 'CYX')
-        print(f'{track_id} saved')
-    metadata = pd.DataFrame(metadata)
-    metadata.to_csv(save_dir + f"predict.csv")
 
 @task
 def load_model(
@@ -90,24 +137,38 @@ def load_model(
     model.override_config(overrides)
     return model
 
+
 @task(retries=3, retry_delay_seconds=[10, 60, 120])
 def run_evaluate(model):
     return model.predict()
 
-
-@flow(task_runner=create_task_runner(), log_prints=True)
-def formation_breakdown(image_object_paths, output_name, image_step, single_cell_step, config_path, overrides):
-    image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
+def formation_breakdown(
+    image_objects,
+    tags,
+    output_name,
+    image_step,
+    single_cell_step,
+    config_path,
+    overrides,
+    run_type,
+):
     output_dir = Path(f"{image_objects[0].working_dir}/formation_breakdown/{output_name}")
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    data = []
-    for obj in image_objects:
-        data.append(extract_fov_tracks.submit(obj, image_step, single_cell_step))
-    data = [d.result() for d in data]
-
     data_dir = output_dir / "data"
-    save_track_dataset(data, data_dir)
+    data_dir.mkdir(parents=True, exist_ok=True)
+    if not (data_dir / "predict.csv").exists():
+        rois = get_rois(image_objects, single_cell_step)
+        input_data = [(obj, rois[rois.index_sequence == obj.metadata['T']]) for obj in image_objects]
+        _, data = parallelize_across_images(
+            input_data,
+            extract_fov_tracks,
+            tags,
+            create_output=False,
+            image_step=image_step,
+            data_name = "data",
+        )
+        data = aggregate_by_track(data)
+        metadata = pd.concat([save_track(d, data_dir) for d in data.items()])
+        metadata.to_csv(data_dir / "predict.csv")
 
     model = load_model(data_dir, config_path, overrides)
     _, _, out = run_evaluate(model)
