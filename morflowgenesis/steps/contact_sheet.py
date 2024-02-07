@@ -7,7 +7,7 @@ from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
+from morflowgenesis.utils import pad_coords, StepOutput, parallelize_across_images
 
 
 def make_rgb(img, contour):
@@ -50,17 +50,6 @@ def project(raw, seg):
     ] = x_project  # bottom right
 
     return out.astype(np.uint8)
-
-
-def pad_coords(s, padding, constraints):
-    # pad slice by padding subject to image size constraints
-    new_slice = []
-    for slice_part, c in zip(s, constraints):
-        start = max(0, slice_part.start - padding)
-        stop = min(c, slice_part.stop + padding)
-        new_slice.append(slice(start, stop, None))
-    return tuple(new_slice)
-
 
 def project_cell(row, raw_name, seg_names):
     raw = AICSImage(row["crop_raw_path"].iloc[0])
@@ -130,7 +119,7 @@ def generate_fov_contact_sheet(image_object, output_name, raw_name, seg_step):
     for val, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        coords = pad_coords(coords, 10, raw.shape)
+        coords = pad_coords(coords, 10, raw.shape, return_edge=False)
         raw_crop = raw[coords]
         seg_crop = find_boundaries(seg[coords] == val, mode="inner")[None]
         cells.append((project(raw_crop, seg_crop), val))

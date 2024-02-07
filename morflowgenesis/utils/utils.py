@@ -1,10 +1,12 @@
 from omegaconf import ListConfig
 from prefect.flows import Flow
 from prefect.tasks import Task
+from scipy.ndimage import label
+import numpy as np
 
-
-def submit(task_function, tags=[], **kwargs):
-    task = Task(task_function, name=task_function.__name__, tags=tags, log_prints=True)
+def submit(task_function, tags=[], name = None,**kwargs):
+    name = name or task_function.__name__
+    task = Task(task_function, name=name, tags=tags, log_prints=True)
     return task.submit(**kwargs)
 
 
@@ -24,28 +26,9 @@ def parallelize_across_images(
     return data, results
 
 
-def parallelize_across_objects(
-    data, task_function, object_extraction_fn, combine_results_fn, tags=[], **kwargs
-):
-    """data is list of image objects."""
-    all_results = []
-    for d in data:
-        results = []
-        objects = object_extraction_fn(d)
-        for i in objects:
-            kwargs.update({"image_object": d})
-            kwargs.update(i)
-            results.append(submit(task_function, tags=tags, **kwargs))
-        comb = combine_results_fn(image_object=d, results=[r.result() for r in results])
-        all_results.append(comb)
-        d.add_step_output(comb)
-        d.save()
-    return data, all_results
-
-
-def run_flow(flow_function, task_runner, run_type, tags, **kwargs):
+def run_flow(flow_function, task_runner,  tags, **kwargs):
     flow = Flow(flow_function, task_runner=task_runner)
-    kwargs.update({"run_type": run_type, "tags": tags})
+    kwargs.update({ "tags": tags})
     # returns completed, pending, running, and failed state
     return flow._run(**kwargs).type
 
@@ -54,3 +37,28 @@ def to_list(x):
     if isinstance(x, (list, ListConfig)):
         return x
     return [x]
+
+
+def get_largest_cc(im, label = True):
+    im, n= label(im)
+    if n > 0:
+        largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
+        return im == largest_cc
+    return im
+
+
+def pad_coords(s, padding, constraints, include_ch=False, return_edge=True):
+    # pad slice by padding subject to image size constraints
+    is_edge = False
+    new_slice = [slice(None, None)] if include_ch else []
+    for slice_part, c, p in zip(s, constraints, padding):
+        if slice_part.start == 0 or slice_part.stop >= c:
+            is_edge = True
+        start = max(0, slice_part.start - p)
+        stop = min(c, slice_part.stop + p)
+        new_slice.append(slice(start, stop, None))
+    if return_edge:
+        return tuple(new_slice), is_edge
+    return tuple(new_slice)
+
+#extract_objects

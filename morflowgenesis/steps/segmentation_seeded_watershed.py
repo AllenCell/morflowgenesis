@@ -3,24 +3,7 @@ from scipy.ndimage import binary_dilation, binary_erosion, find_objects, gaussia
 from skimage.measure import label
 from skimage.segmentation import watershed
 
-from morflowgenesis.utils import StepOutput, parallelize_across_images, get_largest_cc
-
-
-def pad_slice(s, padding, constraints):
-    # pad slice by padding subject to image size constraints
-    is_edge = False
-    new_slice = []
-    for slice_part, c in zip(s, constraints):
-        if slice_part.start == 0 or slice_part.stop >= c:
-            is_edge = True
-        start = max(0, slice_part.start - padding)
-        stop = min(c, slice_part.stop + padding)
-        new_slice.append(slice(start, stop, None))
-    return tuple(new_slice), is_edge
-
-
-
-
+from morflowgenesis.utils import StepOutput, parallelize_across_images, get_largest_cc, pad_coords
 
 def generate_bg_seed(seg, lab):
     """returns background seeds where 2 is border and 3 is other objects."""
@@ -108,7 +91,7 @@ def watershed_fov(
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        coords, is_edge = pad_slice(coords, padding, seg.shape)
+        coords, is_edge = pad_coords(coords, padding, seg.shape)
         if not include_edge and is_edge:
             continue
         crop_raw, crop_seg = raw[coords], seg[coords]

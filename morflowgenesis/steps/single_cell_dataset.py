@@ -12,13 +12,13 @@ from aicsimageio.writers import OmeTiffWriter
 from omegaconf import ListConfig
 from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
-from skimage.measure import label
 from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import (
     StepOutput,
     parallelize_across_images,
-    get_largest_cc
+    get_largest_cc,
+    pad_coords
 )
 
 #TODO save manifests to /manifests folder
@@ -169,20 +169,6 @@ def process_cell(
     print("cell_id", cell_id, "done")
     return df
 
-
-def pad_slice(s, padding, constraints):
-    # pad slice by padding subject to image size constraints
-    is_edge = False
-    new_slice = [slice(None, None)]
-    for slice_part, c, p in zip(s, constraints, padding):
-        if slice_part.start == 0 or slice_part.stop >= c:
-            is_edge = True
-        start = max(0, slice_part.start - p)
-        stop = min(c, slice_part.stop + p)
-        new_slice.append(slice(start, stop, None))
-    return tuple(new_slice), is_edge
-
-
 def mask_images(
     raw_images,
     seg_images,
@@ -327,7 +313,7 @@ def extract_cells_from_fov(
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
-        padded_coords, is_edge = pad_slice(coords, padding, seg_images[splitting_ch].shape)
+        padded_coords, is_edge = pad_coords(coords, padding, seg_images[splitting_ch].shape, include_ch = True)
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
             raw_images,
