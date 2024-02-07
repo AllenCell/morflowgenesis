@@ -46,7 +46,8 @@ def parallelize_across_objects(
 def run_flow(flow_function, task_runner, run_type, tags, **kwargs):
     flow = Flow(flow_function, task_runner=task_runner)
     kwargs.update({"run_type": run_type, "tags": tags})
-    flow._run(**kwargs)
+    # returns completed, pending, running, and failed state
+    return flow._run(**kwargs).type
 
 
 def to_list(x):
