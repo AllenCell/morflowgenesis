@@ -6,6 +6,7 @@ import hydra
 from omegaconf import DictConfig, OmegaConf
 from prefect import flow
 from prefect.task_runners import SequentialTaskRunner
+from prefect.server.schemas.states import StateType
 
 from morflowgenesis.bin.run_step import run_step
 
@@ -16,6 +17,10 @@ logging.getLogger("distributed").setLevel(logging.ERROR)
 def save_workflow_config(working_dir, cfg):
     with open(Path(working_dir) / "workflow_config.yaml", "w") as f:
         OmegaConf.save(config=cfg, f=f)
+
+def check_state(state, step_cfg):
+    if state != StateType.COMPLETED:
+        raise RuntimeError(f"Step {step_cfg['function']} completed with state {state}")
 
 
 @flow(log_prints=True, task_runner=SequentialTaskRunner())
@@ -28,8 +33,8 @@ async def morflowgenesis(cfg):
 
     for step_cfg in cfg["steps"]:
         step_cfg.update({"deployment_name": cfg.get("deployment_name", "default")})
-        run_step(step_cfg, working_dir / "_ImageObjectStore")
-
+        result = run_step(step_cfg, working_dir / "_ImageObjectStore")
+        check_state(result, step_cfg)
 
 # default config is morflowgenesis/configs/workflow_config.yaml
 @hydra.main(version_base="1.3", config_path="../configs/", config_name="workflow_config.yaml")
