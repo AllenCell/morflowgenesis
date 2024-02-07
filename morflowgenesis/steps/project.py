@@ -65,7 +65,6 @@ def project(
     project_slice=None,
     axis=None,
     intensity_rescale_ranges=None,
-    run_type=None,
 ):
     input_steps = to_list(input_steps)
     dtype = get_class(dtype)

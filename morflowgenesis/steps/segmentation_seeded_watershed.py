@@ -151,7 +151,6 @@ def run_watershed(
     min_seed_size=1000,
     include_edge=True,
     padding=10,
-    run_type=None,
 ):
     parallelize_across_images(
         image_objects,

@@ -29,7 +29,6 @@ def get_objects_to_run(object_store_path, step_name, output_name):
 
 def run_step(step_cfg, object_store_path):
     step_fn = step_cfg["function"]
-    step_type = step_cfg.get("step_type", "gather")
     tags = step_cfg.get("tags", [])
     task_runner = step_cfg.get("task_runner")
     task_runner = instantiate(task_runner) if task_runner is not None else ConcurrentTaskRunner()
@@ -43,5 +42,4 @@ def run_step(step_cfg, object_store_path):
     if len(objects_to_run) == 0 and object_store_path.exists():
         return StateType.COMPLETED
     step_args.update({"image_objects": objects_to_run})
-    run_type = "images" if step_type == "gather" else "objects"
-    return run_flow(step_fn, task_runner, run_type, tags, **step_args)
+    return run_flow(step_fn, task_runner, tags, **step_args)

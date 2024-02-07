@@ -38,7 +38,6 @@ def threshold(
     step=None,
     n=None,
     label=False,
-    run_type=None,
 ):
     if step is not None:
         # include end in range

@@ -73,7 +73,6 @@ def split_image(
     channels=-1,
     dimension_order_out="CZYX",
     optical_control_path=None,
-    run_type=None,
     image_objects=None,
 ):
     working_dir = Path(working_dir)

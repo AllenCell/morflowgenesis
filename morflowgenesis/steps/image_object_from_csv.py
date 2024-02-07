@@ -43,7 +43,6 @@ def generate_objects(
     metadata_column=None,
     image_objects=[],
     tags=[],
-    run_type=None,
 ):
 
     existing_ids = [obj.id for obj in image_objects]

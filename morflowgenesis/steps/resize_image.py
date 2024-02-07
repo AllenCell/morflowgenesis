@@ -37,7 +37,6 @@ def resize(
     output_shape=None,
     scale=None,
     order=0,
-    run_type=None,
 ):
     """Resize images to a specified shape or scale with a specified order of interpolation."""
     input_steps = to_list(input_steps)

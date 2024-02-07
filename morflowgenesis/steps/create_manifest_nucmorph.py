@@ -15,7 +15,6 @@ def create_manifest(
     dataset_name: str,
     # breakdown_classification_step: str,
     tags: List[str],
-    run_type: str,
 ):
     # load features and single cell data
     manifest = []

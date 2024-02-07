@@ -80,7 +80,6 @@ def run_cytodl(
     run_id: Optional[str] = None,
     checkpoint_path: Optional[str] = "checkpoints/val/loss/best.ckpt",
     tags=[],
-    run_type=None,
 ):
     """Wrapper function to run cytoDL on a list of image objects. Note that the output will be
     saved to `working_dir/run_cytodl/head_name` for each output task head of your model.

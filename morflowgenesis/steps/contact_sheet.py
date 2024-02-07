@@ -167,7 +167,6 @@ def segmentation_contact_sheet(
     raw_name,
     n_bins=10,
     seg_names=None,
-    run_type=None,
 ):
     if isinstance(seg_names, (list, ListConfig)) and len(seg_names) > 3:
         raise ValueError("Only three segmentation names can be used to create a contact sheet")
@@ -217,7 +216,7 @@ def segmentation_contact_sheet(
 
 
 def segmentation_contact_sheet_all(
-    image_objects, output_name, raw_name, seg_step, tags, run_type
+    image_objects, output_name, raw_name, seg_step, tags
 ):
     parallelize_across_images(
         image_objects,

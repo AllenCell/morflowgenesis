@@ -150,7 +150,6 @@ def formation_breakdown(
     single_cell_step,
     config_path,
     overrides,
-    run_type,
 ):
     output_dir = Path(f"{image_objects[0].working_dir}/formation_breakdown/{output_name}")
     data_dir = output_dir / "data"

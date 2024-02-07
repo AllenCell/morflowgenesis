@@ -113,7 +113,6 @@ def center_crop(
     pad=5,
     min_slices=24,
     sigma_cutoff=2,
-    run_type=None,
 ):
     parallelize_across_images(
         image_objects,
@@ -135,7 +134,6 @@ def center_pad(
     output_name,
     mode="constant",
     pad_rescale=1,
-    run_type=None,
 ):
     parallelize_across_images(
         image_objects,

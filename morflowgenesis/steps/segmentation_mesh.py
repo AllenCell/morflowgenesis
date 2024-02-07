@@ -44,7 +44,6 @@ def mesh(
     output_name,
     input_steps,
     resize=0.2,
-    run_type=None,
 ):
     input_steps = to_list(input_steps)
     for step in input_steps:

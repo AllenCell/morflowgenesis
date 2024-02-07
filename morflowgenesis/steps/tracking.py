@@ -178,7 +178,7 @@ def _do_tracking(image_objects, output_name):
     return run
 
 
-def tracking(image_objects, tags, run_type, output_name, input_step):
+def tracking(image_objects, tags, output_name, input_step):
     Path(f"{image_objects[0].working_dir}/tracking/{output_name}").mkdir(
         parents=True, exist_ok=True
     )

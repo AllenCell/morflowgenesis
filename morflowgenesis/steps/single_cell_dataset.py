@@ -419,7 +419,6 @@ def single_cell_dataset(
     upload_fms=False,
     iou_thresh=None,
     include_edge_cells=True,
-    run_type="images,",
 ):
     # load tracking data if available (same for all images)
     tracking_df = None
@@ -430,65 +429,24 @@ def single_cell_dataset(
     if isinstance(padding, int):
         padding = [padding] * 3
 
-    if run_type == "images":
-        parallelize_across_images(
-            image_objects,
-            process_image,
-            tags=tags,
-            output_name=output_name,
-            splitting_step=splitting_step,
-            padding=padding,
-            mask=mask,
-            keep_lcc=keep_lcc,
-            iou_thresh=iou_thresh,
-            seg_steps=seg_steps,
-            raw_steps=raw_steps,
-            seg_steps_rename=seg_steps_rename,
-            raw_steps_rename=raw_steps_rename,
-            xy_res=xy_res,
-            z_res=z_res,
-            qcb_res=qcb_res,
-            upload_fms=upload_fms,
-            include_edge_cells=include_edge_cells,
-            tracking_df=tracking_df,
-        )
-    elif run_type == "objects":
-        object_extraction_fn = partial(
-            extract_cells_from_fov,
-            splitting_step=splitting_step,
-            padding=padding,
-            mask=mask,
-            keep_lcc=keep_lcc,
-            iou_thresh=iou_thresh,
-            output_name=output_name,
-            seg_steps=seg_steps,
-            raw_steps=raw_steps,
-            seg_steps_rename=seg_steps_rename,
-            raw_steps_rename=raw_steps_rename,
-            xy_res=xy_res,
-            z_res=z_res,
-            qcb_res=qcb_res,
-            upload_fms=upload_fms,
-            include_edge_cells=include_edge_cells,
-            tracking_df=tracking_df,
-        )
-
-        combine_results_fn = partial(create_image_output, output_name=output_name)
-
-        parallelize_across_objects(
-            image_objects,
-            process_cell,
-            object_extraction_fn,
-            combine_results_fn,
-            tags=tags,
-            output_name=output_name,
-            seg_steps=seg_steps,
-            raw_steps=raw_steps,
-            seg_steps_rename=seg_steps_rename,
-            raw_steps_rename=raw_steps_rename,
-            xy_res=xy_res,
-            z_res=z_res,
-            qcb_res=qcb_res,
-            upload_fms=upload_fms,
-            tracking_df=tracking_df,
-        )
+    parallelize_across_images(
+        image_objects,
+        process_image,
+        tags=tags,
+        output_name=output_name,
+        splitting_step=splitting_step,
+        padding=padding,
+        mask=mask,
+        keep_lcc=keep_lcc,
+        iou_thresh=iou_thresh,
+        seg_steps=seg_steps,
+        raw_steps=raw_steps,
+        seg_steps_rename=seg_steps_rename,
+        raw_steps_rename=raw_steps_rename,
+        xy_res=xy_res,
+        z_res=z_res,
+        qcb_res=qcb_res,
+        upload_fms=upload_fms,
+        include_edge_cells=include_edge_cells,
+        tracking_df=tracking_df,
+    )

@@ -330,7 +330,6 @@ def process_object(
 def calculate_features(
     image_objects,
     tags: List[str],
-    run_type: str,
     output_name: str,
     input_step: str,
     features: List[str],
@@ -356,15 +355,14 @@ def calculate_features(
     reference_step: Optional[str]
         For FOV-based features, another image can be used to calculate FOV similarity features (like F1, Dice, etc.)
     """
-    if run_type == "images":
-        parallelize_across_images(
-            image_objects,
-            process_object,
-            tags=tags,
-            input_step=input_step,
-            output_name=output_name,
-            features=features,
-            reference_channel=reference_channel,
-            channels=channels,
-            reference_step=reference_step,
-        )
+    parallelize_across_images(
+        image_objects,
+        process_object,
+        tags=tags,
+        input_step=input_step,
+        output_name=output_name,
+        features=features,
+        reference_channel=reference_channel,
+        channels=channels,
+        reference_step=reference_step,
+    )

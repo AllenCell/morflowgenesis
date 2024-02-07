@@ -16,7 +16,6 @@ def run_pca(
     apply_names: List,
     n_components=10,
     tags=[],
-    run_type=None,
 ):
     if calculate_name in apply_names:
         raise ValueError("Calculate_name cannot be in apply_names")
