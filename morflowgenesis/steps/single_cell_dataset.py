@@ -2,7 +2,6 @@ import hashlib
 import json
 import os
 import re
-from functools import partial
 from pathlib import Path
 from shutil import rmtree
 
@@ -17,12 +16,12 @@ from skimage.measure import label
 from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import (
-    ImageObject,
     StepOutput,
     parallelize_across_images,
-    parallelize_across_objects,
+    get_largest_cc
 )
 
+#TODO save manifests to /manifests folder
 
 def upload_file(
     fms_env: str,
@@ -61,15 +60,6 @@ def get_renamed_image_paths(image_object, steps, rename_steps):
         rename_steps[steps.index(step_name)] + "_path": image_object.get_step(step_name).path
         for step_name in steps
     }
-
-
-def get_largest_cc(im):
-    im = label(im)
-    try:
-        largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
-    except ValueError:
-        return im
-    return im == largest_cc
 
 
 def process_cell(

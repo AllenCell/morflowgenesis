@@ -3,7 +3,7 @@ from scipy.ndimage import binary_dilation, binary_erosion, find_objects, gaussia
 from skimage.measure import label
 from skimage.segmentation import watershed
 
-from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
+from morflowgenesis.utils import StepOutput, parallelize_across_images, get_largest_cc
 
 
 def pad_slice(s, padding, constraints):
@@ -19,10 +19,7 @@ def pad_slice(s, padding, constraints):
     return tuple(new_slice), is_edge
 
 
-def get_largest_cc(im):
-    im = label(im)
-    largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
-    return im == largest_cc
+
 
 
 def generate_bg_seed(seg, lab):

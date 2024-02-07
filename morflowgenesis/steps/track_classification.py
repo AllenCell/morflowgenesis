@@ -9,7 +9,7 @@ from cyto_dl.api import CytoDLModel
 from prefect import task
 from skimage.transform import resize
 
-from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
+from morflowgenesis.utils import StepOutput, parallelize_across_images
 
 
 def extract_fov_tracks(

@@ -11,7 +11,7 @@ from aicsshparam import shparam, shtools
 from skimage.measure import label
 from torchmetrics.classification import BinaryF1Score
 
-from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
+from morflowgenesis.utils import  StepOutput, parallelize_across_images, get_largest_cc
 
 
 def get_surface_area(img, sigma=2):
@@ -73,12 +73,6 @@ def get_shcoeff(img, transform_params=None, lmax=16, sigma=2, return_transform=F
     if return_transform:
         return coeffs, transform_params
     return coeffs
-
-
-def get_largest_cc(im):
-    im = label(im)
-    largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
-    return im == largest_cc
 
 
 def get_f1(img, reference):
