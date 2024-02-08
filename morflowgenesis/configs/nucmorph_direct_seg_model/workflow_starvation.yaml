@@ -1,14 +1,14 @@
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/all_nucmorph/${scene}
-scene: # run on [4, 5, 8]
-name:
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/starvation/${scene}
+scene: 
+name: scene_${scene}
 
 steps:
     # - function: morflowgenesis.steps.split_image
     #   args:
-    #       image_path: //allen/programs/allencell/data/proj0/935/c72/962/3cc/7a4/37b/f4f/6d8/69c/91a/71/20200323_F01_001.czi
+    #       image_path: //allen/programs/allencell/data/proj0/94d/984/e94/01e/48f/6ab/046/00d/c84/1ed/49/AD00004745_20230720_AICS13_L01-01_AcquisitionBlock1_pt1.czi
     #       working_dir: ${working_dir}
     #       output_name: 20x_raw
-    #       channels: [0]
+    #       channels: [1]
     #       dimension_order_out: CZYX
     #       timepoints: -1
     #       scenes:
@@ -107,28 +107,29 @@ steps:
     #       resources:
     #         cpu: 1
 
-    # - function: morflowgenesis.steps.calculate_features
-    #   args:
-    #       output_name: features
-    #       input_step: single_cell_dataset/cells
-    #       features:
-    #           - height
-    #           - height_percentile
-    #           - surface_area
-    #           - volume
-    #           - shcoeff
-    #           - length_width
-    #   task_runner:
-    #     task_limit: 100
-    #     _target_: prefect_dask.DaskTaskRunner
-    #     cluster_class: distributed.LocalCluster
-    #     cluster_kwargs:
-    #       n_workers: ${..task_limit}
-    #       memory_limit: 5Gi
-    #       processes: True
-    #       threads_per_worker: 4
-    #       resources:
-    #         cpu: 1
+
+    - function: morflowgenesis.steps.calculate_features
+      args:
+          output_name: features
+          input_step: single_cell_dataset/cells
+          features:
+              - height
+              - height_percentile
+              - surface_area
+              - volume
+              - shcoeff
+              - length_width
+      task_runner:
+        task_limit: 75
+        _target_: prefect_dask.DaskTaskRunner
+        cluster_class: distributed.LocalCluster
+        cluster_kwargs:
+          n_workers: ${..task_limit}
+          memory_limit: 5Gi
+          processes: True
+          threads_per_worker: 4
+          resources:
+            cpu: 1
 
     - function: morflowgenesis.steps.track_classification.formation_breakdown
       args:
@@ -139,21 +140,21 @@ steps:
           overrides:
               ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/breakdown_classifier_cyto_dl/add_shift_aug/2024-01-25_16-06-21/checkpoints/epoch_089.ckpt"
       task_runner:
-          task_limit: 100
-          _target_: prefect_dask.DaskTaskRunner
-          cluster_class: distributed.LocalCluster
-          cluster_kwargs:
-              n_workers: ${..task_limit}
-              memory_limit: 5Gi
-              processes: True
-              threads_per_worker: 4
-              resources:
-                  cpu: 1
+        task_limit: 100
+        _target_: prefect_dask.DaskTaskRunner
+        cluster_class: distributed.LocalCluster
+        cluster_kwargs:
+          memory_limit: 5Gi
+          processes: True
+          threads_per_worker: 4
+          resources:
+            cpu: 1
+          n_workers: ${..task_limit}
 
-    # - function: morflowgenesis.steps.create_manifest
-    #   args:
-    #       output_name: manifest
-    #       feature_step: calculate_features/features
-    #       single_cell_step: single_cell_dataset/cells
-    #       breakdown_classification_step: formation_breakdown/formation_breakdown
-    #       dataset_name: ${name}
+    - function: morflowgenesis.steps.create_manifest
+      args:
+          output_name: manifest
+          feature_step: calculate_features/features
+          single_cell_step: single_cell_dataset/cells
+          breakdown_classification_step: formation_breakdown/formation_breakdown
+          dataset_name: ${name}

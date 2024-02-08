@@ -1,0 +1,34 @@
+working_dir: //allen/aics/assay-dev/users/Benji/CurrentProjects/validation/new_workflow
+
+local_run: True
+
+steps:
+    - function: morflowgenesis.steps.generate_objects
+      args:
+          csv_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/local/direct_seg_vs_nucmorph_tf_and_seg/manifest.csv
+          working_dir: ${working_dir}
+          source_column: lr
+          non_source_columns: [tf_and_seg, hr]
+      tags: 
+        - generate_objects
+      task_runner:
+        _target_: prefect.task_runners.SequentialTaskRunner
+
+
+    # create dataset with all real/tf lamin and direct/tf_watershed/lamin_watershed images
+    - function: morflowgenesis.steps.single_cell_dataset
+      args:
+          output_name: single_cell
+          splitting_step:  generate_objects/tf_and_seg
+          raw_steps: [generate_objects/hr]
+          seg_steps:
+              [
+                  generate_objects/tf_and_seg
+              ]
+          seg_steps_rename: [tf_and_seg]
+          keep_lcc: True
+          mask: False
+      tags:
+        - single_cell
+      task_runner: 
+        _target_: prefect.task_runners.SequentialTaskRunner
