@@ -15,12 +15,13 @@ from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import (
     StepOutput,
-    parallelize_across_images,
+    extract_objects,
     get_largest_cc,
-    extract_objects
+    parallelize_across_images,
 )
 
-#TODO save manifests to /manifests folder
+# TODO save manifests to /manifests folder
+
 
 def upload_file(
     fms_env: str,
@@ -86,7 +87,6 @@ def process_cell(
     centroid = centroid_from_slice(roi)
     roi = roi_from_slice(roi)
     cell_id = hashlib.sha224(bytes(image_object.id + roi, "utf-8")).hexdigest()
-
 
     df = {
         "CellId": cell_id,
@@ -167,6 +167,7 @@ def process_cell(
     df["name_dict"] = json.dumps(name_dict)
     print("cell_id", cell_id, "done")
     return df
+
 
 def mask_images(
     raw_images,
@@ -332,7 +333,7 @@ def extract_cells_from_fov(
                 "output_name": output_name,
                 "raw_images": crop_raw_images,
                 "seg_images": crop_seg_images,
-                #remove channel dimension from coords
+                # remove channel dimension from coords
                 "roi": coords[1:],
                 "lab": lab,
                 "raw_steps": raw_steps,

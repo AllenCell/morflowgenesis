@@ -3,11 +3,10 @@ import numpy as np
 import pandas as pd
 from aicsimageio import AICSImage
 from omegaconf import ListConfig
-from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import pad_coords, StepOutput, parallelize_across_images, extract_objects
+from morflowgenesis.utils import StepOutput, extract_objects, parallelize_across_images
 
 
 def make_rgb(img, contour):
@@ -30,7 +29,7 @@ def project(raw, seg):
         mid_z, mid_y, mid_x = int(np.median(z)), int(np.median(y)), int(np.median(x))
 
     # raw is zyx, seg is czyx
-    z_project = make_rgb(raw[mid_z], seg[:, mid_z]) 
+    z_project = make_rgb(raw[mid_z], seg[:, mid_z])
     y_project = make_rgb(raw[:, mid_y], seg[:, :, mid_y])
     x_project = make_rgb(raw[:, :, mid_x], seg[:, :, :, mid_x])
     x_project = np.transpose(x_project, (1, 0, 2))
@@ -50,6 +49,7 @@ def project(raw, seg):
     ] = x_project  # bottom right
 
     return out.astype(np.uint8)
+
 
 def project_cell(row, raw_name, seg_names):
     raw = AICSImage(row["crop_raw_path"].iloc[0])
@@ -85,9 +85,7 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title=
     return fig
 
 
-def find_cells_to_plot(
-    n_bins, feature_df, x_feature, y_feature, cell_df
-):
+def find_cells_to_plot(n_bins, feature_df, x_feature, y_feature, cell_df):
     quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]
     # Use qcut to bin the DataFrame by percentiles across both features
     x_binned = pd.qcut(feature_df[x_feature], q=quantile_boundaries, duplicates="drop").unique()
@@ -201,9 +199,7 @@ def segmentation_contact_sheet(
         image_object.save()
 
 
-def segmentation_contact_sheet_all(
-    image_objects, output_name, raw_name, seg_step, tags
-):
+def segmentation_contact_sheet_all(image_objects, output_name, raw_name, seg_step, tags):
     parallelize_across_images(
         image_objects,
         generate_fov_contact_sheet,

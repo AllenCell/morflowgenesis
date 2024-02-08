@@ -8,9 +8,7 @@ from aics_shape_modes.projection import (
 from morflowgenesis.utils import ImageObject, StepOutput
 
 
-def make_shape_space(
-    image_objects, output_name, feature_step, segmentation_names, tags, n_pcs=10
-):
+def make_shape_space(image_objects, output_name, feature_step, segmentation_names, tags, n_pcs=10):
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
 
     for seg_name in segmentation_names:

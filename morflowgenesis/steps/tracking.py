@@ -3,14 +3,13 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from prefect import task
-from scipy.ndimage import find_objects
 from scipy.signal import medfilt
 from timelapsetracking import csv_to_nodes
 from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
-from morflowgenesis.utils import StepOutput, parallelize_across_images, extract_objects
+from morflowgenesis.utils import StepOutput, extract_objects, parallelize_across_images
 
 
 def str_to_array(s):
@@ -20,7 +19,9 @@ def str_to_array(s):
 
 def create_regionprops_csv(image_object, input_step, output_name):
     inst_seg = image_object.get_step(input_step).load_output()
-    save_path = Path(f"{image_object.working_dir}/tracking/{output_name}/{image_object.id}_regionprops.csv")
+    save_path = Path(
+        f"{image_object.working_dir}/tracking/{output_name}/{image_object.id}_regionprops.csv"
+    )
     if save_path.exists():
         out = pd.read_csv(save_path)
         out["img_shape"] = out["img_shape"].apply(str_to_array)
@@ -39,7 +40,12 @@ def create_regionprops_csv(image_object, input_step, output_name):
             "Centroid_y": (coords[1].start + coords[1].stop) // 2,
             "Centroid_x": (coords[2].start + coords[2].stop) // 2,
             "Volume": np.sum(inst_seg[coords] == lab),
-            "Edge_Cell": np.any(np.logical_or(np.asarray([s.start for s in coords]) == 0, np.asarray([s.stop for s in coords]) == field_shape)),
+            "Edge_Cell": np.any(
+                np.logical_or(
+                    np.asarray([s.start for s in coords]) == 0,
+                    np.asarray([s.stop for s in coords]) == field_shape,
+                )
+            ),
             "img_shape": field_shape,
         }
         for lab, coords, _ in objects
@@ -48,6 +54,7 @@ def create_regionprops_csv(image_object, input_step, output_name):
     out = pd.DataFrame(data)
     out.to_csv(save_path, index=False)
     return out
+
 
 def find_outliers_by_volume(vol, thresh=0.10, pad_size=15, kernel=9):
     """detect errors in instance segmentation through changes in volume."""
@@ -190,7 +197,7 @@ def tracking(image_objects, tags, output_name, input_step):
             tags=tags,
             input_step=input_step,
             output_name=output_name,
-            create_output=False
+            create_output=False,
         )
 
         output = track(pd.concat(regionprops), image_objects[0].working_dir, output_name)

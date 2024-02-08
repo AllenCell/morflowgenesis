@@ -1,9 +1,9 @@
+from copy import deepcopy
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import tqdm
-from copy import deepcopy
 from aicsimageio.writers import OmeTiffWriter
 from cyto_dl.api import CytoDLModel
 from prefect import task
@@ -23,19 +23,21 @@ def extract_fov_tracks(
     img = (img - np.mean(img)) / np.std(img)
     rois = rois[rois.index_sequence == timepoint]
 
-    data = {track_id: 
-        resize(
-            img[roi[0] : roi[1], roi[2] : roi[3]], 
-            (resize_shape, resize_shape), 
-            anti_aliasing=True, 
-            preserve_range=True
-        ).astype(np.float16) for roi, track_id in zip(rois['roi'], rois['track_id'])
+    data = {
+        track_id: resize(
+            img[roi[0] : roi[1], roi[2] : roi[3]],
+            (resize_shape, resize_shape),
+            anti_aliasing=True,
+            preserve_range=True,
+        ).astype(np.float16)
+        for roi, track_id in zip(rois["roi"], rois["track_id"])
     }
     data["timepoint"] = timepoint
     print(f"Crops extracted from {timepoint}")
     return data
 
-def pad(df, t_max, pad =3):
+
+def pad(df, t_max, pad=3):
     t0 = df.index_sequence.min()
     row_min = df[df.index_sequence == t0].iloc[0].to_dict()
 
@@ -44,37 +46,42 @@ def pad(df, t_max, pad =3):
 
     new_df = []
     for i in range(-pad, 0, 1):
-        pad_timepoint= t0 + i
+        pad_timepoint = t0 + i
         if pad_timepoint >= 0:
             temp = deepcopy(row_min)
-            temp['index_sequence']= pad_timepoint
+            temp["index_sequence"] = pad_timepoint
             new_df.append(temp)
 
-    for i in range(1, pad+1, 1):
-        pad_timepoint= t1 + i
+    for i in range(1, pad + 1, 1):
+        pad_timepoint = t1 + i
         if pad_timepoint < t_max:
             temp = deepcopy(row_max)
-            temp['index_sequence'] =  pad_timepoint
+            temp["index_sequence"] = pad_timepoint
             new_df.append(temp)
     new_df = pd.concat([df, pd.DataFrame(new_df)])
     return new_df
 
-def get_rois(image_objects, single_cell_step, padding= 2, xy_resize=2.5005):
-    """
-        returns padded rois to extract from each timestep
-    """
-    print('Extracting ROIs')
-    single_cell_df = pd.concat([obj.load_step(single_cell_step)[['roi', 'track_id', 'index_sequence']] for obj in image_objects])
+
+def get_rois(image_objects, single_cell_step, padding=2, xy_resize=2.5005):
+    """returns padded rois to extract from each timestep."""
+    print("Extracting ROIs")
+    single_cell_df = pd.concat(
+        [
+            obj.load_step(single_cell_step)[["roi", "track_id", "index_sequence"]]
+            for obj in image_objects
+        ]
+    )
     #  remove [], split on commas, z coords, resize to 20x coords, convert to int
-    single_cell_df['roi'] = (
+    single_cell_df["roi"] = (
         single_cell_df["roi"]
         .apply(lambda x: (np.array(x[1:-1].split(",")[2:], dtype=float) / xy_resize).astype(int))
         .values
     )
     t_max = single_cell_df.index_sequence.max()
-    print('Padding ROIs')
-    single_cell_df = single_cell_df.groupby('track_id').apply(lambda x: pad(x, t_max, pad = padding))
+    print("Padding ROIs")
+    single_cell_df = single_cell_df.groupby("track_id").apply(lambda x: pad(x, t_max, pad=padding))
     return single_cell_df
+
 
 def save_track(data, save_dir):
     track_id, data = data
@@ -142,6 +149,7 @@ def load_model(
 def run_evaluate(model):
     return model.predict()
 
+
 def formation_breakdown(
     image_objects,
     tags,
@@ -156,14 +164,16 @@ def formation_breakdown(
     data_dir.mkdir(parents=True, exist_ok=True)
     if not (data_dir / "predict.csv").exists():
         rois = get_rois(image_objects, single_cell_step)
-        input_data = [(obj, rois[rois.index_sequence == obj.metadata['T']]) for obj in image_objects]
+        input_data = [
+            (obj, rois[rois.index_sequence == obj.metadata["T"]]) for obj in image_objects
+        ]
         _, data = parallelize_across_images(
             input_data,
             extract_fov_tracks,
             tags,
             create_output=False,
             image_step=image_step,
-            data_name = "data",
+            data_name="data",
         )
         data = aggregate_by_track(data)
         metadata = pd.concat([save_track(d, data_dir) for d in data.items()])

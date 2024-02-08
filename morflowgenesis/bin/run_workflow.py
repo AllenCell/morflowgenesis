@@ -1,6 +1,7 @@
 import asyncio
 import logging
 from pathlib import Path
+
 import hydra
 from omegaconf import DictConfig, OmegaConf
 from prefect import flow
@@ -27,6 +28,7 @@ async def morflowgenesis(cfg):
 
     for step_cfg in cfg["steps"]:
         await run_step(step_cfg, working_dir / "_ImageObjectStore")
+
 
 # default config is morflowgenesis/configs/workflow_config.yaml
 @hydra.main(version_base="1.3", config_path="../configs/", config_name="workflow_config.yaml")

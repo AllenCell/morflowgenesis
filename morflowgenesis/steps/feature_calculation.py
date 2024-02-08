@@ -1,17 +1,15 @@
-from pathlib import Path
-from typing import List, Optional, Union
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
 import torch
-import tqdm
 import vtk
 from aicsimageio import AICSImage
 from aicsshparam import shparam, shtools
 from skimage.measure import label
 from torchmetrics.classification import BinaryF1Score
 
-from morflowgenesis.utils import  StepOutput, parallelize_across_images, get_largest_cc
+from morflowgenesis.utils import StepOutput, get_largest_cc, parallelize_across_images
 
 
 def get_surface_area(img, sigma=2):
@@ -300,7 +298,9 @@ def create_output(image_object, output_name, results):
 def process_object(
     image_object, input_step, output_name, features, reference_channel, channels, reference_step
 ):
-    save_path = image_object.working_dir / "calculate_features" / output_name / f"{image_object.id}.csv"
+    save_path = (
+        image_object.working_dir / "calculate_features" / output_name / f"{image_object.id}.csv"
+    )
     if save_path.exists():
         print(f"Skipping step calculate_features for image {image_object.id}")
         features = pd.read_csv(save_path)

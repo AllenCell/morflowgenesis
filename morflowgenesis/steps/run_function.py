@@ -26,9 +26,7 @@ def apply_function(image_object, input_step, output_name, ch, function, function
     return output
 
 
-def array_to_array(
-    image_objects, output_name, input_steps, function, ch=None, function_args={}
-):
+def array_to_array(image_objects, output_name, input_steps, function, ch=None, function_args={}):
     input_steps = to_list(input_steps)
 
     for step in input_steps:

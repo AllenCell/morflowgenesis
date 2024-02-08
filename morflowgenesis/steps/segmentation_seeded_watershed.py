@@ -1,9 +1,15 @@
 import numpy as np
-from scipy.ndimage import binary_dilation, binary_erosion, find_objects, gaussian_filter
+from scipy.ndimage import binary_dilation, binary_erosion, gaussian_filter
 from skimage.measure import label
 from skimage.segmentation import watershed
 
-from morflowgenesis.utils import StepOutput, parallelize_across_images, get_largest_cc, extract_objects
+from morflowgenesis.utils import (
+    StepOutput,
+    extract_objects,
+    get_largest_cc,
+    parallelize_across_images,
+)
+
 
 def generate_bg_seed(seg, lab):
     """returns background seeds where 2 is border and 3 is other objects."""
@@ -86,8 +92,7 @@ def watershed_fov(
 
     seg = label(seg)
 
-
-    labs, all_coords, edges = extract_objects(seg, padding=padding, zip=False)
+    labs, all_coords, edges = extract_objects(seg, padding=padding, return_zip=False)
     results = []
     for lab, coords, is_edge in zip(labs, all_coords, edges):
         if not include_edge and is_edge:

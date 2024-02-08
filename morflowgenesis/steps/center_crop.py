@@ -29,7 +29,7 @@ def crop(
     sigma_cutoff: Union[int, List[int]] = 2,
 ):
     """Crop to center of an image assuming a Gaussian-like profile along the z-axis."""
-        # add result to image object
+    # add result to image object
     output = StepOutput(
         image_object.working_dir,
         step_name="center_crop",

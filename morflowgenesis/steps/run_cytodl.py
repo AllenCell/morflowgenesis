@@ -86,7 +86,7 @@ def run_cytodl(
 
     Parameters
     ----------
-    image_objects : 
+    image_objects :
         image objects to run
     input_step : str
         Name of step to use as input data

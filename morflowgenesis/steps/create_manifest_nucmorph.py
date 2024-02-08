@@ -48,7 +48,7 @@ def create_manifest(
             "nuc_seg_path": "seg_full_zstack_path",
         }
     )
-    manifest['dataset'] = dataset_name
+    manifest["dataset"] = dataset_name
 
     # save
     step_output = StepOutput(
