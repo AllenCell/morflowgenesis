@@ -23,7 +23,8 @@ def apply_function(image_object, input_step, output_name, ch, function, function
         image_id=image_object.id,
     )
     output.save(applied)
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
 def array_to_array(image_objects, output_name, input_steps, function, ch=None, function_args={}):

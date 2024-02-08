@@ -1,10 +1,9 @@
 import re
-from pathlib import Path
-from typing import List, Union
+from typing import List
 
 import pandas as pd
 
-from morflowgenesis.utils import ImageObject, StepOutput
+from morflowgenesis.utils import StepOutput
 
 
 def create_manifest(
@@ -13,7 +12,7 @@ def create_manifest(
     feature_step: str,
     single_cell_step: str,
     dataset_name: str,
-    # breakdown_classification_step: str,
+    breakdown_classification_step: str,
     tags: List[str],
 ):
     # load features and single cell data
@@ -32,8 +31,8 @@ def create_manifest(
 
     # add formation/breakdown information based on track_id
     # same for all objects, just load once
-    # breakdown_classification = obj.load_step(breakdown_classification_step)
-    # manifest = pd.merge(manifest, breakdown_classification, on="track_id")
+    breakdown_classification = obj.load_step(breakdown_classification_step)
+    manifest = pd.merge(manifest, breakdown_classification, on="track_id")
 
     # sort manifest
     manifest = manifest.sort_values(by="index_sequence")

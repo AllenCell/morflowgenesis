@@ -1,12 +1,12 @@
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict,  Optional
 
 import mlflow
 from cyto_dl.api import CytoDLModel
 from prefect import task
 
-from morflowgenesis.utils import ImageObject, StepOutput
+from morflowgenesis.utils import StepOutput
 
 
 def download_mlflow_model(

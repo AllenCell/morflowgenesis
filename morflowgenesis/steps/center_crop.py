@@ -78,7 +78,8 @@ def crop(
     np.save(
         image_object.working_dir / "center_crop" / output_name / f"{image_object.id}.npy", padding
     )
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
 def uncrop(image_object, output_name, image_step, cropping_step, mode="constant", pad_rescale=1):
@@ -102,7 +103,8 @@ def uncrop(image_object, output_name, image_step, cropping_step, mode="constant"
         print("image padded")
         output.save(img)
     print("image saved")
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
 def center_crop(

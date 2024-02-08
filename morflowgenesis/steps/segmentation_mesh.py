@@ -2,7 +2,6 @@ from aicsshparam import shtools
 from skimage.transform import rescale
 
 from morflowgenesis.utils import (
-    ImageObject,
     StepOutput,
     parallelize_across_images,
     to_list,
@@ -35,7 +34,8 @@ def create_mesh(image_object, output_name, seg_step, resize):
         path=save_path,
     )
     shtools.save_polydata(mesh, str(step_output.path))
-    return step_output
+    image_object.add_step_output(step_output)
+    image_object.save()
 
 
 def mesh(

@@ -3,10 +3,8 @@ from prefect import flow, task
 from skimage.measure import label as run_label
 
 from morflowgenesis.utils import (
-    ImageObject,
     StepOutput,
     parallelize_across_images,
-    submit,
 )
 
 
@@ -24,7 +22,8 @@ def run_threshold(image_object, input_step, output_name, thresh, label):
     if label:
         out = run_label(out)
     step.save(out.astype(np.uint8))
-    return step
+    image_object.add_step_output(step)
+    image_object.save()
 
 
 @flow(log_prints=True)

@@ -1,7 +1,7 @@
 import numpy as np
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
+from morflowgenesis.utils import StepOutput, parallelize_across_images
 
 
 def align(
@@ -42,7 +42,8 @@ def align(
         image_id=image_object.id,
     )
     output.save(new_seg)
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
 def align_segmentations_to_image(image_objects, image_step, segmentation_steps, boundary=False):

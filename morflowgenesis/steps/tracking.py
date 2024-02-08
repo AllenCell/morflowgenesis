@@ -197,7 +197,6 @@ def tracking(image_objects, tags, output_name, input_step):
             tags=tags,
             input_step=input_step,
             output_name=output_name,
-            create_output=False,
         )
 
         output = track(pd.concat(regionprops), image_objects[0].working_dir, output_name)

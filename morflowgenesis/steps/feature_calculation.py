@@ -292,7 +292,8 @@ def create_output(image_object, output_name, results):
         image_id=image_object.id,
     )
     step_output.save(image_df)
-    return step_output
+    image_object.add_step_output(step_output)
+    image_object.save()
 
 
 def process_object(

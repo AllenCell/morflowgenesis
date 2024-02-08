@@ -121,7 +121,8 @@ def watershed_fov(
         image_id=image_object.id,
     )
     output.save(seg)
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
 def run_watershed(

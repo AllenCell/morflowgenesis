@@ -12,7 +12,7 @@ def submit(task_function, tags=[], name=None, **kwargs):
 
 
 def parallelize_across_images(
-    data, task_function, tags=[], data_name="image_object", create_output=True, **kwargs
+    data, task_function, tags=[], data_name="image_object", **kwargs
 ):
     """data is list of image objects results is list of step outputs, one per image object."""
     results = []
@@ -20,10 +20,6 @@ def parallelize_across_images(
         kwargs.update({data_name: d})
         results.append(submit(task_function, tags=tags, **kwargs))
     results = [r.result() for r in results]
-    if create_output:
-        for d, r in zip(data, results):
-            d.add_step_output(r)
-            d.save()
     return data, results
 
 

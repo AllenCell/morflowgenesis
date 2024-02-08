@@ -2,7 +2,6 @@ from skimage.transform import rescale as sk_rescale
 from skimage.transform import resize as sk_resize
 
 from morflowgenesis.utils import (
-    ImageObject,
     StepOutput,
     parallelize_across_images,
     to_list,
@@ -26,7 +25,8 @@ def run_resize(image_object, output_name, input_step, output_shape=None, scale=N
         image_id=image_object.id,
     )
     output.save(img.astype(input_dtype))
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
 def resize(
@@ -51,5 +51,4 @@ def resize(
             output_shape=output_shape,
             scale=scale,
             order=order,
-            run_within_object=True,
         )

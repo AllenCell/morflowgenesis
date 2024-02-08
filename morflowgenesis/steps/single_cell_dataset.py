@@ -353,24 +353,21 @@ def extract_cells_from_fov(
 
 
 def process_image(**kwargs):
-    cell_df = []
     cell_info = extract_cells_from_fov(**kwargs)
-    for cell in cell_info:
-        cell_df.append(process_cell(**cell))
-    return create_image_output(kwargs["image_object"], kwargs["output_name"], cell_df)
+    cell_df =pd.concat([process_cell(**cell) for cell in cell_info])
 
-
-def create_image_output(image_object, output_name, results):
-    image_df = pd.concat(results)
+    image_object= kwargs["image_object"]
     step_output = StepOutput(
         image_object.working_dir,
         "single_cell_dataset",
-        output_name,
+        kwargs["output_name"],
         output_type="csv",
         image_id=image_object.id,
     )
-    step_output.save(image_df)
-    return step_output
+
+    step_output.save(cell_df)
+    image_object.add_step_output(step_output)
+    image_object.save()
 
 
 def single_cell_dataset(

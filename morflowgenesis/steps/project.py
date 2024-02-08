@@ -4,7 +4,6 @@ from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 
 from morflowgenesis.utils import (
-    ImageObject,
     StepOutput,
     parallelize_across_images,
     to_list,
@@ -51,8 +50,9 @@ def run_project(
         image_id=image_object.id,
     )
     output.save(img)
+    image_object.add_step_output(output)
+    image_object.save()
     return output
-
 
 def project(
     image_objects,

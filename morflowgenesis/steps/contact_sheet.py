@@ -136,7 +136,8 @@ def generate_fov_contact_sheet(image_object, output_name, raw_name, seg_step):
         image_id=image_object.id,
     )
     contact_sheet.savefig(output.path, dpi=300)
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
 def segmentation_contact_sheet(
@@ -171,7 +172,6 @@ def segmentation_contact_sheet(
         project_cell,
         tags,
         data_name="row",
-        create_output=False,
         raw_name=raw_name,
         seg_names=seg_names,
     )

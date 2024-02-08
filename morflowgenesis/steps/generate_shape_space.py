@@ -1,11 +1,10 @@
-import numpy as np
 import pandas as pd
 from aics_shape_modes.projection import (
     compute_pca_on_reps,
     write_all_shape_modes_latent_walk,
 )
 
-from morflowgenesis.utils import ImageObject, StepOutput
+from morflowgenesis.utils import StepOutput
 
 
 def make_shape_space(image_objects, output_name, feature_step, segmentation_names, tags, n_pcs=10):
