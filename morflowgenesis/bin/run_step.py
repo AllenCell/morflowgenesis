@@ -1,4 +1,3 @@
-import subprocess
 from datetime import datetime
 
 from hydra._internal.utils import _locate
@@ -58,6 +57,7 @@ async def tear_down_task_limits(step_cfg):
     async with get_client() as client:
         try:
             await client.delete_concurrency_limit_by_tag(tag=step_cfg["tags"][0])
+            print(f'Deleted task limit for {step_cfg["function"]}')
         except ObjectNotFound:
             print("Concurrency limit not found")
 
