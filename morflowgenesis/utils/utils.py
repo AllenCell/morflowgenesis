@@ -1,11 +1,11 @@
+import numpy as np
 from omegaconf import ListConfig
 from prefect.flows import Flow
 from prefect.tasks import Task
-from scipy.ndimage import label
-import numpy as np
-from scipy.ndimage import find_objects
+from scipy.ndimage import find_objects, label
 
-def submit(task_function, tags=[], name = None,**kwargs):
+
+def submit(task_function, tags=[], name=None, **kwargs):
     name = name or task_function.__name__
     task = Task(task_function, name=name, tags=tags, log_prints=True)
     return task.submit(**kwargs)
@@ -27,9 +27,9 @@ def parallelize_across_images(
     return data, results
 
 
-def run_flow(flow_function, task_runner,  tags, **kwargs):
+def run_flow(flow_function, task_runner, tags, **kwargs):
     flow = Flow(flow_function, task_runner=task_runner)
-    kwargs.update({ "tags": tags})
+    kwargs.update({"tags": tags})
     # returns completed, pending, running, and failed state
     return flow._run(**kwargs).type
 
@@ -40,9 +40,9 @@ def to_list(x):
     return [x]
 
 
-def get_largest_cc(im, do_label = True):
+def get_largest_cc(im, do_label=True):
     if do_label:
-        im, n= label(im)
+        im, n = label(im)
     else:
         n = im.max()
     if n > 0:
@@ -67,26 +67,27 @@ def pad_coords(s, padding, constraints, include_ch=False, return_edge=True):
         return tuple(new_slice), is_edge
     return tuple(new_slice)
 
-def extract_objects(img, padding=0, constraints=None, include_ch=False, zip = True):
-    """
-    takes in labeled image, amount to pad coordinates, and maximum value of coordinates
-    returns tuples of (lab, coords, is_edge)
-    """
+
+def extract_objects(img, padding=0, constraints=None, include_ch=False, return_zip=True):
+    """takes in labeled image, amount to pad coordinates, and maximum value of coordinates returns
+    tuples of (lab, coords, is_edge)"""
     if constraints is None:
         constraints = img.shape
 
     regions = find_objects(img.astype(int))
     labels = []
     rois = []
-    is_edge = []
+    edge = []
 
     for lab, coords in enumerate(regions, start=1):
         if coords is None:
             continue
         labels.append(lab)
-        coords, is_edge = pad_coords(coords, padding, constraints, include_ch=include_ch, return_edge=True)
+        coords, is_edge = pad_coords(
+            coords, padding, constraints, include_ch=include_ch, return_edge=True
+        )
         rois.append(coords)
-        is_edge.append(is_edge)
-    if zip:
-        return zip(labels, rois, is_edge)
-    return labels, rois, is_edge
+        edge.append(is_edge)
+    if return_zip:
+        return zip(labels, rois, edge)
+    return labels, rois, edge
