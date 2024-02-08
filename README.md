@@ -24,7 +24,7 @@ pip install -e .
 1. Set up a postgres database for tracking workflow artifacts
 
 ```
-docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=prefect postgres:latest postgres -N 100
+docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=prefect --shm-size=1g postgres:latest -c 'max_connections=300' -c 'shared_buffers=500MB'
 ```
 
 2. Set up a prefect server
@@ -42,16 +42,30 @@ export PREFECT_SQLALCHEMY_POOL_SIZE=10
 export PREFECT_SQLALCHEMY_MAX_OVERFLOW=100
 ```
 
-## Running Example Workflows
-
-1. Create Personal Access Token on GitHub with access to morflowgenesis repo (if one doesn't exist)
-2. Create a [Secret block](https://prefect.a100.int.allencell.org/blocks/catalog/secret) that has the value of your PAT and copy the name of the block into your config under the `pull:secret_block_name` key. Under `pull`, also specify the name of the branch that you want to pull from.
+4. \[OPTIONAL\] Add task runners
+   By default, tasks are run using `prefect.task_runners.SequntialTaskRunner`, which implements a simple parallelization strategy. If you want to run tasks differently, you can pass a `task-runner` argument to any step. For example,
 
 ```
-prefect config set PREFECT_API_DATABASE_CONNECTION_URL="https://prefect.a100.int.allencell.org/api"
-
-python morflowgenesis/bin/run_workflow.py --config-name nucleolus_morph.yaml
+- function: morflowgenesis.steps.foo
+    args:
+        foo: bar
+    tags:
+    - task1
+    task_runner:
+        task_limit: 10
+        _target_: prefect_dask.DaskTaskRunner
+        cluster_class: distributed.LocalCluster
+        cluster_kwargs:
+            n_workers: ${..task_limit}
+            memory_limit: 5Gi
+            processes: True
+            threads_per_worker: 4
+            resources:
+            cpu: 1
 ```
+Under `task_runner`, you can include a `_target_` with the task runner you want to use and a `task_limit` which sets a unique `prefect concurrency-limit` for your step. Limiting task concurrency can be useful for resource-intensive steps.
+
+will create a `DaskTaskRunner` with a `LocalCluster` and a memory limit of 5Gi per worker. Please see the [prefect task runner docs](https://docs.prefect.io/latest/concepts/task-runners/) for more information on available task runners.
 
 ## Development
 
