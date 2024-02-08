@@ -12,7 +12,7 @@ mlflow==2.5.0
 numpy==1.24.4
 omegaconf==2.3.0
 pandas==1.5.3
-prefect==2.82
+prefect==2.14.20
 prefect_dask==0.2.5
 pydantic==1.10.12
 python-slugify==8.0.1
