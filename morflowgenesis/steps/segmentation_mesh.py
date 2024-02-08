@@ -1,11 +1,7 @@
 from aicsshparam import shtools
 from skimage.transform import rescale
 
-from morflowgenesis.utils import (
-    StepOutput,
-    parallelize_across_images,
-    to_list,
-)
+from morflowgenesis.utils import StepOutput, parallelize_across_images, to_list
 
 
 def create_mesh(image_object, output_name, seg_step, resize):

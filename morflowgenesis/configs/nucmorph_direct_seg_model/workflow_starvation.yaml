@@ -1,5 +1,5 @@
 working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/starvation/${scene}
-scene: 
+scene:
 name: scene_${scene}
 
 steps:
@@ -107,7 +107,6 @@ steps:
     #       resources:
     #         cpu: 1
 
-
     - function: morflowgenesis.steps.calculate_features
       args:
           output_name: features
@@ -120,16 +119,16 @@ steps:
               - shcoeff
               - length_width
       task_runner:
-        task_limit: 75
-        _target_: prefect_dask.DaskTaskRunner
-        cluster_class: distributed.LocalCluster
-        cluster_kwargs:
-          n_workers: ${..task_limit}
-          memory_limit: 5Gi
-          processes: True
-          threads_per_worker: 4
-          resources:
-            cpu: 1
+          task_limit: 75
+          _target_: prefect_dask.DaskTaskRunner
+          cluster_class: distributed.LocalCluster
+          cluster_kwargs:
+              n_workers: ${..task_limit}
+              memory_limit: 5Gi
+              processes: True
+              threads_per_worker: 4
+              resources:
+                  cpu: 1
 
     - function: morflowgenesis.steps.track_classification.formation_breakdown
       args:
@@ -140,16 +139,16 @@ steps:
           overrides:
               ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/breakdown_classifier_cyto_dl/add_shift_aug/2024-01-25_16-06-21/checkpoints/epoch_089.ckpt"
       task_runner:
-        task_limit: 100
-        _target_: prefect_dask.DaskTaskRunner
-        cluster_class: distributed.LocalCluster
-        cluster_kwargs:
-          memory_limit: 5Gi
-          processes: True
-          threads_per_worker: 4
-          resources:
-            cpu: 1
-          n_workers: ${..task_limit}
+          task_limit: 100
+          _target_: prefect_dask.DaskTaskRunner
+          cluster_class: distributed.LocalCluster
+          cluster_kwargs:
+              memory_limit: 5Gi
+              processes: True
+              threads_per_worker: 4
+              resources:
+                  cpu: 1
+              n_workers: ${..task_limit}
 
     - function: morflowgenesis.steps.create_manifest
       args:

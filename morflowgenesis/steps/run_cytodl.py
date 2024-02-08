@@ -1,6 +1,6 @@
 import shutil
 from pathlib import Path
-from typing import Any, Dict,  Optional
+from typing import Any, Dict, Optional
 
 import mlflow
 from cyto_dl.api import CytoDLModel

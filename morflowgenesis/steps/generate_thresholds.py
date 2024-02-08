@@ -2,10 +2,7 @@ import numpy as np
 from prefect import flow, task
 from skimage.measure import label as run_label
 
-from morflowgenesis.utils import (
-    StepOutput,
-    parallelize_across_images,
-)
+from morflowgenesis.utils import StepOutput, parallelize_across_images
 
 
 @task

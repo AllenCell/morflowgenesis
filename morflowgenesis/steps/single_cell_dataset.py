@@ -354,9 +354,9 @@ def extract_cells_from_fov(
 
 def process_image(**kwargs):
     cell_info = extract_cells_from_fov(**kwargs)
-    cell_df =pd.concat([process_cell(**cell) for cell in cell_info])
+    cell_df = pd.concat([process_cell(**cell) for cell in cell_info])
 
-    image_object= kwargs["image_object"]
+    image_object = kwargs["image_object"]
     step_output = StepOutput(
         image_object.working_dir,
         "single_cell_dataset",
