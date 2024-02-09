@@ -117,6 +117,7 @@ ENV/
 
 # hydra
 /morflowgenesis/outputs
+/outputs
 
 # ignore local configs
 /morflowgenesis/configs/local/

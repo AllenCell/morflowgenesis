@@ -4,7 +4,7 @@ import os
 import re
 from pathlib import Path
 from shutil import rmtree
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
@@ -377,7 +377,7 @@ def single_cell_dataset(
     tags: List[str],
     output_name: str,
     splitting_step: str,
-    seg_steps: str,
+    seg_steps: List[str],
     raw_steps: Optional[List[str]] = [],
     raw_steps_rename: Optional[List[str]] = None,
     seg_steps_rename: Optional[List[str]] = None,
@@ -385,7 +385,7 @@ def single_cell_dataset(
     xy_res: Optional[float] = 0.108,
     z_res: Optional[float] = 0.29,
     qcb_res: Optional[float] = 0.108,
-    padding: Optional[int] = 10,
+    padding: Optional[Union[int, List[int]]] = 10,
     mask: Optional[bool] = True,
     keep_lcc: Optional[bool] = False,
     upload_fms: Optional[bool] = False,
@@ -420,8 +420,8 @@ def single_cell_dataset(
         Resolution in z plane of images.
     qcb_res : float, optional
         Resolution of images to resize to
-    padding : int, optional
-        Padding around each object
+    padding : int or List[int], optional
+        Padding around each object. If single int, same for all axes, otherwise padding is per-axis
     mask : bool, optional
         Whether to mask out objects in the segmentation images based on splitting step
     keep_lcc : bool, optional

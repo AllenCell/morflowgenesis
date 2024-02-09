@@ -1,6 +1,6 @@
 from copy import deepcopy
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 import numpy as np
 import pandas as pd
@@ -179,7 +179,7 @@ def formation_breakdown(
     image_step: str,
     single_cell_step: str,
     config_path: str,
-    overrides: List[str],
+    overrides: Dict[str, str],
     n_extract: Optional[int] = -1,
     min_track_length: Optional[int] = -1,
     padding: Optional[int] = 2,

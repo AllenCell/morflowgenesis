@@ -239,7 +239,13 @@ def segmentation_contact_sheet(
         image_object.save()
 
 
-def segmentation_contact_sheet_all(image_objects, output_name, raw_name, seg_step, tags):
+def segmentation_contact_sheet_all(
+    image_objects: List[ImageObject],
+    output_name: str,
+    raw_name: str,
+    seg_step: str,
+    tags: List[str],
+):
     parallelize_across_images(
         image_objects,
         generate_fov_contact_sheet,

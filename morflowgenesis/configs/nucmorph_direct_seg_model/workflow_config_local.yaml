@@ -1,134 +1,138 @@
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/all_nucmorph/${scene}
-scene: # run on [4, 5, 8]
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/install_test/${scene}
+scene:
 name:
 
 steps:
-    # - function: morflowgenesis.steps.split_image
-    #   args:
-    #       image_path: //allen/programs/allencell/data/proj0/935/c72/962/3cc/7a4/37b/f4f/6d8/69c/91a/71/20200323_F01_001.czi
-    #       working_dir: ${working_dir}
-    #       output_name: 20x_raw
-    #       channels: [0]
-    #       dimension_order_out: CZYX
-    #       timepoints: -1
-    #       scenes:
-    #         - ${scene}
-    #   task_runner:
-    #     task_limit: 50
-    #     _target_: prefect_dask.DaskTaskRunner
-    #     cluster_class: distributed.LocalCluster
-    #     cluster_kwargs:
-    #       n_workers: ${..task_limit}
-    #       memory_limit: 5Gi
-    #       processes: True
-    #       threads_per_worker: 4
-    #       resources:
-    #         cpu: 1
+    - function: morflowgenesis.steps.split_image
+      args:
+          # image_path: //allen/programs/allencell/data/proj0/935/c72/962/3cc/7a4/37b/f4f/6d8/69c/91a/71/20200323_F01_001.czi
+          # channels: [0]
 
-    # - function: morflowgenesis.steps.center_crop.center_crop
-    #   args:
-    #     image_step: split_image/20x_raw
-    #     output_name: center_crop
-    #     sigma_cutoff: [2, 3]
-    #   task_runner:
-    #     task_limit: 50
-    #     _target_: prefect_dask.DaskTaskRunner
-    #     cluster_class: distributed.LocalCluster
-    #     cluster_kwargs:
-    #       n_workers: ${..task_limit}
-    #       memory_limit: 5Gi
-    #       processes: True
-    #       threads_per_worker: 4
-    #       resources:
-    #         cpu: 1
+          image_path: //allen/programs/allencell/data/proj0/94d/984/e94/01e/48f/6ab/046/00d/c84/1ed/49/AD00004745_20230720_AICS13_L01-01_AcquisitionBlock1_pt1.czi
+          channels: [1]
+          working_dir: ${working_dir}
+          output_name: 20x_raw
 
-    # - function: morflowgenesis.steps.run_cytodl
-    #   args:
-    #       input_step: center_crop/center_crop
-    #       config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/vit_config.yaml
-    #       overrides:
-    #         ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/offset_aug_finetune_aligned_large/2024-01-28_19-42-12/checkpoints/last.ckpt"
+          dimension_order_out: CZYX
+          timepoints: -1
+          scenes:
+              - ${scene}
+      task_runner:
+          task_limit: 50
+          _target_: prefect_dask.DaskTaskRunner
+          cluster_class: distributed.LocalCluster
+          cluster_kwargs:
+              n_workers: ${..task_limit}
+              memory_limit: 5Gi
+              processes: True
+              threads_per_worker: 4
+              resources:
+                  cpu: 1
 
-    # - function: morflowgenesis.steps.center_crop.center_pad
-    #   args:
-    #     image_step: run_cytodl/nucseg
-    #     cropping_step: center_crop/center_crop
-    #     output_name: center_pad
-    #     pad_rescale: 2.6134
-    #   task_runner:
-    #     task_limit: 50
-    #     _target_: prefect_dask.DaskTaskRunner
-    #     cluster_class: distributed.LocalCluster
-    #     cluster_kwargs:
-    #       n_workers: ${..task_limit}
-    #       memory_limit: 15Gi
-    #       processes: True
-    #       threads_per_worker: 8
-    #       resources:
-    #         cpu: 1
+    - function: morflowgenesis.steps.center_crop.center_crop
+      args:
+          image_step: split_image/20x_raw
+          output_name: center_crop
+          sigma_cutoff: [2, 3]
+      task_runner:
+          task_limit: 50
+          _target_: prefect_dask.DaskTaskRunner
+          cluster_class: distributed.LocalCluster
+          cluster_kwargs:
+              n_workers: ${..task_limit}
+              memory_limit: 5Gi
+              processes: True
+              threads_per_worker: 4
+              resources:
+                  cpu: 1
 
-    # - function: morflowgenesis.steps.tracking
-    #   args:
-    #       output_name: tracking
-    #       input_step: run_cytodl/nucseg
-    #   task_runner:
-    #     task_limit: 10
-    #     _target_: prefect_dask.DaskTaskRunner
-    #     cluster_class: distributed.LocalCluster
-    #     cluster_kwargs:
-    #       n_workers: ${..task_limit}
-    #       memory_limit: 30Gi
-    #       processes: True
-    #       threads_per_worker: 1
-    #       resources:
-    #         cpu: 1
+    - function: morflowgenesis.steps.run_cytodl
+      args:
+          input_step: center_crop/center_crop
+          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/vit_config.yaml
+          overrides:
+              ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/offset_aug_finetune_aligned_large/2024-01-28_19-42-12/checkpoints/last.ckpt"
 
-    # - function: morflowgenesis.steps.single_cell_dataset
-    #   args:
-    #       output_name: cells
-    #       splitting_step: run_cytodl/nucseg
-    #       raw_steps: [split_image/20x_raw]
-    #       raw_steps_rename: [20x_lamin]
-    #       seg_steps: [run_cytodl/nucseg]
-    #       seg_steps_rename: [nuc_seg]
-    #       tracking_step: tracking/tracking
-    #       mask: False
-    #       keep_lcc: False
-    #       padding: [10, 25, 25]
-    #   task_runner:
-    #     task_limit: 20
-    #     _target_: prefect_dask.DaskTaskRunner
-    #     cluster_class: distributed.LocalCluster
-    #     cluster_kwargs:
-    #       n_workers: ${..task_limit}
-    #       memory_limit: 25Gi
-    #       processes: True
-    #       threads_per_worker: 4
-    #       resources:
-    #         cpu: 1
+    - function: morflowgenesis.steps.center_crop.center_pad
+      args:
+          image_step: run_cytodl/nucseg
+          cropping_step: center_crop/center_crop
+          output_name: center_pad
+          pad_rescale: 2.6134
+      task_runner:
+          task_limit: 50
+          _target_: prefect_dask.DaskTaskRunner
+          cluster_class: distributed.LocalCluster
+          cluster_kwargs:
+              n_workers: ${..task_limit}
+              memory_limit: 15Gi
+              processes: True
+              threads_per_worker: 8
+              resources:
+                  cpu: 1
 
-    # - function: morflowgenesis.steps.calculate_features
-    #   args:
-    #       output_name: features
-    #       input_step: single_cell_dataset/cells
-    #       features:
-    #           - height
-    #           - height_percentile
-    #           - surface_area
-    #           - volume
-    #           - shcoeff
-    #           - length_width
-    #   task_runner:
-    #     task_limit: 100
-    #     _target_: prefect_dask.DaskTaskRunner
-    #     cluster_class: distributed.LocalCluster
-    #     cluster_kwargs:
-    #       n_workers: ${..task_limit}
-    #       memory_limit: 5Gi
-    #       processes: True
-    #       threads_per_worker: 4
-    #       resources:
-    #         cpu: 1
+    - function: morflowgenesis.steps.tracking
+      args:
+          output_name: tracking
+          input_step: run_cytodl/nucseg
+      task_runner:
+          task_limit: 10
+          _target_: prefect_dask.DaskTaskRunner
+          cluster_class: distributed.LocalCluster
+          cluster_kwargs:
+              n_workers: ${..task_limit}
+              memory_limit: 30Gi
+              processes: True
+              threads_per_worker: 1
+              resources:
+                  cpu: 1
+
+    - function: morflowgenesis.steps.single_cell_dataset
+      args:
+          output_name: cells
+          splitting_step: run_cytodl/nucseg
+          raw_steps: [split_image/20x_raw]
+          raw_steps_rename: [20x_lamin]
+          seg_steps: [run_cytodl/nucseg]
+          seg_steps_rename: [nuc_seg]
+          tracking_step: tracking/tracking
+          mask: False
+          keep_lcc: False
+          padding: [10, 25, 25]
+      task_runner:
+          task_limit: 20
+          _target_: prefect_dask.DaskTaskRunner
+          cluster_class: distributed.LocalCluster
+          cluster_kwargs:
+              n_workers: ${..task_limit}
+              memory_limit: 25Gi
+              processes: True
+              threads_per_worker: 4
+              resources:
+                  cpu: 1
+
+    - function: morflowgenesis.steps.calculate_features
+      args:
+          output_name: features
+          input_step: single_cell_dataset/cells
+          features:
+              - height
+              - height_percentile
+              - surface_area
+              - volume
+              - shcoeff
+              - length_width
+      task_runner:
+          task_limit: 100
+          _target_: prefect_dask.DaskTaskRunner
+          cluster_class: distributed.LocalCluster
+          cluster_kwargs:
+              n_workers: ${..task_limit}
+              memory_limit: 5Gi
+              processes: True
+              threads_per_worker: 4
+              resources:
+                  cpu: 1
 
     - function: morflowgenesis.steps.track_classification.formation_breakdown
       args:

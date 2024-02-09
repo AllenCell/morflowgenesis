@@ -1,6 +1,5 @@
 import json
-from pathlib import Path
-from typing import List, str
+from typing import List
 
 import pandas as pd
 from aicsimageio import AICSImage

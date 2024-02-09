@@ -36,30 +36,31 @@ dev_requirements = [
     "wheel>=0.34.2",
 ]
 
-step_workflow_requirements = [
-    "bokeh>=2.0.2",
-    "dask[bag]>=2.18.1",
-    "dask_jobqueue>=0.7.0",
-    "distributed>=2.18.0",
-    "docutils",
-    "hydra-core",
-    "fire",
-    "prefect==2.11.2",
+requirements = [
+    "aicsimageio==4.11.0",
+    "aicsshparam==0.1.7",
+    "camera-alignment-core==1.0.5",
+    "cyto_dl==0.1.0",
+    "dask==2023.3.1",
+    "hydra-core==1.3.2",
+    "matplotlib==3.7.2",
+    "mlflow==2.5.0",
+    "numpy==1.24.4",
+    "omegaconf==2.3.0",
+    "pandas==1.5.3",
+    "prefect==2.14.20",
+    "prefect_dask==0.2.5",
     "pydantic==1.10.12",
-    "python-dateutil",
-    "aicspylibczi>3.1.1",
+    "python-slugify==8.0.1",
+    "pyshtools==4.10.3",
+    "PyYAML==6.0.1",
+    "scikit_learn==1.3.0",
+    "scipy==1.9.1",
+    "scikit-image==0.19.2",
+    "timelapsetracking @ git+ssh://git@github.com/aics-int/aics-timelapse-tracking.git@496c1441d373b281eefba6cc6f188e1f4cbd020c#egg=timelapsetracking",
+    "vtk==9.2.6",
 ]
 
-# requirements = [
-#     *step_workflow_requirements,
-#     # project requires
-#     "numpy",
-#     "pandas",
-#     "Pillow",
-#     "tqdm",
-# ]
-
-requirements = []
 extra_requirements = {
     "setup": setup_requirements,
     "test": test_requirements,

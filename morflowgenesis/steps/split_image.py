@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from aicsimageio import AICSImage
 from camera_alignment_core import Align, Magnification
@@ -68,9 +68,9 @@ def split_image(
     image_path: str,
     working_dir: str,
     output_name: str,
-    scenes: Optional[List[int]] = -1,
-    timepoints: Optional[List[int]] = -1,
-    channels: Optional[List[int]] = -1,
+    scenes: Optional[Union[int, List[int]]] = -1,
+    timepoints: Optional[Union[int, List[int]]] = -1,
+    channels: Optional[Union[int, List[int]]] = -1,
     dimension_order_out: str = "CZYX",
     optical_control_path: Optional[str] = None,
     image_objects: List[ImageObject] = None,

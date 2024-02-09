@@ -1,3 +1,5 @@
+from typing import List
+
 import numpy as np
 from skimage.segmentation import find_boundaries
 
@@ -59,7 +61,12 @@ def align(
     image_object.save()
 
 
-def align_segmentations_to_image(image_objects, image_step, segmentation_steps, boundary=False):
+def align_segmentations_to_image(
+    image_objects: List[ImageObject],
+    image_step: str,
+    segmentation_steps: List[str],
+    boundary: bool = False,
+):
     for step in segmentation_steps:
         parallelize_across_images(
             image_objects, align, image_step=image_step, segmentation_step=step, boundary=boundary

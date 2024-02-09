@@ -15,7 +15,6 @@ def create_manifest(
     dataset_name: str,
     breakdown_classification_step: str,
     tags: List[str],
-    fms_upload: bool = False,
 ):
     """Postprocessing function for combining results from nucmorph pipeline into single
     manifest."""

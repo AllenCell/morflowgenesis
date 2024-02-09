@@ -49,8 +49,6 @@ export PREFECT_SQLALCHEMY_MAX_OVERFLOW=-1
 - function: morflowgenesis.steps.foo
     args:
         foo: bar
-    tags:
-    - task1
     task_runner:
         task_limit: 10
         _target_: prefect_dask.DaskTaskRunner
@@ -64,9 +62,9 @@ export PREFECT_SQLALCHEMY_MAX_OVERFLOW=-1
             cpu: 1
 ```
 
-Under `task_runner`, you can include a `_target_` with the task runner you want to use and a `task_limit` which sets a unique `prefect concurrency-limit` for your step. Limiting task concurrency can be useful for resource-intensive steps.
-
 will create a `DaskTaskRunner` with a `LocalCluster` and a memory limit of 5Gi per worker. Please see the [prefect task runner docs](https://docs.prefect.io/latest/concepts/task-runners/) for more information on available task runners.
+
+Under `task_runner`, you can include a `_target_` with the task runner you want to use and a `task_limit` which sets a unique `prefect concurrency-limit` for your step. Limiting task concurrency can be useful for resource-intensive steps.
 
 ## Development
 

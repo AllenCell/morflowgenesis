@@ -98,7 +98,14 @@ def crop(
     image_object.save()
 
 
-def uncrop(image_object, output_name, image_step, cropping_step, mode="constant", pad_rescale=1):
+def uncrop(
+    image_object: ImageObject,
+    output_name: str,
+    image_step: str,
+    cropping_step: str,
+    mode: str = "constant",
+    pad_rescale: float = 1.0,
+):
     """
     Uncrop image by padding it with zeros according to the padding from the cropping step.
     Parameters
@@ -141,13 +148,13 @@ def uncrop(image_object, output_name, image_step, cropping_step, mode="constant"
 
 
 def center_crop(
-    image_objects,
-    tags,
-    image_step,
-    output_name,
-    pad=5,
-    min_slices=24,
-    sigma_cutoff=2,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    image_step: str,
+    output_name: str,
+    pad: Union[int, List[int]] = 5,
+    min_slices: int = 24,
+    sigma_cutoff: Union[int, List[int]] = 2,
 ):
     parallelize_across_images(
         image_objects,
@@ -162,13 +169,13 @@ def center_crop(
 
 
 def center_pad(
-    image_objects,
-    tags,
-    image_step,
-    cropping_step,
-    output_name,
-    mode="constant",
-    pad_rescale=1,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    image_step: str,
+    cropping_step: str,
+    output_name: str,
+    mode: str = "constant",
+    pad_rescale: float = 1.0,
 ):
     parallelize_across_images(
         image_objects,
