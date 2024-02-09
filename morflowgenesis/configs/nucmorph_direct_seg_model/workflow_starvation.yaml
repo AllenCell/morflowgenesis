@@ -107,28 +107,28 @@ steps:
     #       resources:
     #         cpu: 1
 
-    - function: morflowgenesis.steps.calculate_features
-      args:
-          output_name: features
-          input_step: single_cell_dataset/cells
-          features:
-              - height
-              - height_percentile
-              - surface_area
-              - volume
-              - shcoeff
-              - length_width
-      task_runner:
-          task_limit: 75
-          _target_: prefect_dask.DaskTaskRunner
-          cluster_class: distributed.LocalCluster
-          cluster_kwargs:
-              n_workers: ${..task_limit}
-              memory_limit: 5Gi
-              processes: True
-              threads_per_worker: 4
-              resources:
-                  cpu: 1
+    # - function: morflowgenesis.steps.calculate_features
+    #   args:
+    #       output_name: features
+    #       input_step: single_cell_dataset/cells
+    #       features:
+    #           - height
+    #           - height_percentile
+    #           - surface_area
+    #           - volume
+    #           - shcoeff
+    #           - length_width
+    #   task_runner:
+    #       task_limit: 75
+    #       _target_: prefect_dask.DaskTaskRunner
+    #       cluster_class: distributed.LocalCluster
+    #       cluster_kwargs:
+    #           n_workers: ${..task_limit}
+    #           memory_limit: 5Gi
+    #           processes: True
+    #           threads_per_worker: 4
+    #           resources:
+    #               cpu: 1
 
     - function: morflowgenesis.steps.track_classification.formation_breakdown
       args:
@@ -138,7 +138,6 @@ steps:
           config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/breakdown_per_tp.yaml
           overrides:
             ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/breakdown_classification/single_timepoint/2024-02-05_13-00-47/checkpoints/epoch_109.ckpt"
-          n_extract: 10
 
       task_runner:
           task_limit: 100
