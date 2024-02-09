@@ -1,6 +1,6 @@
 import re
 from typing import List
-
+import tqdm
 import pandas as pd
 
 from morflowgenesis.utils import StepOutput
@@ -17,11 +17,10 @@ def create_manifest(
 ):
     # load features and single cell data
     manifest = []
-    for obj in image_objects:
+    for obj in tqdm.tqdm(image_objects, desc = 'Loading single cell features...'):
         features = obj.load_step(feature_step)
         cells = obj.load_step(single_cell_step)
-        assert len(features) == len(cells)
-        cells_with_feats = pd.merge(cells, features, on="CellId")
+        cells_with_feats = pd.merge(cells, features, on="CellId", how='outer')
         drop_cols = ["shcoeff", "name_dict", "channel_names_seg"] + [
             col for col in cells_with_feats.columns if re.search("Unnamed", col)
         ]
@@ -33,7 +32,7 @@ def create_manifest(
     # same for all objects, just load once
     breakdown_classification = obj.load_step(breakdown_classification_step)
     # default to -1 for short tracks not run through classification
-    manifest = pd.merge(manifest, breakdown_classification, on="track_id")
+    manifest = pd.merge(manifest, breakdown_classification, on="track_id", how= 'left')
 
     # sort manifest
     manifest = manifest.sort_values(by="index_sequence")
