@@ -32,6 +32,7 @@ def create_manifest(
     # add formation/breakdown information based on track_id
     # same for all objects, just load once
     breakdown_classification = obj.load_step(breakdown_classification_step)
+    # default to -1 for short tracks not run through classification
     manifest = pd.merge(manifest, breakdown_classification, on="track_id")
 
     # sort manifest
