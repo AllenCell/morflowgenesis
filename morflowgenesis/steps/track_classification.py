@@ -172,6 +172,7 @@ def formation_breakdown(
     overrides,
     n_extract=-1,
     min_track_length=-1,
+    padding=2,
 ):
     """
     """
@@ -179,7 +180,7 @@ def formation_breakdown(
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     if not (data_dir / "predict.csv").exists():
-        rois = get_rois(image_objects, single_cell_step, n_extract=n_extract, min_track_length=min_track_length)
+        rois = get_rois(image_objects, single_cell_step, n_extract=n_extract, min_track_length=min_track_length, padding=padding)
         input_data = [
             (obj, rois[rois.index_sequence == obj.metadata["T"]]) for obj in image_objects
         ]
