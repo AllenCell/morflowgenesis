@@ -4,25 +4,25 @@ import os
 import re
 from pathlib import Path
 from shutil import rmtree
+from typing import List, Optional, Union
 
 import numpy as np
 import pandas as pd
 import tqdm
 from aicsimageio.writers import OmeTiffWriter
 from omegaconf import ListConfig
-from prefect import flow, task
-from scipy.ndimage import find_objects
 from skimage.exposure import rescale_intensity
-from skimage.measure import label
 from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import (
     ImageObject,
     StepOutput,
-    create_task_runner,
-    submit,
-    to_list,
+    extract_objects,
+    get_largest_cc,
+    parallelize_across_images,
 )
+
+# TODO save manifests to /manifests folder
 
 
 def upload_file(
@@ -64,23 +64,12 @@ def get_renamed_image_paths(image_object, steps, rename_steps):
     }
 
 
-def get_largest_cc(im):
-    im = label(im)
-    try:
-        largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
-    except ValueError:
-        return im
-    return im == largest_cc
-
-
-@task(log_prints=True)
-def extract_cell(
+def process_cell(
     image_object,
     output_name,
     raw_images,
     seg_images,
     roi,
-    coords,
     lab,
     raw_steps,
     seg_steps,
@@ -94,11 +83,12 @@ def extract_cell(
     seg_steps_rename=None,
     raw_steps_rename=None,
 ):
+    print("processing cell", lab, "of", image_object.id)
+
     # prepare metadata for csv
+    centroid = centroid_from_slice(roi)
     roi = roi_from_slice(roi)
     cell_id = hashlib.sha224(bytes(image_object.id + roi, "utf-8")).hexdigest()
-
-    centroid = centroid_from_slice(coords)
 
     df = {
         "CellId": cell_id,
@@ -179,19 +169,6 @@ def extract_cell(
     df["name_dict"] = json.dumps(name_dict)
     print("cell_id", cell_id, "done")
     return df
-
-
-def pad_slice(s, padding, constraints):
-    # pad slice by padding subject to image size constraints
-    is_edge = False
-    new_slice = [slice(None, None)]
-    for slice_part, c, p in zip(s, constraints, padding):
-        if slice_part.start == 0 or slice_part.stop >= c:
-            is_edge = True
-        start = max(0, slice_part.start - p)
-        stop = min(c, slice_part.stop + p)
-        new_slice.append(slice(start, stop, None))
-    return tuple(new_slice), is_edge
 
 
 def mask_images(
@@ -287,8 +264,7 @@ def load_images(image_object, splitting_step, seg_steps, raw_steps):
     return raw_images, seg_images, raw_steps, seg_steps, splitting_ch
 
 
-@task(log_prints=True, tags=["benji_100_s4"])
-def process_image(
+def extract_cells_from_fov(
     image_object,
     splitting_step,
     padding,
@@ -305,7 +281,6 @@ def process_image(
     qcb_res,
     upload_fms,
     include_edge_cells,
-    run_within_object,
     tracking_df=None,
 ):
     print(f"Processing image {image_object.id}")
@@ -314,7 +289,6 @@ def process_image(
     )
     print("images loaded for", image_object.id)
     # find objects in segmentation
-    regions = find_objects(seg_images[splitting_ch].astype(int))
 
     # mask = True means mask all seg images, mask = list means mask only those seg images
     if mask is True:
@@ -332,11 +306,13 @@ def process_image(
     else:
         keep_lcc = []
 
-    results = []
-    for lab, coords in enumerate(regions, start=1):
-        if coords is None:
-            continue
-        padded_coords, is_edge = pad_slice(coords, padding, seg_images[splitting_ch].shape)
+    if tracking_df is not None:
+        tracking_df = tracking_df[tracking_df.index_sequence == image_object.metadata["T"]]
+        print("tracking data loaded for", tracking_df.index_sequence.unique())
+
+    objects = extract_objects(seg_images[splitting_ch], padding=padding, include_ch=True)
+    cell_info = []
+    for lab, coords, is_edge in objects:
         # do cropping serially to avoid memory blow up
         crop_raw_images, crop_seg_images = mask_images(
             raw_images,
@@ -345,132 +321,141 @@ def process_image(
             seg_steps,
             lab,
             splitting_ch,
-            padded_coords,
+            coords,
             mask=mask,
             keep_lcc=keep_lcc,
             iou_thresh=iou_thresh,
         )
-        print("processing cell", lab, "of", image_object.id)
-
         if crop_raw_images is None or crop_seg_images is None:
             print(f"Skipping cell {lab} due to low IoU")
             continue
-        results.append(
-            submit(
-                extract_cell,
-                as_task=run_within_object,
-                image_object=image_object,
-                output_name=output_name,
-                raw_images=crop_raw_images,
-                seg_images=crop_seg_images,
-                roi=coords,
-                coords=coords,
-                lab=lab,
-                raw_steps=raw_steps,
-                seg_steps=seg_steps,
-                is_edge=is_edge,
-                qcb_res=qcb_res,
-                z_res=z_res,
-                xy_res=xy_res,
-                upload_fms=False,
-                dataset_name="morphogenesis",
-                tracking_df=tracking_df,
-                seg_steps_rename=seg_steps_rename,
-                raw_steps_rename=raw_steps_rename,
-            )
+        cell_info.append(
+            {
+                "image_object": image_object,
+                "output_name": output_name,
+                "raw_images": crop_raw_images,
+                "seg_images": crop_seg_images,
+                # remove channel dimension from coords
+                "roi": coords[1:],
+                "lab": lab,
+                "raw_steps": raw_steps,
+                "seg_steps": seg_steps,
+                "is_edge": is_edge,
+                "qcb_res": qcb_res,
+                "z_res": z_res,
+                "xy_res": xy_res,
+                "upload_fms": False,
+                "dataset_name": "morphogenesis",
+                "tracking_df": tracking_df,
+                "seg_steps_rename": seg_steps_rename,
+                "raw_steps_rename": raw_steps_rename,
+            }
         )
-    return results
+    return cell_info
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
+def process_image(**kwargs):
+    cell_info = extract_cells_from_fov(**kwargs)
+    cell_df = pd.concat([process_cell(**cell) for cell in cell_info])
+
+    image_object = kwargs["image_object"]
+    step_output = StepOutput(
+        image_object.working_dir,
+        "single_cell_dataset",
+        kwargs["output_name"],
+        output_type="csv",
+        image_id=image_object.id,
+    )
+
+    step_output.save(cell_df)
+    image_object.add_step_output(step_output)
+    image_object.save()
+
+
 def single_cell_dataset(
-    image_object_paths,
-    output_name,
-    splitting_step,
-    seg_steps,
-    raw_steps=[],
-    raw_steps_rename=None,
-    seg_steps_rename=None,
-    tracking_step=None,
-    xy_res=0.108,
-    z_res=0.29,
-    qcb_res=0.108,
-    padding=10,
-    mask=True,
-    keep_lcc=False,
-    upload_fms=False,
-    iou_thresh=None,
-    include_edge_cells=True,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    splitting_step: str,
+    seg_steps: List[str],
+    raw_steps: Optional[List[str]] = [],
+    raw_steps_rename: Optional[List[str]] = None,
+    seg_steps_rename: Optional[List[str]] = None,
+    tracking_step: Optional[str] = None,
+    xy_res: Optional[float] = 0.108,
+    z_res: Optional[float] = 0.29,
+    qcb_res: Optional[float] = 0.108,
+    padding: Optional[Union[int, List[int]]] = 10,
+    mask: Optional[bool] = True,
+    keep_lcc: Optional[bool] = False,
+    upload_fms: Optional[bool] = False,
+    iou_thresh: Optional[float] = None,
+    include_edge_cells: Optional[bool] = True,
 ):
-
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
-
-    # load timepoint's tracking data if available
+    """
+    Create a single cell dataset from a set of images and segmentation masks.
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to create single cell dataset from
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output.
+    splitting_step : str
+        Step name of input segmentation image to use for splitting fov into single cells
+    seg_steps : List[str]
+        Step names of input segmentation images
+    raw_steps : List[str], optional
+        Step names of input raw images
+    raw_steps_rename : List[str], optional
+        New names for raw steps
+    seg_steps_rename : List[str], optional
+        New names for seg steps
+    tracking_step : str, optional
+        Step name of tracking data to use for single cell dataset
+    xy_res : float, optional
+        Resolution in xy plane of images. If not the same, images will be resized to splitting_step size
+    z_res : float, optional
+        Resolution in z plane of images.
+    qcb_res : float, optional
+        Resolution of images to resize to
+    padding : int or List[int], optional
+        Padding around each object. If single int, same for all axes, otherwise padding is per-axis
+    mask : bool, optional
+        Whether to mask out objects in the segmentation images based on splitting step
+    keep_lcc : bool, optional
+        Whether to keep only the largest connected component within splitting step
+    upload_fms : bool, optional
+        Whether to upload single cell images to FMS. Not implemented
+    iou_thresh : float, optional
+        Minimum IoU between splitting step and other objects to keep a cell
+    include_edge_cells : bool, optional
+        Whether to include cells on the edge of the fov
+    """
+    # load tracking data if available (same for all images)
     tracking_df = None
     if tracking_step is not None:
         tracking_df = image_objects[0].load_step(tracking_step)
 
-    # allow per-dimensional padding
-    if isinstance(padding, int):
-        padding = [padding] * 3
-
-    all_results = []
-    for obj in image_objects:
-        obj_tracking = (
-            tracking_df[tracking_df.time_index == obj.metadata["T"]]
-            if tracking_df is not None
-            else None
-        )
-        all_results.append(
-            submit(
-                process_image,
-                as_task=not run_within_object,
-                image_object=obj,
-                splitting_step=splitting_step,
-                padding=padding,
-                mask=mask,
-                keep_lcc=keep_lcc,
-                iou_thresh=iou_thresh,
-                output_name=output_name,
-                seg_steps=seg_steps,
-                raw_steps=raw_steps,
-                seg_steps_rename=seg_steps_rename,
-                raw_steps_rename=raw_steps_rename,
-                xy_res=xy_res,
-                z_res=z_res,
-                qcb_res=qcb_res,
-                upload_fms=upload_fms,
-                include_edge_cells=include_edge_cells,
-                run_within_object=run_within_object,
-                tracking_df=obj_tracking,
-            )
-        )
-    for object_result, obj in zip(all_results, image_objects):
-        if run_within_object:
-            # parallelizing across cells within an fov
-            object_result = [r.result() for r in object_result]
-        else:
-            # parallelizing across fovs
-            object_result = object_result.result()
-
-        if len(object_result) == 0:
-            print(f"No cells found in image {obj.id}")
-            continue
-        df = pd.concat(object_result)
-
-        csv_output_path = obj.working_dir / "single_cell_dataset" / output_name / f"{obj.id}.csv"
-
-        step_output = StepOutput(
-            obj.working_dir,
-            "single_cell_dataset",
-            output_name,
-            output_type="csv",
-            image_id=obj.id,
-            path=csv_output_path,
-        )
-        step_output.save(df)
-
-        obj.add_step_output(step_output)
-        obj.save()
+    parallelize_across_images(
+        image_objects,
+        process_image,
+        tags=tags,
+        output_name=output_name,
+        splitting_step=splitting_step,
+        padding=padding,
+        mask=mask,
+        keep_lcc=keep_lcc,
+        iou_thresh=iou_thresh,
+        seg_steps=seg_steps,
+        raw_steps=raw_steps,
+        seg_steps_rename=seg_steps_rename,
+        raw_steps_rename=raw_steps_rename,
+        xy_res=xy_res,
+        z_res=z_res,
+        qcb_res=qcb_res,
+        upload_fms=upload_fms,
+        include_edge_cells=include_edge_cells,
+        tracking_df=tracking_df,
+    )

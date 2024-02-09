@@ -1,20 +1,20 @@
+from typing import List
+
 import numpy as np
 from hydra.utils import get_class
-from prefect import flow, task
+from numpy.typing import DTypeLike
 from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 
 from morflowgenesis.utils import (
     ImageObject,
     StepOutput,
-    create_task_runner,
-    submit,
+    parallelize_across_images,
     to_list,
 )
 
 
-@task
-def project_task(
+def run_project(
     image_object,
     input_step,
     output_name,
@@ -37,6 +37,8 @@ def project_task(
             img = img[:, project_slice]
         elif axis == 2:
             img = img[:, :, project_slice]
+    else:
+        raise ValueError(f"project_type {project_type} not recognized")
 
     img = rescale(img, scale, order=0, preserve_range=True, anti_aliasing=False)
     if intensity_rescale_range is not None:
@@ -54,95 +56,66 @@ def project_task(
         image_id=image_object.id,
     )
     output.save(img)
+    image_object.add_step_output(output)
+    image_object.save()
     return output
 
 
-@task(name="project")
-def run_object(
-    image_object,
-    input_steps,
-    output_name,
-    scale,
-    dtype,
-    run_within_object,
-    project_type="max",
-    project_slice=None,
-    axis=None,
-    intensity_rescale_ranges=None,
-):
-    """General purpose function to run a task across an image object.
-
-    If run_within_object is True, run the task steps within the image object and return a list of
-    futures of output objects If run_within_object is False run the task as a function and return a
-    list of output objects
-    """
-    results = []
-    for i, step in enumerate(input_steps):
-        results.append(
-            submit(
-                project_task,
-                as_task=run_within_object,
-                image_object=image_object,
-                input_step=step,
-                output_name=output_name,
-                scale=scale,
-                dtype=dtype,
-                project_type=project_type,
-                project_slice=project_slice,
-                axis=axis,
-                intensity_rescale_range=intensity_rescale_ranges[i]
-                if intensity_rescale_ranges is not None
-                else None,
-            )
-        )
-    return results
-
-
-@flow(task_runner=create_task_runner(), log_prints=True)
 def project(
-    image_object_paths,
-    output_name,
-    input_steps,
-    scale=1.0,
-    dtype="numpy.uint8",
-    project_type="max",
-    project_slice=None,
-    axis=None,
-    intensity_rescale_ranges=None,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    input_steps: List[str],
+    scale: float = 1.0,
+    dtype: DTypeLike = "numpy.uint8",
+    project_type: str = "max",
+    project_slice: int = None,
+    axis: int = None,
+    intensity_rescale_ranges: List[float] = None,
 ):
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
+    """
+    Axis project images or extract slice from image and rescale intensities
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run project on
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output. Final output name will be appended with input_step, project_type, project_slice, and axis in format `output_name_input_step_project_type_project_slice_axis`
+    input_steps : List[str]
+        Step name of input image
+    scale : float, optional
+        Scale factor for resizing image
+    dtype : DTypeLike, optional
+        Data type to rescale intensities to
+    project_type : str, optional
+        Type of projection. Either 'max' or 'slice'
+    project_slice : int, optional
+        Slice to extract if project_type is 'slice'
+    axis : int, optional
+        Axis to extract slice if project_type is 'slice'
+    intensity_rescale_ranges : List[float], optional
+        List of intensity rescale ranges to use for each input step
+    """
+    assert len(intensity_rescale_ranges) == len(
+        input_steps
+    ), "intensity_rescale_ranges must be the same length as input_steps"
 
     input_steps = to_list(input_steps)
     dtype = get_class(dtype)
 
-    all_results = []
-    for obj in image_objects:
-        all_results.append(
-            submit(
-                run_object,
-                as_task=not run_within_object,
-                image_object=obj,
-                input_steps=input_steps,
-                output_name=output_name,
-                scale=scale,
-                dtype=dtype,
-                project_type=project_type,
-                project_slice=project_slice,
-                axis=axis,
-                intensity_rescale_ranges=intensity_rescale_ranges,
-                run_within_object=run_within_object,
-            )
+    for i, step in enumerate(input_steps):
+        parallelize_across_images(
+            image_objects,
+            run_project,
+            tags=tags,
+            input_step=step,
+            output_name=output_name,
+            scale=scale,
+            dtype=dtype,
+            project_type=project_type,
+            project_slice=project_slice,
+            axis=axis,
+            intensity_rescale_ranges=intensity_rescale_ranges[i],
         )
-
-    for object_result, obj in zip(all_results, image_objects):
-        if run_within_object:
-            # parallelizing within fov
-            object_result = [r.result() for r in object_result]
-        else:
-            # parallelizing across fovs
-            object_result = object_result.result()
-        for output in object_result:
-            obj.add_step_output(output)
-        obj.save()

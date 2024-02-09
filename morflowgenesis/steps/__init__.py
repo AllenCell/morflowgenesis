@@ -13,7 +13,6 @@ from .run_cytodl import run_cytodl
 from .run_function import array_to_array
 from .segmentation_mesh import mesh
 from .segmentation_seeded_watershed import run_watershed
-from .separate_instances import generate_mask
 from .single_cell_dataset import single_cell_dataset
 from .split_image import split_image
 from .tracking import tracking

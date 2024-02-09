@@ -1,99 +1,72 @@
+from typing import Callable, Dict, List, Optional
+
 from hydra._internal.utils import _locate
-from prefect import flow, task
 
 from morflowgenesis.utils import (
     ImageObject,
     StepOutput,
-    create_task_runner,
-    submit,
+    parallelize_across_images,
     to_list,
 )
 
 
-@task
 def apply_function(image_object, input_step, output_name, ch, function, function_args):
+    # extract inputs
     data = image_object.load_step(input_step)
     if ch is not None:
         data = data[ch]
-    function = _locate(function)
 
+    # initialize and apply function
+    function = _locate(function)
     applied = function(data, **function_args)
+
+    # add result to image object
     output = StepOutput(
         working_dir=image_object.working_dir,
         step_name="array_to_array",
-        output_name=f"{output_name}_{input_step}",
+        output_name=f"{output_name}/{input_step}",
         output_type="image",
         image_id=image_object.id,
     )
     output.save(applied)
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
-@task(name="apply_function")
-def run_object(
-    image_object,
-    input_steps,
-    output_name,
-    run_within_object,
-    function,
-    function_args,
-):
-    """General purpose function to run a task across an image object.
-
-    If run_within_object is True, run the task steps within the image object and return a list of
-    futures of output objects If run_within_object is False run the task as a function and return a
-    list of output objects
-    """
-
-    results = []
-    for step in input_steps:
-        results.append(
-            submit(
-                apply_function,
-                as_task=run_within_object,
-                image_object=image_object,
-                input_step=step,
-                output_name=output_name,
-                function=function,
-                function_args=function_args,
-            )
-        )
-    return results
-
-
-@flow(task_runner=create_task_runner(), log_prints=True)
 def array_to_array(
-    image_object_paths, output_name, input_steps, function, ch=None, function_args={}
+    image_objects: List[ImageObject],
+    output_name: str,
+    input_steps: List[str],
+    function: Callable,
+    ch: Optional[int] = None,
+    function_args: Dict[str, str] = {},
 ):
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
+    """Apply a function to an array and save the result to the image object
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run function
+    output_name : str
+        Name of output. The input step name will be appended to this name in the format `output_name/input_step`
+    input_steps : List[str]
+        Step names of input images
+    function: Callable
+        Function to apply to the array
+    ch: Optional[int]
+        Channel to apply the function to. By default, applies to entire image
+    function_args: Dict[str,str]
+        Arguments to pass to the function
+    """
 
     input_steps = to_list(input_steps)
 
-    all_results = []
-    for obj in image_objects:
-        all_results.append(
-            submit(
-                run_object,
-                as_task=not run_within_object,
-                image_object=obj,
-                input_steps=input_steps,
-                output_name=output_name,
-                run_within_object=run_within_object,
-                function=function,
-                ch=ch,
-                function_args=function_args,
-            )
+    for step in input_steps:
+        parallelize_across_images(
+            image_objects,
+            apply_function,
+            input_step=step,
+            output_name=output_name,
+            ch=ch,
+            function=function,
+            function_args=function_args,
         )
-
-    for object_result, obj in zip(all_results, image_objects):
-        if run_within_object:
-            # parallelizing within fov
-            object_result = [r.result() for r in object_result]
-        else:
-            # parallelizing across fovs
-            object_result = object_result.result()
-
-        for output in object_result:
-            obj.add_step_output(output)

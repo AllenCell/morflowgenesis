@@ -1,22 +1,21 @@
 import json
-from pathlib import Path
+from typing import List
 
 import pandas as pd
 from aicsimageio import AICSImage
-from prefect import flow, task
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
-@task
 def generate_object(
-    existing_ids,
     row,
+    existing_ids,
     working_dir,
     source_column,
     non_source_columns,
     metadata_column=None,
 ):
+    row = row._asdict()
     source_img = AICSImage(row[source_column])
     # add metadata
     metadata = {"S": source_img.scenes, "T": source_img.dims.T - 1, "C": source_img.dims.C - 1}
@@ -36,34 +35,46 @@ def generate_object(
     obj.save()
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
 def generate_objects(
-    working_dir,
-    csv_path,
-    source_column,
-    non_source_columns=[],
-    metadata_column=None,
+    working_dir: str,
+    csv_path: str,
+    source_column: str,
+    non_source_columns: List[str] = [],
+    metadata_column: str = None,
+    image_objects: List[ImageObject] = [],
+    tags: List[str] = [],
 ):
-    image_objects = [
-        ImageObject.parse_file(obj_path)
-        for obj_path in (Path(working_dir) / "_ImageObjectStore").glob("*")
-    ]
+    """
+    Generate image objects from a csv file
+    Parameters
+    ----------
+    working_dir : str
+        Working directory to save image objects
+    csv_path : str
+        Path to csv file
+    source_column : str
+        Column name of source image
+    non_source_columns : List[str], optional
+        List of column names to save as additional step outputs
+    metadata_column : str, optional
+        Column name of metadata. Metadata should be in json format
+    image_objects : List[ImageObject], optional
+        List of existing ImageObjects
+    tags : List[str], optional
+        Tags corresponding to concurrency-limits for parallel processing
+    """
+    existing_ids = [obj.id for obj in image_objects]
 
     """Generate a new image object for each row in the csv file."""
     df = pd.read_csv(csv_path)
-
-    existing_ids = [im_obj.id for im_obj in image_objects]
-    new_image_objects = []
-    for row in df.itertuples():
-        new_image_objects.append(
-            generate_object.submit(
-                existing_ids,
-                row._asdict(),
-                working_dir,
-                source_column,
-                non_source_columns,
-                metadata_column,
-            )
-        )
-
-    [im_obj.result() for im_obj in new_image_objects]
+    parallelize_across_images(
+        df.itertuples(),
+        generate_object,
+        tags=tags,
+        data_name="row",
+        existing_ids=existing_ids,
+        working_dir=working_dir,
+        source_column=source_column,
+        non_source_columns=non_source_columns,
+        metadata_column=metadata_column,
+    )

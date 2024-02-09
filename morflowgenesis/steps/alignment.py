@@ -1,17 +1,30 @@
+from typing import List
+
 import numpy as np
-from prefect import flow, task
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
-@task
 def align(
-    image_object,
-    image_step,
-    segmentation_step,
-    boundary=False,
+    image_object: ImageObject,
+    image_step: str,
+    segmentation_step: str,
+    boundary: bool = False,
 ):
+    """
+    Align segmentation to image by sliding window to find z where segmentation covers most signal
+    Parameters
+    ----------
+    image_object : ImageObject
+        ImageObject to align
+    image_step : str
+        Step name of image to align to
+    segmentation_step : str
+        Step name of segmentation to align
+    boundary : bool
+        Whether to use boundary of segmentation during alignment
+    """
     img = image_object.load_step(image_step)
     seg = image_object.load_step(segmentation_step)
 
@@ -44,61 +57,17 @@ def align(
         image_id=image_object.id,
     )
     output.save(new_seg)
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
-@task(name="align")
-def run_object(
-    image_object,
-    image_step,
-    segmentation_steps,
-    run_within_object,
-    boundary=False,
-):
-    results = []
-    for step in segmentation_steps:
-        results.append(
-            submit(
-                align,
-                as_task=run_within_object,
-                image_object=image_object,
-                image_step=image_step,
-                segmentation_step=step,
-                boundary=boundary,
-            )
-        )
-    return image_object, results
-
-
-@flow(task_runner=create_task_runner(), log_prints=True)
 def align_segmentations_to_image(
-    image_object_paths, image_step, segmentation_steps, boundary=False
+    image_objects: List[ImageObject],
+    image_step: str,
+    segmentation_steps: List[str],
+    boundary: bool = False,
 ):
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
-
-    all_results = []
-    for obj in image_objects:
-        all_results.append(
-            submit(
-                run_object,
-                as_task=not run_within_object,
-                image_object=obj,
-                image_step=image_step,
-                segmentation_steps=segmentation_steps,
-                run_within_object=run_within_object,
-                boundary=boundary,
-            )
+    for step in segmentation_steps:
+        parallelize_across_images(
+            image_objects, align, image_step=image_step, segmentation_step=step, boundary=boundary
         )
-
-    for results in all_results:
-        if run_within_object:
-            # parallelizing within fov
-            object, results = results
-            results = [r.result() for r in results]
-        else:
-            # parallelizing across fovs
-            object, results = results.result()
-        for result in results:
-            object.add_step_output(result)
-        object.save()

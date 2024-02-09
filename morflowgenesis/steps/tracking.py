@@ -1,18 +1,21 @@
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import pandas as pd
-from prefect import flow, task
-from scipy.ndimage import find_objects
+from prefect import task
 from scipy.signal import medfilt
 from timelapsetracking import csv_to_nodes
 from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
-from morflowgenesis.utils import create_task_runner
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import (
+    ImageObject,
+    StepOutput,
+    extract_objects,
+    parallelize_across_images,
+)
 
 
 def str_to_array(s):
@@ -20,47 +23,42 @@ def str_to_array(s):
     return np.array(list(map(int, elements)))
 
 
-@task(tags=["benji_100_s8"])
-def create_regionprops_csv(obj, input_step, output_name):
-    inst_seg = obj.get_step(input_step).load_output()
-    save_path = Path(f"{obj.working_dir}/tracking/{output_name}/{obj.id}_regionprops.csv")
+def create_regionprops_csv(image_object, input_step, output_name):
+    inst_seg = image_object.get_step(input_step).load_output()
+    save_path = Path(
+        f"{image_object.working_dir}/tracking/{output_name}/{image_object.id}_regionprops.csv"
+    )
     if save_path.exists():
         out = pd.read_csv(save_path)
         out["img_shape"] = out["img_shape"].apply(str_to_array)
         return out
 
-    timepoint = obj.metadata["T"]
+    timepoint = image_object.metadata["T"]
 
     field_shape = np.array(inst_seg.shape, dtype=int)
-    regions = find_objects(inst_seg.astype(int))
 
-    data = []
-    for lab, coords in enumerate(regions, start=1):
-        if coords is None:
-            continue
-        min_coors = np.asarray([s.start for s in coords])
-        max_coors = np.asarray([s.stop for s in coords])
+    objects = extract_objects(inst_seg)
+    data = [
+        {
+            "CellLabel": lab,
+            "Timepoint": timepoint,
+            "Centroid_z": (coords[0].start + coords[0].stop) // 2,
+            "Centroid_y": (coords[1].start + coords[1].stop) // 2,
+            "Centroid_x": (coords[2].start + coords[2].stop) // 2,
+            "Volume": np.sum(inst_seg[coords] == lab),
+            "Edge_Cell": np.any(
+                np.logical_or(
+                    np.asarray([s.start for s in coords]) == 0,
+                    np.asarray([s.stop for s in coords]) == field_shape,
+                )
+            ),
+            "img_shape": field_shape,
+        }
+        for lab, coords, _ in objects
+    ]
 
-        is_edge = np.any(np.logical_or(min_coors == 0, max_coors == field_shape))
-
-        centroid = [(s.start + s.stop) // 2 for s in coords]
-        row = pd.DataFrame(
-            [
-                {
-                    "CellLabel": lab,
-                    "Timepoint": timepoint,
-                    "Centroid_z": centroid[0],
-                    "Centroid_y": centroid[1],
-                    "Centroid_x": centroid[2],
-                    "Volume": np.sum(inst_seg[coords] == lab),
-                    "Edge_Cell": is_edge,
-                    "img_shape": field_shape,
-                }
-            ]
-        )
-        data.append(row)
-    out = pd.concat(data)
-    out.to_csv(f"{obj.working_dir}/tracking/{output_name}/{obj.id}_regionprops.csv", index=False)
+    out = pd.DataFrame(data)
+    out.to_csv(save_path, index=False)
     return out
 
 
@@ -141,7 +139,7 @@ def outlier_detection(df_track):
     return df_track
 
 
-@task(tags=["tracking"])
+@task()
 def track(regionprops, working_dir, output_name, edge_thresh_dist=75):
     output_dir = working_dir / "tracking" / output_name
     tracking_output = StepOutput(
@@ -193,21 +191,34 @@ def _do_tracking(image_objects, output_name):
     return run
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
-def tracking(image_object_paths, output_name, input_step):
-    image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
+def tracking(image_objects: List[ImageObject], tags: List[str], output_name: str, input_step: str):
+    """
+    Tracking based on minimizing centroid distance and change in volume between timepoints
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to process
+    tags : List[str]
+        List of tags to use for parallel processing
+    output_name : str
+        Name of output
+    input_step : str
+        Name of step to load images from
+    """
     Path(f"{image_objects[0].working_dir}/tracking/{output_name}").mkdir(
         parents=True, exist_ok=True
     )
-
     if _do_tracking(image_objects, output_name):
         # create centroid/volume csv
-        tasks = []
-        for obj in image_objects:
-            tasks.append(create_regionprops_csv.submit(obj, input_step, output_name))
-        regionprops = pd.concat([task.result() for task in tasks])
+        _, regionprops = parallelize_across_images(
+            image_objects,
+            create_regionprops_csv,
+            tags=tags,
+            input_step=input_step,
+            output_name=output_name,
+        )
 
-        output = track(regionprops, image_objects[0].working_dir, output_name)
+        output = track(pd.concat(regionprops), image_objects[0].working_dir, output_name)
         for obj in image_objects:
             obj.add_step_output(output)
             obj.save()

@@ -2,26 +2,44 @@ import re
 from typing import List
 
 import pandas as pd
-from prefect import flow
 from sklearn.decomposition import PCA
 
 from morflowgenesis.utils import ImageObject, StepOutput
 
 
-@flow(log_prints=True)
 def run_pca(
-    image_object_paths,
-    output_name,
-    feature_step,
-    features_regex,
+    image_objects: List[ImageObject],
+    output_name: str,
+    feature_step: str,
+    features_regex: str,
     calculate_name: str,
-    apply_names: List,
-    n_components=10,
+    apply_names: List[str],
+    n_components: int = 10,
+    tags: List[str] = [],
 ):
+    """
+    Run PCA on features from calculate_name, and apply to features from apply_names
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run PCA on
+    output_name : str
+        Name of output
+    feature_step : str
+        Step name of calculated features
+    features_regex : str
+        Regular expression to match feature columns
+    calculate_name : str
+        Name of features to calculate PCA on
+    apply_names : List[str]
+        List of names to apply PCA to
+    n_components : int
+        Number of principal components to use
+    tags : List[str]
+        [UNUSED] Tags corresponding to concurrency-limits for parallel processing
+    """
     if calculate_name in apply_names:
         raise ValueError("Calculate_name cannot be in apply_names")
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
-
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
     feature_columns = [c for c in features.columns if re.search(features_regex, c)]
     target_df = features.xs(calculate_name, level="Name")

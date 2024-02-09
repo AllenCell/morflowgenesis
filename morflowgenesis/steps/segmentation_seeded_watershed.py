@@ -1,31 +1,17 @@
-import numpy as np
-from prefect import flow, task
-from scipy.ndimage import binary_dilation, binary_erosion, find_objects, gaussian_filter
-from skimage.measure import label
+from typing import List, Optional
 
-# from mahotas import cwatershed as watershed
+import numpy as np
+from scipy.ndimage import binary_dilation, binary_erosion, gaussian_filter
+from skimage.measure import label
 from skimage.segmentation import watershed
 
-from morflowgenesis.utils import ImageObject, StepOutput, create_task_runner, submit
-
-
-def pad_slice(s, padding, constraints):
-    # pad slice by padding subject to image size constraints
-    is_edge = False
-    new_slice = []
-    for slice_part, c in zip(s, constraints):
-        if slice_part.start == 0 or slice_part.stop >= c:
-            is_edge = True
-        start = max(0, slice_part.start - padding)
-        stop = min(c, slice_part.stop + padding)
-        new_slice.append(slice(start, stop, None))
-    return tuple(new_slice), is_edge
-
-
-def get_largest_cc(im):
-    im = label(im)
-    largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
-    return im == largest_cc
+from morflowgenesis.utils import (
+    ImageObject,
+    StepOutput,
+    extract_objects,
+    get_largest_cc,
+    parallelize_across_images,
+)
 
 
 def generate_bg_seed(seg, lab):
@@ -44,8 +30,7 @@ def generate_bg_seed(seg, lab):
     return combined_mask
 
 
-@task
-def run_watershed_task(raw, seg, lab, mode, is_edge, erosion=5):
+def watershed_cell(raw, seg, lab, mode, is_edge, erosion=5):
     if mode == "centroid":
         seed = np.zeros_like(seg)
         centroids = np.asarray(np.where(seg == lab)).mean(axis=1).astype(int)
@@ -90,9 +75,9 @@ def merge_instance_segs(segs, coords, img):
     return img
 
 
-@task(name="watershed")
-def run_object(
+def watershed_fov(
     image_object,
+    output_name,
     raw_input_step,
     seg_input_step,
     padding,
@@ -100,14 +85,7 @@ def run_object(
     mode,
     erosion,
     min_seed_size,
-    run_within_object,
 ):
-    """General purpose function to run a task across an image object.
-
-    If run_within_object is True, run the task steps within the image object and return tuple of
-    (futures, coords) If run_within_object is False run the task as a function and return a tuple
-    of (img, coords)
-    """
     raw = image_object.load_step(raw_input_step)
     seg = image_object.load_step(seg_input_step)
 
@@ -116,14 +94,10 @@ def run_object(
     seg = seg[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
 
     seg = label(seg)
-    regions = find_objects(seg.astype(int))
 
+    labs, all_coords, edges = extract_objects(seg, padding=padding, return_zip=False)
     results = []
-    all_coords = []
-    for lab, coords in enumerate(regions, start=1):
-        if coords is None:
-            continue
-        coords, is_edge = pad_slice(coords, padding, seg.shape)
+    for lab, coords, is_edge in zip(labs, all_coords, edges):
         if not include_edge and is_edge:
             continue
         crop_raw, crop_seg = raw[coords], seg[coords]
@@ -131,9 +105,7 @@ def run_object(
         if not is_edge and np.sum(crop_seg == lab) < min_seed_size:
             continue
         results.append(
-            submit(
-                run_watershed_task,
-                as_task=run_within_object,
+            watershed_cell(
                 raw=crop_raw,
                 seg=crop_seg,
                 lab=lab,
@@ -142,62 +114,67 @@ def run_object(
                 erosion=erosion,
             )
         )
-        all_coords.append(coords)
         print(lab, "done")
-    return results, all_coords, raw.shape
+    seg = merge_instance_segs(results, all_coords, np.zeros(raw.shape).astype(np.uint16))
+    output = StepOutput(
+        image_object.working_dir,
+        "run_watershed",
+        output_name,
+        output_type="image",
+        image_id=image_object.id,
+    )
+    output.save(seg)
+    image_object.add_step_output(output)
+    image_object.save()
 
 
-@flow(task_runner=create_task_runner(), log_prints=True)
 def run_watershed(
-    image_object_paths,
-    output_name,
-    raw_input_step,
-    seg_input_step,
-    mode="centroid",
-    erosion=None,
-    min_seed_size=1000,
-    include_edge=True,
-    padding=10,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    raw_input_step: str,
+    seg_input_step: str,
+    mode: Optional[str] = "centroid",
+    erosion: Optional[int] = None,
+    min_seed_size: Optional[int] = 1000,
+    include_edge: Optional[bool] = True,
+    padding: Optional[int] = 10,
 ):
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
-
-    all_results = []
-    for obj in image_objects:
-        all_results.append(
-            submit(
-                run_object,
-                as_task=not run_within_object,
-                image_object=obj,
-                raw_input_step=raw_input_step,
-                seg_input_step=seg_input_step,
-                padding=padding,
-                include_edge=include_edge,
-                mode=mode,
-                erosion=erosion,
-                min_seed_size=min_seed_size,
-                run_within_object=run_within_object,
-            )
-        )
-
-    for object_result, obj in zip(all_results, image_objects):
-        if run_within_object:
-            # parallelizing within fov
-            imgs, coords, shape = object_result
-            imgs = [im.result() for im in imgs]
-        else:
-            # parallelizing across fovs
-            imgs, coords, shape = object_result.result()
-
-        seg = merge_instance_segs(imgs, coords, np.zeros(shape).astype(np.uint16))
-        output = StepOutput(
-            obj.working_dir,
-            "run_watershed",
-            output_name,
-            output_type="image",
-            image_id=obj.id,
-        )
-        output.save(seg)
-        obj.add_step_output(output)
-        obj.save()
+    """
+    Apply seeded watershed across objects in an image
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run seeded watershed on
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output. The input step name will be appended to this name in the format `output_name/input_step`
+    raw_input_step : str
+        Step names of input raw images
+    seg_input_step : str
+        Step names of input segmentation images
+    mode : str, optional
+        Method to use for seeding, by default "centroid"
+    erosion : int, optional
+        Number of iterations for erosion if mode is "erosion", by default None
+    min_seed_size : int, optional
+        Minimum number of pixels for a seed, by default 1000
+    include_edge : bool, optional
+        Whether to include objects on the edge of the fov, by default True
+    padding : int, optional
+        Padding to add to the fov, by default 10
+    """
+    parallelize_across_images(
+        image_objects,
+        watershed_fov,
+        tags,
+        output_name=output_name,
+        raw_input_step=raw_input_step,
+        seg_input_step=seg_input_step,
+        mode=mode,
+        erosion=erosion,
+        min_seed_size=min_seed_size,
+        include_edge=include_edge,
+        padding=padding,
+    )

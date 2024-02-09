@@ -1,13 +1,12 @@
 import shutil
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
 
 import mlflow
 from cyto_dl.api import CytoDLModel
-from prefect import flow, task
+from prefect import task
 
-from morflowgenesis.utils.image_object import ImageObject
-from morflowgenesis.utils.step_output import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput
 
 
 def download_mlflow_model(
@@ -72,36 +71,38 @@ def run_evaluate(model):
     return model.predict()
 
 
-@flow(log_prints=True)
 def run_cytodl(
-    image_object_paths: List[Union[str, Path]],
+    image_objects: List[ImageObject],
     input_step: str,
     config_path: str,
     output_name: Optional[str] = None,
     overrides: Dict[str, Any] = {},
     run_id: Optional[str] = None,
     checkpoint_path: Optional[str] = "checkpoints/val/loss/best.ckpt",
+    tags: List[str] = [],
 ):
     """Wrapper function to run cytoDL on a list of image objects. Note that the output will be
     saved to `working_dir/run_cytodl/head_name` for each output task head of your model.
 
     Parameters
     ----------
-    image_object_paths : List[str]
-        List of paths to image objects to run
+    image_objects:
+        image objects to run
     input_step : str
         Name of step to use as input data
     config_path : str
         Path to base config file
+    output_name : Optional[str], optional
+        Name of output. If none is provided, the model output heads will be used as output name. If provided, the head name will be concatenated to the output name in the format `output_name/head_name`
     overrides : Dict[str, Any], optional
         Dictionario of overrides to apply to config, by default {}
     run_id : Optional[str], optional
         MLFlow run ID to download model from, by default None
     checkpoint_path : Optional[str], optional
         Path to checkpoint to download from MLFlow, by default "checkpoints/val/loss/best.ckpt"
+    tags : List[str], optional
+        [UNUSED] Tags corresponding to concurrency-limits for parallel processing
     """
-    image_objects = [ImageObject.parse_file(p) for p in image_object_paths]
-
     model = load_model(
         image_objects,
         output_name,

@@ -17,11 +17,11 @@ steps:
     # run transfer function
     - function: morflowgenesis.steps.run_cytodl
       args:
-        output_name: tf
-        input_step: split_image_20x_raw
-        config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/local/all_nuc_tf_validation/20x_lamin_to_100x_lamin.yaml
-        overrides:
-          - ++ckpt_path=//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nucleus_transfer_function/goldilocks_replicate_no_resize_add_hr_skip_large/2023-09-25_14-44-12/checkpoints/epoch_799_mod.ckpt
+          output_name: tf
+          input_step: split_image_20x_raw
+          config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/local/all_nuc_tf_validation/20x_lamin_to_100x_lamin.yaml
+          overrides:
+              - ++ckpt_path=//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/nucleus_transfer_function/goldilocks_replicate_no_resize_add_hr_skip_large/2023-09-25_14-44-12/checkpoints/epoch_799_mod.ckpt
 
     # run big lamin segmentation on TF prediction
     - function: morflowgenesis.steps.run_cytodl

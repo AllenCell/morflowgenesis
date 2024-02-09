@@ -192,10 +192,7 @@ def subset_data(features, pred_level, label_level):
     return label.loc[cellids], pred.loc[cellids]
 
 
-@flow(log_prints=True)
-def run_plot(image_object_paths, output_name, input_step, features, label, pred):
-    image_objects = [ImageObject.parse_file(obj_path) for obj_path in image_object_paths]
-
+def run_plot(image_objects, output_name, input_step, features, label, pred):
     features_df = pd.concat([obj.load_step(input_step) for obj in image_objects]).drop_duplicates()
     features_df = features_df[features]
 

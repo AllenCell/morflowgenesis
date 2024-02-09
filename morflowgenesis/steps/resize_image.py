@@ -1,17 +1,16 @@
-from prefect import flow, task
+from typing import List
+
 from skimage.transform import rescale as sk_rescale
 from skimage.transform import resize as sk_resize
 
 from morflowgenesis.utils import (
     ImageObject,
     StepOutput,
-    create_task_runner,
-    submit,
+    parallelize_across_images,
     to_list,
 )
 
 
-@task
 def run_resize(image_object, output_name, input_step, output_shape=None, scale=None, order=0):
     # image resizing
     img = image_object.load_step(input_step)
@@ -24,79 +23,52 @@ def run_resize(image_object, output_name, input_step, output_shape=None, scale=N
     output = StepOutput(
         image_object.working_dir,
         step_name="resize",
-        output_name=f"{output_name}_{input_step}",
+        output_name=f"{output_name}/{input_step}",
         output_type="image",
         image_id=image_object.id,
     )
     output.save(img.astype(input_dtype))
-    return output
+    image_object.add_step_output(output)
+    image_object.save()
 
 
-@task(name="resize")
-def run_object(
-    image_object,
-    output_name,
-    input_steps,
-    run_within_object,
-    output_shape=None,
-    scale=None,
-    order=0,
+def resize(
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    input_steps: List[str],
+    output_shape: List[int] = None,
+    scale: float = None,
+    order: int = 0,
 ):
-    """General purpose function to run a task across an image object.
-
-    If run_within_object is True, run the task steps within the image object and return a list of
-    futures of output objects If run_within_object is False run the task as a function and return a
-    list of output objects
+    """Resize images to a specified shape or scale with a specified order of interpolation.
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run threshold on
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output. The input step name will be appended to this name in the format `output_name/input_step`
+    input_steps : List[str]
+        Step names of input images
+    output_shape : List[int], optional
+        Shape of the output image
+    scale : float, optional
+        Scale factor by which to resize the image
+    order : int, optional
+        Order of interpolation.
     """
-    results = []
-    for i, step in enumerate(input_steps):
-        results.append(
-            submit(
-                run_resize,
-                as_task=run_within_object,
-                image_object=image_object,
-                input_step=step,
-                output_name=output_name,
-                output_shape=output_shape,
-                scale=scale,
-                order=order,
-            )
-        )
-    return results
-
-
-@flow(task_runner=create_task_runner(), log_prints=True)
-def resize(image_object_paths, output_name, input_steps, output_shape=None, scale=None, order=0):
-
     input_steps = to_list(input_steps)
 
-    # if only one image is passed, run across objects within that image. Otherwise, run across images
-    image_objects = [ImageObject.parse_file(path) for path in image_object_paths]
-    run_within_object = len(image_objects) == 1
-
-    all_results = []
-    for obj in image_objects:
-        all_results.append(
-            submit(
-                run_object,
-                as_task=not run_within_object,
-                image_object=obj,
-                output_name=output_name,
-                input_steps=input_steps,
-                output_shape=output_shape,
-                scale=scale,
-                order=order,
-                run_within_object=run_within_object,
-            )
+    for step in input_steps:
+        parallelize_across_images(
+            image_objects,
+            run_resize,
+            tags=tags,
+            output_name=output_name,
+            input_steps=step,
+            output_shape=output_shape,
+            scale=scale,
+            order=order,
         )
-
-    for object_result, obj in zip(all_results, image_objects):
-        if run_within_object:
-            # parallelizing within fov
-            object_result = [r.result() for r in object_result]
-        else:
-            # parallelizing across fovs
-            object_result = object_result.result()
-
-        for output in object_result:
-            obj.add_step_output(output)
