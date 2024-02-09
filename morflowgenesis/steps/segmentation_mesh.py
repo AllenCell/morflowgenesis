@@ -1,7 +1,14 @@
+from typing import List, Optional
+
 from aicsshparam import shtools
 from skimage.transform import rescale
 
-from morflowgenesis.utils import StepOutput, parallelize_across_images, to_list
+from morflowgenesis.utils import (
+    ImageObject,
+    StepOutput,
+    parallelize_across_images,
+    to_list,
+)
 
 
 def create_mesh(image_object, output_name, seg_step, resize):
@@ -24,7 +31,7 @@ def create_mesh(image_object, output_name, seg_step, resize):
     step_output = StepOutput(
         image_object.working_dir,
         "mesh",
-        f"{output_name}_{seg_step}",
+        f"{output_name}/{seg_step}",
         "image",
         image_id=image_object.id,
         path=save_path,
@@ -35,14 +42,28 @@ def create_mesh(image_object, output_name, seg_step, resize):
 
 
 def mesh(
-    image_objects,
-    tags,
-    output_name,
-    input_steps,
-    resize=0.2,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    seg_steps: List[str],
+    resize: Optional[float] = 0.2,
 ):
-    input_steps = to_list(input_steps)
-    for step in input_steps:
+    """Create a mesh from a segmentation image using shtools
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to create mesh from
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output. The seg step name will be appended to this name in the format `output_name/seg_step`
+    seg_steps : List[str]
+        Step names of input segmentation images
+    resize : float, optional
+        Scale factor to resize the image before creating the mesh
+    """
+    seg_steps = to_list(seg_steps)
+    for step in seg_steps:
         parallelize_across_images(
             image_objects, create_mesh, output_name=output_name, seg_step=step, resize=resize
         )

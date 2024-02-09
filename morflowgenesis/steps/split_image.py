@@ -1,11 +1,12 @@
 import json
 from pathlib import Path
+from typing import List, Optional
 
 from aicsimageio import AICSImage
 from camera_alignment_core import Align, Magnification
 from camera_alignment_core.alignment_core import align_image, crop
 from camera_alignment_core.channel_info import CameraPosition, channel_info_factory
-from prefect import flow, task
+from prefect import task
 
 from morflowgenesis.utils.image_object import ImageObject, StepOutput
 
@@ -64,17 +65,42 @@ def _validate_list(val):
 
 
 def split_image(
-    image_path,
-    tags,
-    working_dir,
-    output_name,
-    scenes=-1,
-    timepoints=-1,
-    channels=-1,
-    dimension_order_out="CZYX",
-    optical_control_path=None,
-    image_objects=None,
+    image_path: str,
+    working_dir: str,
+    output_name: str,
+    scenes: Optional[List[int]] = -1,
+    timepoints: Optional[List[int]] = -1,
+    channels: Optional[List[int]] = -1,
+    dimension_order_out: str = "CZYX",
+    optical_control_path: Optional[str] = None,
+    image_objects: List[ImageObject] = None,
+    tags: List[str] = [],
 ):
+    """
+    Generate ImageObjects from input image based on scenes, timepoints, and channels
+    Parameters
+    ----------
+    image_path : str
+        Path to input image
+    working_dir : str
+        Working directory to save outputs
+    output_name : str
+        Name of output
+    scenes : List[int]
+        List of scenes to run on, by default -1 to indicate all scenes
+    timepoints : List[int]
+        List of timepoints to run on, by default -1 to indicate all timepoints
+    channels : List[int]
+        List of channels to run on, by default -1 to indicate all channels
+    dimension_order_out : str
+        Dimension order of output image, by default "CZYX"
+    optical_control_path : str, optional
+        Path to optical control image, by default None. If passed, input image will be aligned to optical control
+    image_objects : List[ImageObject]
+        List of existing ImageObjects
+    tags : List[str]
+        [UNUSED]
+    """
     working_dir = Path(working_dir)
     (working_dir / "split_image").mkdir(exist_ok=True, parents=True)
 

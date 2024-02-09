@@ -1,7 +1,14 @@
+from typing import List
+
 from skimage.transform import rescale as sk_rescale
 from skimage.transform import resize as sk_resize
 
-from morflowgenesis.utils import StepOutput, parallelize_across_images, to_list
+from morflowgenesis.utils import (
+    ImageObject,
+    StepOutput,
+    parallelize_across_images,
+    to_list,
+)
 
 
 def run_resize(image_object, output_name, input_step, output_shape=None, scale=None, order=0):
@@ -16,7 +23,7 @@ def run_resize(image_object, output_name, input_step, output_shape=None, scale=N
     output = StepOutput(
         image_object.working_dir,
         step_name="resize",
-        output_name=f"{output_name}_{input_step}",
+        output_name=f"{output_name}/{input_step}",
         output_type="image",
         image_id=image_object.id,
     )
@@ -26,15 +33,32 @@ def run_resize(image_object, output_name, input_step, output_shape=None, scale=N
 
 
 def resize(
-    image_objects,
-    tags,
-    output_name,
-    input_steps,
-    output_shape=None,
-    scale=None,
-    order=0,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    input_steps: List[str],
+    output_shape: List[int] = None,
+    scale: float = None,
+    order: int = 0,
 ):
-    """Resize images to a specified shape or scale with a specified order of interpolation."""
+    """Resize images to a specified shape or scale with a specified order of interpolation.
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run threshold on
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output. The input step name will be appended to this name in the format `output_name/input_step`
+    input_steps : List[str]
+        Step names of input images
+    output_shape : List[int], optional
+        Shape of the output image
+    scale : float, optional
+        Scale factor by which to resize the image
+    order : int, optional
+        Order of interpolation.
+    """
     input_steps = to_list(input_steps)
 
     for step in input_steps:

@@ -1,11 +1,11 @@
+from typing import List, Optional
+
 import numpy as np
-from prefect import flow, task
 from skimage.measure import label as run_label
 
-from morflowgenesis.utils import StepOutput, parallelize_across_images
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
-@task
 def run_threshold(image_object, input_step, output_name, thresh, label):
     img = image_object.load_step(input_step)
     step = StepOutput(
@@ -23,18 +23,40 @@ def run_threshold(image_object, input_step, output_name, thresh, label):
     image_object.save()
 
 
-@flow(log_prints=True)
 def threshold(
-    image_objects,
-    tags,
-    output_name,
-    input_step,
-    start,
-    stop,
-    step=None,
-    n=None,
-    label=False,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    input_step: str,
+    start: float,
+    stop: float,
+    step: Optional[float] = None,
+    n: Optional[int] = None,
+    label: Optional[bool] = False,
 ):
+    """
+    Run range of thresholds on images. Useful for optimizing segmentation thresholds.
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run threshold on
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output. The threshold used will be appended to this name in the format `output_name/threshold`
+    input_step : str
+        Step name of input image
+    start : float
+        Start of threshold range
+    stop : float
+        End of threshold range
+    step : float, optional
+        Step size for threshold range. Only used if `n` is not provided
+    n : int, optional
+        Number of thresholds to use
+    label : bool, optional
+        Whether to run label on thresholded image
+    """
     if step is not None:
         # include end in range
         threshold_range = np.arange(start, stop + 0.1 * step, step)

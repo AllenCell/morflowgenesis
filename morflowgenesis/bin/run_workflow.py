@@ -20,8 +20,7 @@ def save_workflow_config(working_dir, cfg):
 
 @flow(log_prints=True, task_runner=SequentialTaskRunner())
 async def morflowgenesis(cfg):
-    """Sequentially run config-specified steps, starting with the previous workflow state and
-    passing output from step n-1 as input to step n."""
+    """Sequentially run config-specified steps."""
     working_dir = Path(cfg["working_dir"])
     working_dir.mkdir(exist_ok=True, parents=True)
     save_workflow_config(working_dir, cfg)

@@ -28,7 +28,23 @@ def crop(
     min_slices: int = 24,
     sigma_cutoff: Union[int, List[int]] = 2,
 ):
-    """Crop to center of an image assuming a Gaussian-like profile along the z-axis."""
+    """Crop to center of an image assuming a Gaussian-like profile along the z-axis.\
+
+    Parameters
+    ----------
+    image_object : ImageObject
+        ImageObject to crop
+    output_name : str
+        Name of output
+    image_step : str
+        Step name of image to crop
+    pad : Union[int, List[int]]
+        Number of slices to pad the crop. If list, first element is number of slices to pad below, second is number of slices to pad above.
+    min_slices : int
+        Minimum number of slices to crop to
+    sigma_cutoff : Union[int, List[int]]
+        Number of standard deviations to crop around the center of the Gaussian-like profile. If list, first element is number of standard deviations to crop below, second is number of standard deviations to crop above.
+    """
     # add result to image object
     output = StepOutput(
         image_object.working_dir,
@@ -83,6 +99,23 @@ def crop(
 
 
 def uncrop(image_object, output_name, image_step, cropping_step, mode="constant", pad_rescale=1):
+    """
+    Uncrop image by padding it with zeros according to the padding from the cropping step.
+    Parameters
+    ----------
+    image_object : ImageObject
+        ImageObject to uncrop
+    output_name : str
+        Name of output
+    image_step : str
+        Step name of image to uncrop
+    cropping_step : str
+        Step name of cropping step
+    mode : str
+        Padding mode, see numpy.pad
+    pad_rescale : float
+        Rescale padding by this factor. Helpful if images are at different resolutions
+    """
     output = StepOutput(
         image_object.working_dir,
         step_name="center_pad",

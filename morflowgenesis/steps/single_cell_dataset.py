@@ -4,6 +4,7 @@ import os
 import re
 from pathlib import Path
 from shutil import rmtree
+from typing import List, Optional
 
 import numpy as np
 import pandas as pd
@@ -14,6 +15,7 @@ from skimage.exposure import rescale_intensity
 from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import (
+    ImageObject,
     StepOutput,
     extract_objects,
     get_largest_cc,
@@ -371,25 +373,66 @@ def process_image(**kwargs):
 
 
 def single_cell_dataset(
-    image_objects,
-    tags,
-    output_name,
-    splitting_step,
-    seg_steps,
-    raw_steps=[],
-    raw_steps_rename=None,
-    seg_steps_rename=None,
-    tracking_step=None,
-    xy_res=0.108,
-    z_res=0.29,
-    qcb_res=0.108,
-    padding=10,
-    mask=True,
-    keep_lcc=False,
-    upload_fms=False,
-    iou_thresh=None,
-    include_edge_cells=True,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    splitting_step: str,
+    seg_steps: str,
+    raw_steps: Optional[List[str]] = [],
+    raw_steps_rename: Optional[List[str]] = None,
+    seg_steps_rename: Optional[List[str]] = None,
+    tracking_step: Optional[str] = None,
+    xy_res: Optional[float] = 0.108,
+    z_res: Optional[float] = 0.29,
+    qcb_res: Optional[float] = 0.108,
+    padding: Optional[int] = 10,
+    mask: Optional[bool] = True,
+    keep_lcc: Optional[bool] = False,
+    upload_fms: Optional[bool] = False,
+    iou_thresh: Optional[float] = None,
+    include_edge_cells: Optional[bool] = True,
 ):
+    """
+    Create a single cell dataset from a set of images and segmentation masks.
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to create single cell dataset from
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output.
+    splitting_step : str
+        Step name of input segmentation image to use for splitting fov into single cells
+    seg_steps : List[str]
+        Step names of input segmentation images
+    raw_steps : List[str], optional
+        Step names of input raw images
+    raw_steps_rename : List[str], optional
+        New names for raw steps
+    seg_steps_rename : List[str], optional
+        New names for seg steps
+    tracking_step : str, optional
+        Step name of tracking data to use for single cell dataset
+    xy_res : float, optional
+        Resolution in xy plane of images. If not the same, images will be resized to splitting_step size
+    z_res : float, optional
+        Resolution in z plane of images.
+    qcb_res : float, optional
+        Resolution of images to resize to
+    padding : int, optional
+        Padding around each object
+    mask : bool, optional
+        Whether to mask out objects in the segmentation images based on splitting step
+    keep_lcc : bool, optional
+        Whether to keep only the largest connected component within splitting step
+    upload_fms : bool, optional
+        Whether to upload single cell images to FMS. Not implemented
+    iou_thresh : float, optional
+        Minimum IoU between splitting step and other objects to keep a cell
+    include_edge_cells : bool, optional
+        Whether to include cells on the edge of the fov
+    """
     # load tracking data if available (same for all images)
     tracking_df = None
     if tracking_step is not None:

@@ -1,15 +1,28 @@
 import numpy as np
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import StepOutput, parallelize_across_images
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
 def align(
-    image_object,
-    image_step,
-    segmentation_step,
-    boundary=False,
+    image_object: ImageObject,
+    image_step: str,
+    segmentation_step: str,
+    boundary: bool = False,
 ):
+    """
+    Align segmentation to image by sliding window to find z where segmentation covers most signal
+    Parameters
+    ----------
+    image_object : ImageObject
+        ImageObject to align
+    image_step : str
+        Step name of image to align to
+    segmentation_step : str
+        Step name of segmentation to align
+    boundary : bool
+        Whether to use boundary of segmentation during alignment
+    """
     img = image_object.load_step(image_step)
     seg = image_object.load_step(segmentation_step)
 

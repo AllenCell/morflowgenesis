@@ -137,7 +137,7 @@ steps:
           single_cell_step: single_cell_dataset/cells
           config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/nucmorph_direct_seg_model/breakdown_per_tp.yaml
           overrides:
-            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/breakdown_classification/single_timepoint/2024-02-05_13-00-47/checkpoints/epoch_109.ckpt"
+              ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/breakdown_classification/single_timepoint/2024-02-05_13-00-47/checkpoints/epoch_109.ckpt"
           min_track_length: 2
 
       task_runner:

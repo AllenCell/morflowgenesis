@@ -1,13 +1,39 @@
+from typing import List
+
 import pandas as pd
 from aics_shape_modes.projection import (
     compute_pca_on_reps,
     write_all_shape_modes_latent_walk,
 )
 
-from morflowgenesis.utils import StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput
 
 
-def make_shape_space(image_objects, output_name, feature_step, segmentation_names, tags, n_pcs=10):
+def make_shape_space(
+    image_objects: List[ImageObject],
+    output_name: str,
+    feature_step: str,
+    segmentation_names: List[str],
+    tags: List[str],
+    n_pcs: int = 10,
+):
+    """
+    Create shape space from spherical harmonic features
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to create shape space from
+    output_name : str
+        Name of output
+    feature_step : str
+        Step name of calculated features
+    segmentation_names : List[str]
+        List of segmentation names to use for creating shape space
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    n_pcs : int
+        Number of principal components to use for shape space
+    """
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])
 
     for seg_name in segmentation_names:

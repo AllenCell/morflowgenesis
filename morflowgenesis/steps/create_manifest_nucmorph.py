@@ -1,26 +1,30 @@
 import re
 from typing import List
-import tqdm
-import pandas as pd
 
-from morflowgenesis.utils import StepOutput
+import pandas as pd
+import tqdm
+
+from morflowgenesis.utils import ImageObject, StepOutput
 
 
 def create_manifest(
-    image_objects,
+    image_objects: List[ImageObject],
     output_name: str,
     feature_step: str,
     single_cell_step: str,
     dataset_name: str,
     breakdown_classification_step: str,
     tags: List[str],
+    fms_upload: bool = False,
 ):
+    """Postprocessing function for combining results from nucmorph pipeline into single
+    manifest."""
     # load features and single cell data
     manifest = []
-    for obj in tqdm.tqdm(image_objects, desc = 'Loading single cell features...'):
+    for obj in tqdm.tqdm(image_objects, desc="Loading single cell features..."):
         features = obj.load_step(feature_step)
         cells = obj.load_step(single_cell_step)
-        cells_with_feats = pd.merge(cells, features, on="CellId", how='outer')
+        cells_with_feats = pd.merge(cells, features, on="CellId", how="outer")
         drop_cols = ["shcoeff", "name_dict", "channel_names_seg"] + [
             col for col in cells_with_feats.columns if re.search("Unnamed", col)
         ]
@@ -32,7 +36,7 @@ def create_manifest(
     # same for all objects, just load once
     breakdown_classification = obj.load_step(breakdown_classification_step)
     # default to -1 for short tracks not run through classification
-    manifest = pd.merge(manifest, breakdown_classification, on="track_id", how= 'left')
+    manifest = pd.merge(manifest, breakdown_classification, on="track_id", how="left")
 
     # sort manifest
     manifest = manifest.sort_values(by="index_sequence")

@@ -37,7 +37,7 @@ def check_state(state, step_cfg):
 
 
 async def setup_task_limits(step_cfg):
-    """Set up task limits for the step."""
+    """Set prefect concurrency-limit based on step configuration."""
     task_limit = step_cfg.get("task_runner", {}).get("task_limit")
     if task_limit:
         # create unique tag based on task function and submission time
@@ -51,6 +51,7 @@ async def setup_task_limits(step_cfg):
 
 
 async def tear_down_task_limits(step_cfg):
+    """Delete prefect concurrency-limit based on step configuration."""
     if "tags" not in step_cfg:
         return
 
@@ -63,6 +64,7 @@ async def tear_down_task_limits(step_cfg):
 
 
 async def run_step(step_cfg, object_store_path):
+    """Run a step in the pipeline."""
     step_cfg = await setup_task_limits(step_cfg)
 
     step_fn = step_cfg["function"]

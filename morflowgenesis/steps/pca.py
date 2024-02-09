@@ -8,15 +8,36 @@ from morflowgenesis.utils import ImageObject, StepOutput
 
 
 def run_pca(
-    image_objects,
-    output_name,
-    feature_step,
-    features_regex,
+    image_objects: List[ImageObject],
+    output_name: str,
+    feature_step: str,
+    features_regex: str,
     calculate_name: str,
-    apply_names: List,
-    n_components=10,
-    tags=[],
+    apply_names: List[str],
+    n_components: int = 10,
+    tags: List[str] = [],
 ):
+    """
+    Run PCA on features from calculate_name, and apply to features from apply_names
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run PCA on
+    output_name : str
+        Name of output
+    feature_step : str
+        Step name of calculated features
+    features_regex : str
+        Regular expression to match feature columns
+    calculate_name : str
+        Name of features to calculate PCA on
+    apply_names : List[str]
+        List of names to apply PCA to
+    n_components : int
+        Number of principal components to use
+    tags : List[str]
+        [UNUSED] Tags corresponding to concurrency-limits for parallel processing
+    """
     if calculate_name in apply_names:
         raise ValueError("Calculate_name cannot be in apply_names")
     features = pd.concat([obj.load_step(feature_step) for obj in image_objects])

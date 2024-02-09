@@ -1,3 +1,5 @@
+from typing import List
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -6,11 +8,17 @@ from omegaconf import ListConfig
 from skimage.exposure import rescale_intensity
 from skimage.segmentation import find_boundaries
 
-from morflowgenesis.utils import StepOutput, extract_objects, parallelize_across_images
+from morflowgenesis.utils import (
+    ImageObject,
+    StepOutput,
+    extract_objects,
+    parallelize_across_images,
+)
 
 
 def make_rgb(img, contour):
     """Creates RGB overlay of image and up to 3 contours in C, M, Y."""
+    # normalize image intensities
     img = np.clip(img, np.percentile(img, 0.1), np.percentile(img, 99.9))
     img = rescale_intensity(img, out_range=(0, 255)).astype(np.uint8)
     rgb = np.stack([img] * 3, axis=-1).astype(float)
@@ -21,6 +29,7 @@ def make_rgb(img, contour):
 
 
 def project(raw, seg):
+    """Create top, and both side projections of seg overlaid on raw."""
     assert len(seg.shape) == 4
     if np.all(seg == 0):
         mid_z, mid_y, mid_x = 0, 0, 0
@@ -52,6 +61,7 @@ def project(raw, seg):
 
 
 def project_cell(row, raw_name, seg_names):
+    """Project a cell from raw and seg images."""
     raw = AICSImage(row["crop_raw_path"].iloc[0])
     raw = raw.get_image_dask_data("ZYX", C=raw.channel_names.index(raw_name)).compute()
 
@@ -72,8 +82,8 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title=
     fig.suptitle(title)
     fig.supxlabel(x_feature)
     fig.supylabel(y_feature)
-    for x_idx, x_bin in enumerate(x_bins):
-        for y_idx, y_bin in enumerate(y_bins):
+    for x_idx in range(len(x_bins)):
+        for y_idx in range(len(y_bins)):
             if len(results) == 0:
                 break
             img, cellid = results.pop(0)
@@ -86,6 +96,7 @@ def assemble_contact_sheet(results, x_bins, y_bins, x_feature, y_feature, title=
 
 
 def find_cells_to_plot(n_bins, feature_df, x_feature, y_feature, cell_df):
+    """Select random cells from each bin of the binned feature space."""
     quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]
     # Use qcut to bin the DataFrame by percentiles across both features
     x_binned = pd.qcut(feature_df[x_feature], q=quantile_boundaries, duplicates="drop").unique()
@@ -107,15 +118,17 @@ def find_cells_to_plot(n_bins, feature_df, x_feature, y_feature, cell_df):
 
 
 def generate_fov_contact_sheet(image_object, output_name, raw_name, seg_step):
+    """Generate a contact sheet of all cells in a fov."""
     raw = image_object.load_step(raw_name)
     seg = image_object.load_step(seg_step)
     min_im_shape = np.min([raw.shape, seg.shape], axis=0)
+    # crop to same shape
     raw = raw[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
     seg = seg[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
 
     objects = extract_objects(seg, padding=10)
     cells = []
-    for val, coords, is_edge in objects:
+    for val, coords, _ in objects:
         seg_crop = find_boundaries(seg[coords] == val, mode="inner")[None]
         cells.append((project(raw[coords], seg_crop), val))
 
@@ -141,18 +154,45 @@ def generate_fov_contact_sheet(image_object, output_name, raw_name, seg_step):
 
 
 def segmentation_contact_sheet(
-    image_objects,
-    tags,
-    output_name,
-    single_cell_dataset_step,
-    feature_step,
-    segmentation_name,
-    x_feature,
-    y_feature,
-    raw_name,
-    n_bins=10,
-    seg_names=None,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    single_cell_dataset_step: str,
+    feature_step: str,
+    segmentation_name: str,
+    x_feature: str,
+    y_feature: str,
+    raw_name: str,
+    n_bins: int = 10,
+    seg_names: List[str] = None,
 ):
+    """
+    Create a contact sheet of random cells from the single cell dataset binned by two features.
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to create contact sheet from
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output
+    single_cell_dataset_step : str
+        Step name of single cell dataset
+    feature_step : str
+        Step name of calculated features
+    segmentation_name : str
+        Name of the segmentation to use for creating feature bins
+    x_feature : str
+        Name of x feature to bin by
+    y_feature : str
+        Name of y feature to bin by
+    raw_name : str
+        Name of raw image to use for projection
+    n_bins : int
+        Number of bins to use for each feature
+    seg_names : List[str]
+        List of segmentation names to use for creating contact sheet
+    """
     if isinstance(seg_names, (list, ListConfig)) and len(seg_names) > 3:
         raise ValueError("Only three segmentation names can be used to create a contact sheet")
     cell_df = pd.concat(

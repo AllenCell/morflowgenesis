@@ -1,9 +1,12 @@
+from typing import List, Optional
+
 import numpy as np
 from scipy.ndimage import binary_dilation, binary_erosion, gaussian_filter
 from skimage.measure import label
 from skimage.segmentation import watershed
 
 from morflowgenesis.utils import (
+    ImageObject,
     StepOutput,
     extract_objects,
     get_largest_cc,
@@ -126,17 +129,42 @@ def watershed_fov(
 
 
 def run_watershed(
-    image_objects,
-    tags,
-    output_name,
-    raw_input_step,
-    seg_input_step,
-    mode="centroid",
-    erosion=None,
-    min_seed_size=1000,
-    include_edge=True,
-    padding=10,
+    image_objects: List[ImageObject],
+    tags: List[str],
+    output_name: str,
+    raw_input_step: str,
+    seg_input_step: str,
+    mode: Optional[str] = "centroid",
+    erosion: Optional[int] = None,
+    min_seed_size: Optional[int] = 1000,
+    include_edge: Optional[bool] = True,
+    padding: Optional[int] = 10,
 ):
+    """
+    Apply seeded watershed across objects in an image
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to run seeded watershed on
+    tags : List[str]
+        Tags corresponding to concurrency-limits for parallel processing
+    output_name : str
+        Name of output. The input step name will be appended to this name in the format `output_name/input_step`
+    raw_input_step : str
+        Step names of input raw images
+    seg_input_step : str
+        Step names of input segmentation images
+    mode : str, optional
+        Method to use for seeding, by default "centroid"
+    erosion : int, optional
+        Number of iterations for erosion if mode is "erosion", by default None
+    min_seed_size : int, optional
+        Minimum number of pixels for a seed, by default 1000
+    include_edge : bool, optional
+        Whether to include objects on the edge of the fov, by default True
+    padding : int, optional
+        Padding to add to the fov, by default 10
+    """
     parallelize_across_images(
         image_objects,
         watershed_fov,

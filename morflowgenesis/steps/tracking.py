@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import List
 
 import numpy as np
 import pandas as pd
@@ -9,7 +10,12 @@ from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
 from timelapsetracking.viz_utils import visualize_tracks_2d
 
-from morflowgenesis.utils import StepOutput, extract_objects, parallelize_across_images
+from morflowgenesis.utils import (
+    ImageObject,
+    StepOutput,
+    extract_objects,
+    parallelize_across_images,
+)
 
 
 def str_to_array(s):
@@ -185,7 +191,20 @@ def _do_tracking(image_objects, output_name):
     return run
 
 
-def tracking(image_objects, tags, output_name, input_step):
+def tracking(image_objects: List[ImageObject], tags: List[str], output_name: str, input_step: str):
+    """
+    Tracking based on minimizing centroid distance and change in volume between timepoints
+    Parameters
+    ----------
+    image_objects : List[ImageObject]
+        List of ImageObjects to process
+    tags : List[str]
+        List of tags to use for parallel processing
+    output_name : str
+        Name of output
+    input_step : str
+        Name of step to load images from
+    """
     Path(f"{image_objects[0].working_dir}/tracking/{output_name}").mkdir(
         parents=True, exist_ok=True
     )

@@ -2,154 +2,154 @@ experiment_name: breakdown_classification
 run_name: single_timepoint
 task_name: eval
 tags:
-- dev
-ckpt_path: 
+    - dev
+ckpt_path:
 data:
-  _target_: cyto_dl.datamodules.dataframe.DataframeDatamodule
-  path: 
-  cache_dir: /storage/benji.the.kid/cache/formation_breakdown
-  num_workers: 8
-  batch_size: 1
-  pin_memory: true
-  transforms:
-    train:
-      _target_: monai.transforms.Compose
-      transforms:
-      - _target_: monai.transforms.LoadImaged
-        keys: img
-        reader:
-        - _target_: cyto_dl.image.io.MonaiBioReader
-          dimension_order_out: ZYX
-      - _target_: cyto_dl.image.transforms.track_transforms.GenerateTrackLabels
-      - _target_: monai.transforms.ToTensord
-        keys: img
-        dtype: float16
-      - _target_: cyto_dl.image.transforms.track_transforms.SplitTrackd
-        img_key: img
-        label_key: label
-      - _target_: monai.transforms.RandShiftIntensityd
-        keys: img
-        offsets: 3
-        prob: 0.5
-      - _target_: monai.transforms.RandScaleIntensityd
-        keys: img
-        factors: 0.5
-        prob: 0.5
-      - _target_: monai.transforms.RandFlipd
-        keys: img
-        prob: 0.5
-        spatial_axis: 0
-      - _target_: monai.transforms.RandFlipd
-        keys: img
-        prob: 0.5
-        spatial_axis: 1
-      - _target_: monai.transforms.RandRotate90d
-        keys: img
-        prob: 0.75
-      - _target_: monai.transforms.RandAdjustContrastd
-        keys: img
-        gamma:
-        - 0.8
-        - 1.2
-        prob: 0.5
-      - _target_: cyto_dl.image.transforms.track_transforms.CropResize
-        keys:
-        - img
-    val:
-      _target_: monai.transforms.Compose
-      transforms:
-      - _target_: monai.transforms.LoadImaged
-        keys: img
-        reader:
-        - _target_: cyto_dl.image.io.MonaiBioReader
-          dimension_order_out: ZYX
-      - _target_: cyto_dl.image.transforms.track_transforms.GenerateTrackLabels
-      - _target_: monai.transforms.ToTensord
-        keys: img
-        dtype: float16
-      - _target_: cyto_dl.image.transforms.track_transforms.SplitTrackd
-        img_key: img
-        label_key: label
-    test:
-      _target_: monai.transforms.Compose
-      transforms:
-      - _target_: monai.transforms.LoadImaged
-        keys: img
-        reader:
-        - _target_: cyto_dl.image.io.MonaiBioReader
-          dimension_order_out: ZYX
-      - _target_: cyto_dl.image.transforms.track_transforms.GenerateTrackLabels
-      - _target_: monai.transforms.ToTensord
-        keys: img
-        dtype: float16
-    predict:
-      _target_: monai.transforms.Compose
-      transforms:
-      - _target_: monai.transforms.LoadImaged
-        keys: img
-        reader:
-        - _target_: cyto_dl.image.io.MonaiBioReader
-          dimension_order_out: ZYX
-      - _target_: monai.transforms.ToTensord
-        keys: img
-        dtype: float16
+    _target_: cyto_dl.datamodules.dataframe.DataframeDatamodule
+    path:
+    cache_dir: /storage/benji.the.kid/cache/formation_breakdown
+    num_workers: 8
+    batch_size: 1
+    pin_memory: true
+    transforms:
+        train:
+            _target_: monai.transforms.Compose
+            transforms:
+                - _target_: monai.transforms.LoadImaged
+                  keys: img
+                  reader:
+                      - _target_: cyto_dl.image.io.MonaiBioReader
+                        dimension_order_out: ZYX
+                - _target_: cyto_dl.image.transforms.track_transforms.GenerateTrackLabels
+                - _target_: monai.transforms.ToTensord
+                  keys: img
+                  dtype: float16
+                - _target_: cyto_dl.image.transforms.track_transforms.SplitTrackd
+                  img_key: img
+                  label_key: label
+                - _target_: monai.transforms.RandShiftIntensityd
+                  keys: img
+                  offsets: 3
+                  prob: 0.5
+                - _target_: monai.transforms.RandScaleIntensityd
+                  keys: img
+                  factors: 0.5
+                  prob: 0.5
+                - _target_: monai.transforms.RandFlipd
+                  keys: img
+                  prob: 0.5
+                  spatial_axis: 0
+                - _target_: monai.transforms.RandFlipd
+                  keys: img
+                  prob: 0.5
+                  spatial_axis: 1
+                - _target_: monai.transforms.RandRotate90d
+                  keys: img
+                  prob: 0.75
+                - _target_: monai.transforms.RandAdjustContrastd
+                  keys: img
+                  gamma:
+                      - 0.8
+                      - 1.2
+                  prob: 0.5
+                - _target_: cyto_dl.image.transforms.track_transforms.CropResize
+                  keys:
+                      - img
+        val:
+            _target_: monai.transforms.Compose
+            transforms:
+                - _target_: monai.transforms.LoadImaged
+                  keys: img
+                  reader:
+                      - _target_: cyto_dl.image.io.MonaiBioReader
+                        dimension_order_out: ZYX
+                - _target_: cyto_dl.image.transforms.track_transforms.GenerateTrackLabels
+                - _target_: monai.transforms.ToTensord
+                  keys: img
+                  dtype: float16
+                - _target_: cyto_dl.image.transforms.track_transforms.SplitTrackd
+                  img_key: img
+                  label_key: label
+        test:
+            _target_: monai.transforms.Compose
+            transforms:
+                - _target_: monai.transforms.LoadImaged
+                  keys: img
+                  reader:
+                      - _target_: cyto_dl.image.io.MonaiBioReader
+                        dimension_order_out: ZYX
+                - _target_: cyto_dl.image.transforms.track_transforms.GenerateTrackLabels
+                - _target_: monai.transforms.ToTensord
+                  keys: img
+                  dtype: float16
+        predict:
+            _target_: monai.transforms.Compose
+            transforms:
+                - _target_: monai.transforms.LoadImaged
+                  keys: img
+                  reader:
+                      - _target_: cyto_dl.image.io.MonaiBioReader
+                        dimension_order_out: ZYX
+                - _target_: monai.transforms.ToTensord
+                  keys: img
+                  dtype: float16
 model:
-  _target_: cyto_dl.models.classification.TimepointClassification
-  num_classes: ${model._aux.num_classes}
-  model:
-    _target_: monai.networks.nets.Regressor
-    in_shape:
-    - 1
-    - 64
-    - 64
-    out_shape: ${model._aux.num_classes}
-    channels:
-    - 8
-    - 16
-    - 32
-    strides:
-    - 2
-    - 2
-    - 2
-  x_key: img
-  save_dir: ${paths.output_dir}
-  save_images_every_n_epochs: 1
-  optimizer:
-    _partial_: true
-    _target_: torch.optim.AdamW
-    weight_decay: 0.01
-  lr_scheduler:
-    _partial_: true
-    _target_: torch.optim.lr_scheduler.OneCycleLR
-    max_lr: 0.0003
-    epochs: ${trainer.max_epochs}
-    steps_per_epoch: 1
-    pct_start: 0.1
-  _aux:
-    num_classes: 2
+    _target_: cyto_dl.models.classification.TimepointClassification
+    num_classes: ${model._aux.num_classes}
+    model:
+        _target_: monai.networks.nets.Regressor
+        in_shape:
+            - 1
+            - 64
+            - 64
+        out_shape: ${model._aux.num_classes}
+        channels:
+            - 8
+            - 16
+            - 32
+        strides:
+            - 2
+            - 2
+            - 2
+    x_key: img
+    save_dir: ${paths.output_dir}
+    save_images_every_n_epochs: 1
+    optimizer:
+        _partial_: true
+        _target_: torch.optim.AdamW
+        weight_decay: 0.01
+    lr_scheduler:
+        _partial_: true
+        _target_: torch.optim.lr_scheduler.OneCycleLR
+        max_lr: 0.0003
+        epochs: ${trainer.max_epochs}
+        steps_per_epoch: 1
+        pct_start: 0.1
+    _aux:
+        num_classes: 2
 trainer:
-  _target_: lightning.Trainer
-  default_root_dir: ${paths.output_dir}
-  min_epochs: 1
-  max_epochs: 130
-  accelerator: gpu
-  devices: 1
-  precision: 16
-  check_val_every_n_epoch: 10
-  deterministic: false
-  detect_anomaly: false
+    _target_: lightning.Trainer
+    default_root_dir: ${paths.output_dir}
+    min_epochs: 1
+    max_epochs: 130
+    accelerator: gpu
+    devices: 1
+    precision: 16
+    check_val_every_n_epoch: 10
+    deterministic: false
+    detect_anomaly: false
 paths:
-  root_dir: ${oc.env:PROJECT_ROOT, './'}
-  data_dir: ${paths.root_dir}/data/
-  log_dir: ${paths.root_dir}/logs/
-  output_dir: ${hydra:runtime.output_dir}
-  work_dir: ${hydra:runtime.cwd}
+    root_dir: ${oc.env:PROJECT_ROOT, './'}
+    data_dir: ${paths.root_dir}/data/
+    log_dir: ${paths.root_dir}/logs/
+    output_dir: ${hydra:runtime.output_dir}
+    work_dir: ${hydra:runtime.cwd}
 extras:
-  ignore_warnings: true
-  enforce_tags: false
-  print_config: false
-  precision:
-    _target_: torch.set_float32_matmul_precision
-    precision: medium
+    ignore_warnings: true
+    enforce_tags: false
+    print_config: false
+    precision:
+        _target_: torch.set_float32_matmul_precision
+        precision: medium
 seed: 12345
 persist_cache: false
