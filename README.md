@@ -24,7 +24,7 @@ pip install -e .
 1. Set up a postgres database for tracking workflow artifacts
 
 ```
-docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=prefect --shm-size=1g postgres:latest -c 'max_connections=300' -c 'shared_buffers=500MB'
+docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=yourTopSecretPassword -e POSTGRES_DB=prefect --shm-size=1g postgres:latest -c 'max_connections=800' -c 'shared_buffers=1000MB'
 ```
 
 2. Set up a prefect server
@@ -39,7 +39,7 @@ prefect server start
 
 ```
 export PREFECT_SQLALCHEMY_POOL_SIZE=10
-export PREFECT_SQLALCHEMY_MAX_OVERFLOW=100
+export PREFECT_SQLALCHEMY_MAX_OVERFLOW=-1
 ```
 
 4. \[OPTIONAL\] Add task runners
