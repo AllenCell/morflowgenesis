@@ -21,7 +21,6 @@ def extract_fov_tracks(
     timepoint = image_object.metadata["T"]
     img = image_object.load_step(image_step).max(0)
     img = (img - np.mean(img)) / np.std(img)
-    rois = rois[rois.index_sequence == timepoint]
 
     data = {
         track_id: resize(
@@ -37,32 +36,34 @@ def extract_fov_tracks(
     return data
 
 
-def pad(df, t_max, pad=3):
+def pad(df, pad=3):
+    # pad first timepoint
     t0 = df.index_sequence.min()
-    row_min = df[df.index_sequence == t0].iloc[0].to_dict()
-
-    t1 = df.index_sequence.max()
-    row_max = df[df.index_sequence == t1].iloc[0].to_dict()
-
+    row_min = deepcopy(df[df.index_sequence == t0].iloc[0].to_dict())
     new_df = []
     for i in range(-pad, 0, 1):
-        pad_timepoint = t0 + i
-        if pad_timepoint >= 0:
-            temp = deepcopy(row_min)
-            temp["index_sequence"] = pad_timepoint
-            new_df.append(temp)
+        row_min["index_sequence"] = t0 + i
+        new_df.append(row_min)
 
+    # pad last timepoint
+    t1 = df.index_sequence.max()
+    row_max = deepcopy(df[df.index_sequence == t1].iloc[0].to_dict())
     for i in range(1, pad + 1, 1):
-        pad_timepoint = t1 + i
-        if pad_timepoint < t_max:
-            temp = deepcopy(row_max)
-            temp["index_sequence"] = pad_timepoint
-            new_df.append(temp)
+        row_max["index_sequence"] = t1+i
+        new_df.append(row_max)
+
     new_df = pd.concat([df, pd.DataFrame(new_df)])
     return new_df
 
+def extract_track_start_and_end(df, n_extract):
+    """returns the start and end of the track"""
+    df['offset'] = df.index_sequence - df.index_sequence.min()
+    return df[(df.offset <= n_extract) | (df.offset >= df.index_sequence.max() - n_extract)]
 
-def get_rois(image_objects, single_cell_step, padding=2, xy_resize=2.5005):
+def remove_short_tracks(df, min_track_length):
+    return df.groupby('track_id').filter(lambda x: len(x) > min_track_length)
+
+def get_rois(image_objects, single_cell_step, n_extract=-1, min_track_length=-1,padding=2, xy_resize=2.5005):
     """returns padded rois to extract from each timestep."""
     print("Extracting ROIs")
     single_cell_df = pd.concat(
@@ -71,22 +72,33 @@ def get_rois(image_objects, single_cell_step, padding=2, xy_resize=2.5005):
             for obj in image_objects
         ]
     )
+
+    if min_track_length > 0:
+        pre = len(single_cell_df)
+        single_cell_df = remove_short_tracks(single_cell_df, min_track_length)
+        print(f"Removed {pre - len(single_cell_df)} short tracks, {len(single_cell_df)} remain.")
+
+    if n_extract > 0:
+        # only keep first and last n_extract timepoints
+        single_cell_df = single_cell_df.groupby("track_id").apply(
+            lambda x: extract_track_start_and_end(x, n_extract)
+        ).reset_index(drop=True)
+
     #  remove [], split on commas, z coords, resize to 20x coords, convert to int
     single_cell_df["roi"] = (
         single_cell_df["roi"]
         .apply(lambda x: (np.array(x[1:-1].split(",")[2:], dtype=float) / xy_resize).astype(int))
         .values
     )
-    t_max = single_cell_df.index_sequence.max()
     print("Padding ROIs")
-    single_cell_df = single_cell_df.groupby("track_id").apply(lambda x: pad(x, t_max, pad=padding))
+    t_max = single_cell_df.index_sequence.max()
+    single_cell_df = single_cell_df.groupby("track_id").apply(lambda x: pad(x, pad=padding))
+    single_cell_df = single_cell_df[(single_cell_df.index_sequence >=0) | (single_cell_df.index_sequence <= t_max)]
     return single_cell_df
 
 
 def save_track(data, save_dir):
     track_id, data = data
-    if len(data["img"]) < 50:
-        return
     metadata = {
         "track_start": data["track_start"],
         "timepoints": data["timepoints"],
@@ -158,12 +170,16 @@ def formation_breakdown(
     single_cell_step,
     config_path,
     overrides,
+    n_extract=-1,
+    min_track_length=-1,
 ):
+    """
+    """
     output_dir = Path(f"{image_objects[0].working_dir}/formation_breakdown/{output_name}")
     data_dir = output_dir / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
     if not (data_dir / "predict.csv").exists():
-        rois = get_rois(image_objects, single_cell_step)
+        rois = get_rois(image_objects, single_cell_step, n_extract=n_extract, min_track_length=min_track_length)
         input_data = [
             (obj, rois[rois.index_sequence == obj.metadata["T"]]) for obj in image_objects
         ]
@@ -171,7 +187,6 @@ def formation_breakdown(
             input_data,
             extract_fov_tracks,
             tags,
-            create_output=False,
             image_step=image_step,
             data_name="data",
         )
