@@ -40,7 +40,7 @@ requirements = [
     "aicsimageio==4.11.0",
     "aicsshparam==0.1.7",
     "camera-alignment-core==1.0.5",
-    "cyto_dl==0.1.0",
+    "cyto_dl==0.2.0",
     "dask==2023.3.1",
     "hydra-core==1.3.2",
     "matplotlib==3.7.2",
@@ -100,6 +100,6 @@ setup(
     url="https://github.com/AllenCell/morflowgenesis",
     # Do not edit this string manually, always use bumpversion
     # Details in CONTRIBUTING.rst
-    version="0.1.0",
+    version="0.2.0",
     zip_safe=False,
 )
