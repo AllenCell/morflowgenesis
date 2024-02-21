@@ -132,15 +132,15 @@ def uncrop(
     )
     if not output.path.exists():
         img = image_object.load_step(image_step)
-        print("image loaded")
+        print("image loaded", img.shape)
         # crop path is same as image path but with .npy extension
         padding_path = str(image_object.get_step(cropping_step).path).replace(".tif", ".npy")
         padding = np.load(padding_path, allow_pickle=True)
         # in case images are at different resolutions
-        padding = padding * pad_rescale
-        print("padding loaded")
-        img = np.pad(img, padding.astype(int), mode=mode)
-        print("image padded")
+        padding = np.round(padding * pad_rescale).astype(int)
+        print("padding loaded", padding)
+        img = np.pad(img, padding, mode=mode)
+        print("image padded", img.shape)
         output.save(img)
     print("image saved")
     image_object.add_step_output(output)

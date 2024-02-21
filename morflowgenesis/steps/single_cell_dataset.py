@@ -102,15 +102,12 @@ def process_cell(
     }
     if tracking_df is not None:
         tracking_df = tracking_df[tracking_df.label_img == lab]
-        df.update(
-            {
-                "index_sequence": tracking_df.time_index.iloc[0],
-                "track_id": tracking_df.track_id.iloc[0],
-                "lineage_id": tracking_df.lineage_id.iloc[0],
-                "is_outlier": tracking_df.is_outlier.iloc[0],
-                "edge_cell": tracking_df.edge_cell.iloc[0],
-            }
-        )
+        extract_keys = ['index_sequence', 'track_id', 'lineage_id', 'is_outlier', 'edge_cell']
+        if tracking_df.shape[0] > 0:
+            df.update(tracking_df[extract_keys].iloc[0].to_dict())
+        else:
+            df.update({k: np.nan for k in extract_keys})
+
     raw_steps_rename = raw_steps_rename or raw_steps
     raw_img_paths = get_renamed_image_paths(image_object, raw_steps, raw_steps_rename)
     seg_steps_rename = seg_steps_rename or seg_steps
@@ -308,7 +305,7 @@ def extract_cells_from_fov(
 
     if tracking_df is not None:
         tracking_df = tracking_df[tracking_df.index_sequence == image_object.metadata["T"]]
-        print("tracking data loaded for", tracking_df.index_sequence.unique())
+        print(f"tracking data {tracking_df.shape} loaded for", tracking_df.index_sequence.unique())
 
     objects = extract_objects(seg_images[splitting_ch], padding=padding, include_ch=True)
     cell_info = []
@@ -355,9 +352,6 @@ def extract_cells_from_fov(
 
 
 def process_image(**kwargs):
-    cell_info = extract_cells_from_fov(**kwargs)
-    cell_df = pd.concat([process_cell(**cell) for cell in cell_info])
-
     image_object = kwargs["image_object"]
     step_output = StepOutput(
         image_object.working_dir,
@@ -366,6 +360,8 @@ def process_image(**kwargs):
         output_type="csv",
         image_id=image_object.id,
     )
+    cell_info = extract_cells_from_fov(**kwargs)
+    cell_df = pd.concat([process_cell(**cell) for cell in cell_info])
 
     step_output.save(cell_df)
     image_object.add_step_output(step_output)
