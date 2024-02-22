@@ -1,5 +1,5 @@
 import re
-from typing import List
+from typing import List, Optional
 
 import pandas as pd
 import tqdm
@@ -10,11 +10,12 @@ from morflowgenesis.utils import ImageObject, StepOutput
 def create_manifest(
     image_objects: List[ImageObject],
     output_name: str,
+    dataset_name: str,
     feature_step: str,
     single_cell_step: str,
-    dataset_name: str,
-    breakdown_classification_step: str,
-    tags: List[str],
+    tracking_step: str,
+    breakdown_classification_step: Optional[str] = None,
+    tags: List[str] = [],
 ):
     """Postprocessing function for combining results from nucmorph pipeline into single
     manifest."""
@@ -31,11 +32,18 @@ def create_manifest(
         manifest.append(cells_with_feats)
     manifest = pd.concat(manifest)
 
-    # add formation/breakdown information based on track_id
-    # same for all objects, just load once
-    breakdown_classification = obj.load_step(breakdown_classification_step)
-    # default to -1 for short tracks not run through classification
-    manifest = pd.merge(manifest, breakdown_classification, on="track_id", how="left")
+    if breakdown_classification_step is not None:
+        # add formation/breakdown information based on track_id
+        # same for all objects, just load once
+        breakdown_classification = obj.load_step(breakdown_classification_step)
+        breakdown_classification = breakdown_classification[['track_id', 'formation', 'breakdown']]
+        manifest = pd.merge(manifest, breakdown_classification, on="track_id", how="left")
+
+    # load tracking data
+    tracking = obj.load_step(tracking_step)[['index_sequence', 'label_img', 'edge_cell', 'track_id', 'lineage_id']]
+    manifest = pd.merge(manifest, tracking, on=['index_sequence', 'label_img'], how="left")
+    manifest = manifest.drop(columns=['index_sequence_y', 'label_img_y'])
+    manifest = manifest.rename(columns={'index_sequence_x': 'index_sequence', 'label_img_x': 'label_img', 'edge_cell': 'fov_edge'})
 
     # sort manifest
     manifest = manifest.sort_values(by="index_sequence")
