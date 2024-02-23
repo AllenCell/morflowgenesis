@@ -20,7 +20,7 @@ def extract_values(x):
         raise ValueError("Input must be tuple, list, or number")
 
 
-def crop(
+def find_timepoint_crop(    
     image_object: ImageObject,
     output_name: str,
     image_step: str,
@@ -45,21 +45,10 @@ def crop(
     sigma_cutoff : Union[int, List[int]]
         Number of standard deviations to crop around the center of the Gaussian-like profile. If list, first element is number of standard deviations to crop below, second is number of standard deviations to crop above.
     """
-    # add result to image object
-    output = StepOutput(
-        image_object.working_dir,
-        step_name="center_crop",
-        output_name=output_name,
-        output_type="image",
-        image_id=image_object.id,
-    )
-    if output.path.exists():
-        return output
     img = image_object.load_step(image_step)
-    padding = np.array([(0, 0), (0, 0), (0, 0)])
+    bottom_padding, top_padding = 0, 0
     if len(img.shape) != 3:
         raise ValueError("Image must be 3D")
-
     if img.shape[0] < min_slices:
         raise ValueError(f"Image must have at least {min_slices}, got {img.shape[0]}")
     elif img.shape[0] > min_slices:
@@ -88,15 +77,72 @@ def crop(
             else:
                 bottom_z = max(0, bottom_z - (min_slices - num_slices) // 2)
                 top_z = min(img.shape[0], top_z + (min_slices - num_slices) // 2)
-        padding[0] = [bottom_z, img.shape[0] - top_z]
-        img = img[bottom_z:top_z]
-    output.save(img)
-    np.save(
-        image_object.working_dir / "center_crop" / output_name / f"{image_object.id}.npy", padding
+        bottom_padding = bottom_z
+        top_padding = img.shape[0] - top_z
+    return bottom_padding, top_padding
+
+
+def apply_crop(
+    image_object: ImageObject,
+    output_name: str,
+    image_step: str,
+    bottom_padding: int,
+    top_padding: int,
+):
+    # add result to image object
+    output = StepOutput(
+        image_object.working_dir,
+        step_name="center_crop",
+        output_name=output_name,
+        output_type="image",
+        image_id=image_object.id,
     )
+    if output.path.exists():
+        return output
+
+    img = image_object.load_step(image_step)    
+    output.save(img[bottom_padding:-top_padding])
     image_object.add_step_output(output)
     image_object.save()
 
+
+def center_crop(
+    image_objects: List[ImageObject],
+    tags: List[str],
+    image_step: str,
+    output_name: str,
+    pad: Union[int, List[int]] = 5,
+    min_slices: int = 24,
+    sigma_cutoff: Union[int, List[int]] = 2,
+):
+    _, results = parallelize_across_images(
+        image_objects,
+        find_timepoint_crop,
+        tags=tags,
+        image_step=image_step,
+        output_name=output_name,
+        pad=pad,
+        min_slices=min_slices,
+        sigma_cutoff=sigma_cutoff,
+    )
+    print('Per-timepoint padding complete')
+    results= np.array(results)
+    bottom_padding = np.max(results[:,0])
+    top_padding = np.max(results[:,1])
+   
+    parallelize_across_images(
+        image_objects,
+        apply_crop,
+        tags=tags,
+        image_step=image_step,
+        output_name=output_name,
+        bottom_padding=bottom_padding,
+        top_padding=top_padding,
+    )
+    np.save(
+        image_objects[0].working_dir / "center_crop" / output_name / "padding.npy", np.array([(bottom_padding, top_padding), (0, 0), (0, 0)])
+    )
+    print('Consensus padding is', bottom_padding, top_padding)
 
 def uncrop(
     image_object: ImageObject,
@@ -134,7 +180,7 @@ def uncrop(
         img = image_object.load_step(image_step)
         print("image loaded")
         # crop path is same as image path but with .npy extension
-        padding_path = str(image_object.get_step(cropping_step).path).replace(".tif", ".npy")
+        padding_path = str(image_object.get_step(cropping_step).path.parent/"padding.npy")
         padding = np.load(padding_path, allow_pickle=True)
         # in case images are at different resolutions
         padding = padding * pad_rescale
@@ -145,28 +191,6 @@ def uncrop(
     print("image saved")
     image_object.add_step_output(output)
     image_object.save()
-
-
-def center_crop(
-    image_objects: List[ImageObject],
-    tags: List[str],
-    image_step: str,
-    output_name: str,
-    pad: Union[int, List[int]] = 5,
-    min_slices: int = 24,
-    sigma_cutoff: Union[int, List[int]] = 2,
-):
-    parallelize_across_images(
-        image_objects,
-        crop,
-        tags=tags,
-        image_step=image_step,
-        output_name=output_name,
-        pad=pad,
-        min_slices=min_slices,
-        sigma_cutoff=sigma_cutoff,
-    )
-
 
 def center_pad(
     image_objects: List[ImageObject],
