@@ -362,7 +362,6 @@ def single_cell_dataset(
     raw_steps: Optional[List[str]] = [],
     raw_steps_rename: Optional[List[str]] = None,
     seg_steps_rename: Optional[List[str]] = None,
-    tracking_step: Optional[str] = None,
     xy_res: Optional[float] = 0.108,
     z_res: Optional[float] = 0.29,
     qcb_res: Optional[float] = 0.108,
@@ -393,8 +392,6 @@ def single_cell_dataset(
         New names for raw steps
     seg_steps_rename : List[str], optional
         New names for seg steps
-    tracking_step : str, optional
-        Step name of tracking data to use for single cell dataset
     xy_res : float, optional
         Resolution in xy plane of images. If not the same, images will be resized to splitting_step size
     z_res : float, optional
