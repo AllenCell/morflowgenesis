@@ -23,8 +23,6 @@ from morflowgenesis.utils import (
 )
 
 # TODO save manifests to /manifests folder
-
-
 def upload_file(
     fms_env: str,
     file_path: Path,
@@ -79,7 +77,6 @@ def process_cell(
     xy_res,
     upload_fms=False,
     dataset_name="morphogenesis",
-    tracking_df=None,
     seg_steps_rename=None,
     raw_steps_rename=None,
 ):
@@ -100,17 +97,7 @@ def process_cell(
         "label_img": lab,
         "edge_cell": is_edge,
     }
-    if tracking_df is not None:
-        tracking_df = tracking_df[tracking_df.label_img == lab]
-        df.update(
-            {
-                "index_sequence": tracking_df.time_index.iloc[0],
-                "track_id": tracking_df.track_id.iloc[0],
-                "lineage_id": tracking_df.lineage_id.iloc[0],
-                "is_outlier": tracking_df.is_outlier.iloc[0],
-                "edge_cell": tracking_df.edge_cell.iloc[0],
-            }
-        )
+
     raw_steps_rename = raw_steps_rename or raw_steps
     raw_img_paths = get_renamed_image_paths(image_object, raw_steps, raw_steps_rename)
     seg_steps_rename = seg_steps_rename or seg_steps
@@ -281,7 +268,6 @@ def extract_cells_from_fov(
     qcb_res,
     upload_fms,
     include_edge_cells,
-    tracking_df=None,
 ):
     print(f"Processing image {image_object.id}")
     raw_images, seg_images, raw_steps, seg_steps, splitting_ch = load_images(
@@ -305,10 +291,6 @@ def extract_cells_from_fov(
         keep_lcc = sorted(seg_steps.index(m) for m in keep_lcc)
     else:
         keep_lcc = []
-
-    if tracking_df is not None:
-        tracking_df = tracking_df[tracking_df.index_sequence == image_object.metadata["T"]]
-        print("tracking data loaded for", tracking_df.index_sequence.unique())
 
     objects = extract_objects(seg_images[splitting_ch], padding=padding, include_ch=True)
     cell_info = []
@@ -346,7 +328,6 @@ def extract_cells_from_fov(
                 "xy_res": xy_res,
                 "upload_fms": False,
                 "dataset_name": "morphogenesis",
-                "tracking_df": tracking_df,
                 "seg_steps_rename": seg_steps_rename,
                 "raw_steps_rename": raw_steps_rename,
             }
@@ -381,7 +362,6 @@ def single_cell_dataset(
     raw_steps: Optional[List[str]] = [],
     raw_steps_rename: Optional[List[str]] = None,
     seg_steps_rename: Optional[List[str]] = None,
-    tracking_step: Optional[str] = None,
     xy_res: Optional[float] = 0.108,
     z_res: Optional[float] = 0.29,
     qcb_res: Optional[float] = 0.108,
@@ -412,8 +392,6 @@ def single_cell_dataset(
         New names for raw steps
     seg_steps_rename : List[str], optional
         New names for seg steps
-    tracking_step : str, optional
-        Step name of tracking data to use for single cell dataset
     xy_res : float, optional
         Resolution in xy plane of images. If not the same, images will be resized to splitting_step size
     z_res : float, optional
@@ -433,11 +411,6 @@ def single_cell_dataset(
     include_edge_cells : bool, optional
         Whether to include cells on the edge of the fov
     """
-    # load tracking data if available (same for all images)
-    tracking_df = None
-    if tracking_step is not None:
-        tracking_df = image_objects[0].load_step(tracking_step)
-
     parallelize_across_images(
         image_objects,
         process_image,
@@ -457,5 +430,4 @@ def single_cell_dataset(
         qcb_res=qcb_res,
         upload_fms=upload_fms,
         include_edge_cells=include_edge_cells,
-        tracking_df=tracking_df,
     )
