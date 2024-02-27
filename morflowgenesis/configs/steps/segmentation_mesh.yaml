@@ -1,0 +1,6 @@
+mesh:
+    function: morflowgenesis.steps.mesh
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    output_name: mesh
+    seg_steps:
+    resize: 0.2

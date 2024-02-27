@@ -1,0 +1,16 @@
+defaults:
+    - center_pad_task_runner: ../../../task_runner/dask
+
+center_pad_task_runner:
+    task_limit: 20
+    memory_limit: 35Gi
+
+center_pad:
+    task_runner: ${..center_pad_task_runner}
+    function: morflowgenesis.steps.center_pad
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    image_step:
+    cropping_step:
+    output_name: center_pad
+    mode: constant
+    pad_rescale: 1.0

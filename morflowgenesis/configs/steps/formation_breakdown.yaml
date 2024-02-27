@@ -1,0 +1,18 @@
+defaults:
+    - formation_breakdown_task_runner: ../../../task_runner/dask
+
+formation_breakdown_task_runner:
+    task_limit: 20
+    memory_limit: 5Gi
+
+formation_breakdown:
+    task_runner: ${..formation_breakdown_task_runner}
+    function: morflowgenesis.steps.formation_breakdown
+    output_name: formation_breakdown
+    image_step:
+    single_cell_step: single_cell_dataset/single_cell_dataset
+    config_path:
+    overrides:
+    n_extract: -1
+    min_track_length: -1
+    padding: 2

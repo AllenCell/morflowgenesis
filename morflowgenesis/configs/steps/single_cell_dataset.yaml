@@ -1,0 +1,26 @@
+defaults:
+    - single_cell_dataset_task_runner: ../../../task_runner/dask
+
+single_cell_dataset_task_runner:
+    task_limit: 60
+    memory_limit: 45Gi
+
+single_cell_dataset:
+    task_runner: ${..single_cell_dataset_task_runner}
+    function: morflowgenesis.steps.single_cell_dataset
+    output_name: single_cell_dataset
+    splitting_step:
+    seg_steps:
+    raw_steps:
+    raw_steps_rename:
+    seg_steps_rename:
+    tracking_step: tracking/tracking
+    xy_res: 0.108
+    z_res: 0.29
+    qcb_res: 0.108
+    padding: 10
+    mask: True
+    keep_lcc: False
+    upload_fms: False
+    iou_thresh:
+    include_edge_cells: True

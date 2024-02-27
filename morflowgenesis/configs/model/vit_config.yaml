@@ -9,7 +9,7 @@ ckpt_path:
 seed: 12345
 data:
     _target_: cyto_dl.datamodules.data_dict.make_data_dict_dataloader
-    data: null
+    data:
     transforms:
         - _target_: monai.transforms.LoadImaged
           keys:
@@ -61,7 +61,6 @@ model:
                 loss:
                     _target_: cyto_dl.models.im2im.utils.InstanceSegLoss
                     dim: 3
-                save_raw: True
                 postprocess:
                     input:
                         _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
@@ -70,11 +69,8 @@ model:
                         _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegCluster
                         dim: 3
                         min_size: 100
-                        skel_threshold: -4
+                        skel_threshold: 0
                         semantic_threshold: -4
-                        # _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
-                        # dtype: numpy.float32
-                        # ch: 1
     optimizer:
         generator:
             _partial_: true

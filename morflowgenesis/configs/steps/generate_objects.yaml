@@ -1,0 +1,18 @@
+defaults:
+    - generate_objects_task_runner: ../../../task_runner/dask
+
+generate_objects_task_runner:
+    task_limit: 10
+
+generate_objects:
+    task_runner: ${..generate_objects_task_runner}
+
+    function: morflowgenesis.steps.generate_objects
+    working_dir:
+    csv_path:
+    source_column:
+    non_source_columns:
+        -
+    metadata_column:
+    image_objects:
+        -

@@ -1,0 +1,14 @@
+defaults:
+    - resize_task_runner: ../../../task_runner/dask
+
+resize_task_runner:
+    task_limit: 10
+
+resize:
+    task_runner: ${..resize_task_runner}
+    function: morflowgenesis.steps.resize
+    output_name: resize
+    input_steps:
+    output_shape:
+    scale:
+    order: 0

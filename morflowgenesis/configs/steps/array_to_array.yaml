@@ -1,0 +1,13 @@
+defaults:
+    - array_to_array_task_runner: ../../../task_runner/dask
+
+array_to_array_task_runner:
+    task_limit: 10
+
+array_to_array:
+    task_runner: ${..array_to_array_task_runner}
+    function: morflowgenesis.steps.array_to_array
+    output_name: array_to_array
+    input_steps:
+    ch:
+    function_args:

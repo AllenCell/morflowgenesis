@@ -1,0 +1,16 @@
+defaults:
+    - threshold_task_runner: ../../../task_runner/dask
+
+threshold_task_runner:
+    task_limit: 10
+
+threshold:
+    task_runner: ${..threshold_task_runner}
+    function: morflowgenesis.steps.threshold
+    output_name: threshold
+    input_step:
+    start:
+    stop:
+    step:
+    n:
+    label: False

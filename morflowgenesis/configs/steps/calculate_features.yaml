@@ -1,0 +1,16 @@
+defaults:
+    - calculate_features_task_runner: ../../../task_runner/dask
+
+calculate_features_task_runner:
+    task_limit: 20
+    memory_limit: 5Gi
+
+calculate_features:
+    task_runner: ${..calculate_features_task_runner}
+    function: morflowgenesis.steps.calculate_features
+    output_name: calculate_features
+    input_step:
+    features:
+    reference_channel:
+    channels:
+    reference_step:

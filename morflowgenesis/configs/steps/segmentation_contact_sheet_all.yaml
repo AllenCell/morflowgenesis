@@ -1,0 +1,13 @@
+defaults:
+    - segmentation_contact_sheet_all_task_runner: ../../../task_runner/dask
+
+segmentation_contact_sheet_all_task_runner:
+    task_limit: 5
+
+segmentation_contact_sheet_all:
+    task_runner: ${..segmentation_contact_sheet_all_task_runner}
+    function: morflowgenesis.steps.segmentation_contact_sheet_all
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    output_name: segmentation_contact_sheet_all
+    raw_name:
+    seg_step:

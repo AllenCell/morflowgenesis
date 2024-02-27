@@ -1,0 +1,8 @@
+run_plot:
+    function: morflowgenesis.steps.run_plot
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    output_name: plot
+    input_step:
+    features:
+    label:
+    pred:

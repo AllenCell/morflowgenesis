@@ -1,0 +1,14 @@
+defaults:
+    - center_crop_task_runner: ../../../task_runner/dask
+
+center_crop_task_runner:
+    task_limit: 50
+    memory_limit: 5Gi
+
+center_crop:
+    task_runner: ${..center_crop_task_runner}
+    function: morflowgenesis.steps.center_crop
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    image_step:
+    output_name: center_crop
+    sigma_cutoff: [2, 3]

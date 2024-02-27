@@ -1,0 +1,17 @@
+defaults:
+    - project_task_runner: ../../../task_runner/dask
+
+project_task_runner:
+    task_limit: 10
+
+project:
+    task_runner: ${..project_task_runner}
+    function: morflowgenesis.steps.project
+    output_name: project
+    input_steps:
+    scale: 1.0
+    dtype: numpy.uint8
+    project_type: max
+    project_slice:
+    axis:
+    intensity_rescale_ranges:

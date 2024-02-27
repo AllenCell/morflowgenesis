@@ -1,0 +1,17 @@
+defaults:
+    - split_image_task_runner: ../../../task_runner/dask
+
+split_image_task_runner:
+    task_limit: 50
+    memory_limit: 5Gi
+
+split_image:
+    task_runner: ${..split_image_task_runner}
+    function: morflowgenesis.steps.split_image
+    image_path:
+    channels:
+    working_dir:
+    output_name: split_image
+    dimension_order_out: CZYX
+    timepoints:
+    scenes:

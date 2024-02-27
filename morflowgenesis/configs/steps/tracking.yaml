@@ -1,0 +1,12 @@
+defaults:
+    - tracking_task_runner: ../../../task_runner/dask
+
+tracking_task_runner:
+    task_limit: 10
+    memory_limit: 30Gi
+
+tracking:
+    task_runner: ${..tracking_task_runner}
+    function: morflowgenesis.steps.tracking
+    output_name: tracking
+    input_step:

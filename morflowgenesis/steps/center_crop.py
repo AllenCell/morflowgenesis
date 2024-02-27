@@ -20,7 +20,7 @@ def extract_values(x):
         raise ValueError("Input must be tuple, list, or number")
 
 
-def find_timepoint_crop(    
+def find_timepoint_crop(
     image_object: ImageObject,
     output_name: str,
     image_step: str,
@@ -100,7 +100,7 @@ def apply_crop(
     if output.path.exists():
         return output
 
-    img = image_object.load_step(image_step)    
+    img = image_object.load_step(image_step)
     output.save(img[bottom_padding:-top_padding])
     image_object.add_step_output(output)
     image_object.save()
@@ -125,11 +125,11 @@ def center_crop(
         min_slices=min_slices,
         sigma_cutoff=sigma_cutoff,
     )
-    print('Per-timepoint padding complete')
-    results= np.array(results)
-    bottom_padding = np.max(results[:,0])
-    top_padding = np.max(results[:,1])
-   
+    print("Per-timepoint padding complete")
+    results = np.array(results)
+    bottom_padding = np.max(results[:, 0])
+    top_padding = np.max(results[:, 1])
+
     parallelize_across_images(
         image_objects,
         apply_crop,
@@ -140,9 +140,11 @@ def center_crop(
         top_padding=top_padding,
     )
     np.save(
-        image_objects[0].working_dir / "center_crop" / output_name / "padding.npy", np.array([(bottom_padding, top_padding), (0, 0), (0, 0)])
+        image_objects[0].working_dir / "center_crop" / output_name / "padding.npy",
+        np.array([(bottom_padding, top_padding), (0, 0), (0, 0)]),
     )
-    print('Consensus padding is', bottom_padding, top_padding)
+    print("Consensus padding is", bottom_padding, top_padding)
+
 
 def uncrop(
     image_object: ImageObject,
@@ -180,7 +182,7 @@ def uncrop(
         img = image_object.load_step(image_step)
         print("image loaded", img.shape)
         # crop path is same as image path but with .npy extension
-        padding_path = str(image_object.get_step(cropping_step).path.parent/"padding.npy")
+        padding_path = str(image_object.get_step(cropping_step).path.parent / "padding.npy")
         padding = np.load(padding_path, allow_pickle=True)
         # in case images are at different resolutions
         padding = np.round(padding * pad_rescale).astype(int)
@@ -191,6 +193,7 @@ def uncrop(
     print("image saved")
     image_object.add_step_output(output)
     image_object.save()
+
 
 def center_pad(
     image_objects: List[ImageObject],

@@ -1,0 +1,80 @@
+# tagging with @steps adds the default under the steps key
+# the order of import determines the order of execution
+# note that currently we can't run the same step multiple times with different arguments
+defaults:
+    - split_image@steps: ../../steps/split_image
+    - center_crop@steps: ../../steps/center_crop
+    - run_cytodl@steps: ../../steps/run_cytodl
+    - center_pad@steps: ../../steps/center_pad
+    - tracking@steps: ../../steps/tracking
+    - single_cell_dataset@steps: ../../steps/single_cell_dataset
+    - calculate_features@steps: ../../steps/calculate_features
+    - formation_breakdown@steps: ../../steps/formation_breakdown
+    - create_manifest@steps: ../../steps/create_manifest
+
+# here we can create workflow-level arguments
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/new_hydra_test
+
+image_path: //allen/programs/allencell/data/proj0/498/3ec/511/92f/68e/b49/b40/6e0/b2d/1d2/5d/drug_timelapse-01.czi
+timepoint_end: 2
+name: test
+channels: [1]
+scene: 0
+
+# here we can override arguments for specific steps, but changing the order here does not change the order of execution
+# task runner args can be overridden, but the TYPE of task runner cannot be changed from the workflow. To use the PACKAGE default task runner of concurrent task runner, set task_runner: null
+steps:
+    split_image:
+        image_path: ${workflow.image_path}
+        channels: ${workflow.channels}
+        working_dir: ${workflow.working_dir}
+        timepoints: [0, 1]
+        scenes: ${workflow.scene}
+
+    center_crop:
+        image_step: split_image/split_image
+
+    run_cytodl:
+        input_step: center_crop/center_crop
+        config_path: //allen/aics/assay-dev/users/Benji/hydra_workflow/morflowgenesis_rnd/morflowgenesis/configs/model/vit_config.yaml
+        overrides:
+            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/offset_aug_finetune_aligned_large/2024-01-28_19-42-12/checkpoints/last.ckpt"
+
+    center_pad:
+        image_step: run_cytodl/nucseg
+        cropping_step: center_crop/center_crop
+        pad_rescale: 2.6134
+
+    tracking:
+        input_step: center_pad/center_pad
+
+    single_cell_dataset:
+        splitting_step: center_pad/center_pad
+        raw_steps: [split_image/split_image]
+        raw_steps_rename: [20x_lamin]
+        seg_steps: [center_pad/center_pad]
+        seg_steps_rename: [nuc_seg]
+        mask: False
+        keep_lcc: False
+        padding: [10, 25, 25]
+
+    calculate_features:
+        input_step: single_cell_dataset/single_cell_dataset
+        features:
+            - height
+            - height_percentile
+            - surface_area
+            - volume
+            - shcoeff
+            - length_width
+
+    formation_breakdown:
+        image_step: split_image/split_image
+        config_path: //allen/aics/assay-dev/users/Benji/hydra_workflow/morflowgenesis_rnd/morflowgenesis/configs/model/breakdown_per_tp.yaml
+        overrides:
+            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/breakdown_classification/single_timepoint/2024-02-05_13-00-47/checkpoints/epoch_109.ckpt"
+        min_track_length: 2
+
+    create_manifest:
+        dataset_name: ${workflow.name}
+    # steps not in the overrides can also be added here. they must be in order and must have all required arguments since they are not overriding args

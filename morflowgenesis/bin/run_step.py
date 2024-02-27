@@ -31,14 +31,15 @@ def get_objects_to_run(object_store_path, step_name, output_name):
     return objects_to_run
 
 
-def check_state(state, step_cfg):
+def check_state(state, step_name):
     if state != StateType.COMPLETED:
-        raise RuntimeError(f"Step {step_cfg['function']} completed with state {state}")
+        raise RuntimeError(f"Step {step_name} completed with state {state}")
 
 
 async def setup_task_limits(step_cfg):
     """Set prefect concurrency-limit based on step configuration."""
     task_limit = step_cfg.get("task_runner", {}).get("task_limit")
+    step_cfg["tags"] = []
     if task_limit:
         # create unique tag based on task function and submission time
         task_name = f'{step_cfg["function"]}_{datetime.now().strftime("%Y%m%d%H%M%S")}'
@@ -47,45 +48,43 @@ async def setup_task_limits(step_cfg):
             await client.create_concurrency_limit(tag=task_name, concurrency_limit=task_limit)
         print(f'Set task limit for {step_cfg["function"]} to {task_limit}')
         del step_cfg["task_runner"]["task_limit"]
+        step_cfg["task_runner"].pop("memory_limit", None)
+
         step_cfg["tags"] = [task_name]
+
     return step_cfg
 
 
 async def tear_down_task_limits(step_cfg):
     """Delete prefect concurrency-limit based on step configuration."""
-    if "tags" not in step_cfg:
+    if len(step_cfg.get("tags", [])) == 0:
         return
     async with get_client() as client:
         try:
-            await client.delete_concurrency_limit_by_tag(tag=step_cfg["tags"][0])
-            print(f'Deleted task limit for {step_cfg["function"]}')
+            tag = step_cfg["tags"][0]
+            await client.delete_concurrency_limit_by_tag(tag=tag)
+            print(f"Deleted task limit for tag {tag}")
         except ObjectNotFound:
             print("Concurrency limit not found")
 
 
 async def run_step(step_cfg, object_store_path):
     """Run a step in the pipeline."""
-    step_fn = step_cfg["function"]
-    step_args = step_cfg["args"]
+    # set up task runner
+    step_cfg = await setup_task_limits(step_cfg)
+    task_runner = step_cfg.pop("task_runner", None)
+    task_runner = instantiate(task_runner) if task_runner is not None else ConcurrentTaskRunner()
+
+    # initialize function
+    step_fn = step_cfg.pop("function")
     step_name = step_fn.split(".")[-1]
     step_fn = _locate(step_fn)
 
     # checking which objects to run here prevents overhead on the cluster and excess job creation.
-    objects_to_run = get_objects_to_run(object_store_path, step_name, step_args.get("output_name"))
+    objects_to_run = get_objects_to_run(object_store_path, step_name, step_cfg.get("output_name"))
     if len(objects_to_run) == 0 and object_store_path.exists():
         return StateType.COMPLETED
-
-    # set up task limits
-    step_cfg = await setup_task_limits(step_cfg)
-    tags = step_cfg.get("tags", [])
-
-    # set up task runner
-    task_runner = step_cfg.get("task_runner")
-    task_runner = instantiate(task_runner) if task_runner is not None else ConcurrentTaskRunner()
-
-    # update which objects to run
-    step_args.update({"image_objects": objects_to_run})
-
-    result = run_flow(step_fn, task_runner, tags, **step_args)
+    step_cfg.update({"image_objects": objects_to_run})
+    result = run_flow(step_fn, task_runner, **step_cfg)
     await tear_down_task_limits(step_cfg)
-    check_state(result, step_cfg)
+    check_state(result, step_name)

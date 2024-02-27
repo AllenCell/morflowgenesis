@@ -31,7 +31,7 @@ def create_regionprops_csv(image_object, input_step, output_name):
     if save_path.exists():
         out = pd.read_csv(save_path)
         out["img_shape"] = out["img_shape"].apply(str_to_array)
-        out['Edge_Cell'] = out['Edge_Cell'].astype(bool)
+        out["Edge_Cell"] = out["Edge_Cell"].astype(bool)
         return out
 
     timepoint = image_object.metadata["T"]
