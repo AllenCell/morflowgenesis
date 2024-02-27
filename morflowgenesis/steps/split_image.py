@@ -75,6 +75,8 @@ def split_image(
     optical_control_path: Optional[str] = None,
     image_objects: List[ImageObject] = None,
     tags: List[str] = [],
+    timepoint_start: Optional[int] = None,
+    timepoint_end: Optional[int] = None,
 ):
     """
     Generate ImageObjects from input image based on scenes, timepoints, and channels
@@ -125,7 +127,9 @@ def split_image(
     scenes = img.scenes if scenes == -1 else scenes
 
     # run all timepoints if no timepoints specified in config
-    timepoints = range(img.dims.T) if timepoints == -1 else timepoints
+    start = timepoint_start or 0
+    end = timepoint_end or img.dims.T
+    timepoints = range(start, end) if timepoints == -1 else timepoints
     timepoints = _validate_list(timepoints)
     # same for channels
     channels = range(img.dims.C) if channels == -1 else channels

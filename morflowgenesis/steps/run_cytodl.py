@@ -113,6 +113,8 @@ def run_cytodl(
         checkpoint_path,
     )
     _, _, out = run_evaluate(model)
+    if out is None:
+        return
     for batch in out:
         # match model predictions to image objects by input filename
         for input_filename, output_dict in batch.items():
