@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Union
 
 from skimage.transform import rescale as sk_rescale
 from skimage.transform import resize as sk_resize
@@ -38,7 +38,7 @@ def resize(
     output_name: str,
     input_steps: List[str],
     output_shape: List[int] = None,
-    scale: float = None,
+    scale: Union[float, List[float]] = None,
     order: int = 0,
 ):
     """Resize images to a specified shape or scale with a specified order of interpolation.
@@ -67,7 +67,7 @@ def resize(
             run_resize,
             tags=tags,
             output_name=output_name,
-            input_steps=step,
+            input_step=step,
             output_shape=output_shape,
             scale=scale,
             order=order,
