@@ -97,16 +97,6 @@ def process_cell(
         "label_img": lab,
         "edge_cell": is_edge,
     }
-<<<<<<< HEAD
-    if tracking_df is not None:
-        tracking_df = tracking_df[tracking_df.label_img == lab]
-        extract_keys = ['index_sequence', 'track_id', 'lineage_id', 'is_outlier', 'edge_cell']
-        if tracking_df.shape[0] > 0:
-            df.update(tracking_df[extract_keys].iloc[0].to_dict())
-        else:
-            df.update({k: np.nan for k in extract_keys})
-=======
->>>>>>> main
 
     raw_steps_rename = raw_steps_rename or raw_steps
     raw_img_paths = get_renamed_image_paths(image_object, raw_steps, raw_steps_rename)
@@ -302,13 +292,6 @@ def extract_cells_from_fov(
     else:
         keep_lcc = []
 
-<<<<<<< HEAD
-    if tracking_df is not None:
-        tracking_df = tracking_df[tracking_df.index_sequence == image_object.metadata["T"]]
-        print(f"tracking data {tracking_df.shape} loaded for", tracking_df.index_sequence.unique())
-
-=======
->>>>>>> main
     objects = extract_objects(seg_images[splitting_ch], padding=padding, include_ch=True)
     cell_info = []
     for lab, coords, is_edge in objects:
