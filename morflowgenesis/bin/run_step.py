@@ -21,10 +21,13 @@ def _is_run(path, step_name, output_name):
 
 
 @flow(log_prints=True)
-def get_objects_to_run(object_store_path, step_name, output_name):
+def get_objects_to_run(object_store_path, step_name, output_name, limit= -1):
+    fns = list(object_store_path.glob("*.json"))
+    if limit > 0:
+        fns = fns[:limit]
     objects_to_run = [
         _is_run(object_path, step_name, output_name)
-        for object_path in object_store_path.glob("*.json")
+        for object_path in fns
     ]
     objects_to_run = [obj for obj in objects_to_run if obj is not None]
     print(f"Running {len(objects_to_run)} objects for {step_name}/{output_name}")
@@ -68,7 +71,7 @@ async def tear_down_task_limits(step_cfg):
             print("Concurrency limit not found")
 
 
-async def run_step(step_cfg, object_store_path):
+async def run_step(step_cfg, object_store_path, limit=-1):
     """Run a step in the pipeline."""
     # set up task runner
     step_cfg = await setup_task_limits(step_cfg)

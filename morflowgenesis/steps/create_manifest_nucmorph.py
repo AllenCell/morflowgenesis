@@ -54,7 +54,6 @@ def create_manifest(
         ["index_sequence", "label_img", "edge_cell", "track_id", "lineage_id"]
     ]
     manifest = pd.merge(manifest, tracking, on=["index_sequence", "label_img"], how="left")
-    manifest = manifest.rename(columns={"label_img_x": "label_img", "edge_cell": "fov_edge"})
 
     if breakdown_classification_step in obj.steps:
         # add formation/breakdown information based on track_id
@@ -68,14 +67,16 @@ def create_manifest(
 
     # rename columns
     shcoeff_cols = [col for col in manifest.columns if re.search("shcoeff", col)]
-    shcoeff_rename_dict = {col: f"NUC_{col}" for col in shcoeff_cols}
-    manifest = manifest.rename(columns=shcoeff_rename_dict)
-    manifest = manifest.rename(
-        columns={
+    rename_dict = {col: f"NUC_{col}" for col in shcoeff_cols}
+    rename_dict.update(
+        {
             "20x_lamin_path": "raw_full_zstack_path",
             "nuc_seg_path": "seg_full_zstack_path",
+            "edge_cell": "fov_edge",
         }
     )
+    manifest = manifest.rename(columns=rename_dict)
+
     manifest["dataset"] = dataset_name
 
     # save

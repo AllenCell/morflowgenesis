@@ -65,6 +65,10 @@ export PREFECT_SQLALCHEMY_MAX_OVERFLOW=-1
 will create a `DaskTaskRunner` with a `LocalCluster` and a memory limit of 5Gi per worker. Please see the [prefect task runner docs](https://docs.prefect.io/latest/concepts/task-runners/) for more information on available task runners.
 
 Under `task_runner`, you can include a `_target_` with the task runner you want to use and a `task_limit` which sets a unique `prefect concurrency-limit` for your step. Limiting task concurrency can be useful for resource-intensive steps.
+If runs are cancelled before their concurrency limits can be cleaned up, you may need to manually clean up the unused concurrency limits. You can do this with the following command (WARNING this will delete the first 200 concurrency limits)
+```
+prefect concurrency-limit ls --limit 200 | grep morflowgenesis | awk '{print $2}' | while read arg; do prefect concurrency-limit delete $arg; done
+```
 
 ## Development
 

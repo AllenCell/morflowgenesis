@@ -8,7 +8,6 @@ from prefect import task
 from timelapsetracking import csv_to_nodes
 from timelapsetracking.tracks import add_connectivity_labels
 from timelapsetracking.tracks.edges import add_edges
-from timelapsetracking.viz_utils import visualize_tracks_2d
 
 from morflowgenesis.utils import (
     ImageObject,
@@ -47,9 +46,9 @@ def create_regionprops_csv(image_object, input_step, output_name):
             {
                 "CellLabel": lab,
                 "Timepoint": timepoint,
-                "Centroid_z": np.mean(z),
-                "Centroid_y": np.mean(y),
-                "Centroid_x": np.mean(x),
+                "Centroid_z": np.mean(z) + coords[0].start,
+                "Centroid_y": np.mean(y) + coords[1].start,
+                "Centroid_x": np.mean(x) + coords[2].start,
                 "Volume": np.sum(cell),
                 "Edge_Cell": np.any(
                     np.logical_or(
@@ -94,13 +93,6 @@ def track(regionprops, working_dir, output_name, edge_thresh_dist=75):
     df_edges = add_connectivity_labels(df_edges)
 
     df_edges.to_csv(f"{output_dir}/edges.csv")
-
-    visualize_tracks_2d(
-        df=df_edges,
-        shape=(img_shape[-2], img_shape[-1]),
-        path_save_dir=Path(f"{output_dir}/visualization_2d/"),
-    )
-
     return tracking_output
 
 

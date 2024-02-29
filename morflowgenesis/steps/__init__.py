@@ -1,7 +1,6 @@
 from .center_crop import center_crop, center_pad
 from .contact_sheet import segmentation_contact_sheet
 from .create_manifest_nucmorph import create_manifest
-from .feature_calculation import calculate_features
 from .generate_thresholds import threshold
 
 # from .generate_shape_space import make_shape_space

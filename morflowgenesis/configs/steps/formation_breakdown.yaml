@@ -11,6 +11,7 @@ formation_breakdown:
     output_name: formation_breakdown
     image_step:
     single_cell_step: single_cell_dataset/single_cell_dataset
+    tracking_step: tracking/tracking
     config_path:
     overrides:
     n_extract: -1

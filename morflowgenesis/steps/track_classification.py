@@ -68,15 +68,28 @@ def remove_short_tracks(df, min_track_length):
 
 
 def get_rois(
-    image_objects, single_cell_step, n_extract=-1, min_track_length=-1, padding=2, xy_resize=2.5005
+    image_objects,
+    single_cell_step,
+    tracking_step,
+    n_extract=-1,
+    min_track_length=-1,
+    padding=2,
+    xy_resize=2.5005,
 ):
     """returns padded rois to extract from each timestep."""
     print("Extracting ROIs")
-    single_cell_df = pd.concat(
-        [
-            obj.load_step(single_cell_step)[["roi", "track_id", "index_sequence"]]
-            for obj in image_objects
-        ]
+    tracking_df = image_objects[0].load_step(tracking_step)[
+        ["index_sequence", "label_img", "track_id"]
+    ]
+
+    single_cell_df = []
+    for obj in image_objects:
+        cell_info = obj.load_step(single_cell_step)[["roi", "label_img"]]
+        cell_info["index_sequence"] = obj.metadata["T"]
+        single_cell_df.append(cell_info)
+    single_cell_df = pd.concat(single_cell_df)
+    single_cell_df = pd.merge(
+        single_cell_df, tracking_df, on=["index_sequence", "label_img"], how="left"
     )
 
     if min_track_length > 0:
@@ -178,6 +191,7 @@ def formation_breakdown(
     output_name: str,
     image_step: str,
     single_cell_step: str,
+    tracking_step: str,
     config_path: str,
     overrides: Dict[str, str],
     n_extract: Optional[int] = -1,
@@ -216,6 +230,7 @@ def formation_breakdown(
         rois = get_rois(
             image_objects,
             single_cell_step,
+            tracking_step,
             n_extract=n_extract,
             min_track_length=min_track_length,
             padding=padding,

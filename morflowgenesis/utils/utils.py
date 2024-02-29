@@ -2,7 +2,9 @@ import numpy as np
 from omegaconf import ListConfig
 from prefect.flows import Flow
 from prefect.tasks import Task
+import tqdm
 from scipy.ndimage import find_objects, label
+import time
 
 
 def submit(task_function, tags=[], name=None, **kwargs):
@@ -11,12 +13,14 @@ def submit(task_function, tags=[], name=None, **kwargs):
     return task.submit(**kwargs)
 
 
-def parallelize_across_images(data, task_function, tags=[], data_name="image_object", **kwargs):
+def parallelize_across_images(data, task_function, tags=[], data_name="image_object",delay=0, **kwargs):
     """data is list of image objects results is list of step outputs, one per image object."""
     results = []
     for d in data:
         kwargs.update({data_name: d})
         results.append(submit(task_function, tags=tags, **kwargs))
+        if delay > 0:
+            time.sleep(delay)
     results = [r.result() for r in results]
     return data, results
 
@@ -73,7 +77,7 @@ def extract_objects(img, padding=0, constraints=None, include_ch=False, return_z
     rois = []
     edge = []
 
-    for lab, coords in enumerate(regions, start=1):
+    for lab, coords in tqdm.tqdm(enumerate(regions, start=1), desc="Extracting objects"):
         if coords is None:
             continue
         labels.append(lab)

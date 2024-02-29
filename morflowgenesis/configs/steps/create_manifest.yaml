@@ -2,7 +2,8 @@ create_manifest:
     function: morflowgenesis.steps.create_manifest
     # all variables passed that aren't "function" or "task_runner" are assumed to be args
     output_name: create_manifest
-    feature_step: calculate_features/calculate_features
+    feature_step: calculate_features/single_cell_dataset
     single_cell_step: single_cell_dataset/single_cell_dataset
     breakdown_classification_step: formation_breakdown/formation_breakdown
+    tracking_step: tracking/tracking
     dataset_name:
