@@ -22,7 +22,6 @@ def extract_values(x):
 
 def find_timepoint_crop(
     image_object: ImageObject,
-    output_name: str,
     image_step: str,
     pad: Union[int, List[int]] = 5,
     min_slices: int = 24,
@@ -34,8 +33,6 @@ def find_timepoint_crop(
     ----------
     image_object : ImageObject
         ImageObject to crop
-    output_name : str
-        Name of output
     image_step : str
         Step name of image to crop
     pad : Union[int, List[int]]
@@ -79,6 +76,7 @@ def find_timepoint_crop(
                 top_z = min(img.shape[0], top_z + (min_slices - num_slices) // 2)
         bottom_padding = bottom_z
         top_padding = img.shape[0] - top_z
+    print(f"{image_object.id} done")
     return bottom_padding, top_padding
 
 
@@ -120,7 +118,6 @@ def center_crop(
         find_timepoint_crop,
         tags=tags,
         image_step=image_step,
-        output_name=output_name,
         pad=pad,
         min_slices=min_slices,
         sigma_cutoff=sigma_cutoff,

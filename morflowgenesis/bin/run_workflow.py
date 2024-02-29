@@ -52,14 +52,16 @@ async def morflowgenesis(cfg):
     working_dir = Path(workflow["working_dir"])
     working_dir.mkdir(exist_ok=True, parents=True)
 
-    for step_name, step_cfg in workflow["steps"].items():
+    for step_name, step_cfg in workflow.get("steps", {}).items():
         await run_step(step_cfg, working_dir / "_ImageObjectStore")
     generate_summary(working_dir)
 
 
 def clean_config(cfg):
     cfg["workflow"]["steps"] = {
-        k: v for k, v in cfg["workflow"]["steps"].items() if "function" in v.keys()
+        k: v
+        for k, v in cfg["workflow"].get("steps", {}).items()
+        if isinstance(v, dict) and "function" in v.keys()
     }
     return cfg
 

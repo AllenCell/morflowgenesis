@@ -1,10 +1,11 @@
+import time
+
 import numpy as np
+import tqdm
 from omegaconf import ListConfig
 from prefect.flows import Flow
 from prefect.tasks import Task
-import tqdm
 from scipy.ndimage import find_objects, label
-import time
 
 
 def submit(task_function, tags=[], name=None, **kwargs):
@@ -13,7 +14,9 @@ def submit(task_function, tags=[], name=None, **kwargs):
     return task.submit(**kwargs)
 
 
-def parallelize_across_images(data, task_function, tags=[], data_name="image_object",delay=0, **kwargs):
+def parallelize_across_images(
+    data, task_function, tags=[], data_name="image_object", delay=0, **kwargs
+):
     """data is list of image objects results is list of step outputs, one per image object."""
     results = []
     for d in data:

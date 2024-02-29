@@ -4,6 +4,5 @@ run_cytodl:
     input_step:
     config_path:
     output_name:
-    overrides:
     run_id:
     checkpoint_path:

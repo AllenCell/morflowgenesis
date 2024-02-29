@@ -13,5 +13,5 @@ split_image:
     working_dir:
     output_name: split_image
     dimension_order_out: CZYX
-    timepoints:
-    scenes:
+    timepoints: -1
+    scenes: -1

@@ -8,18 +8,17 @@ defaults:
     - center_pad@steps: ../../steps/center_pad
     - tracking@steps: ../../steps/tracking
     - single_cell_dataset@steps: ../../steps/single_cell_dataset
-    - calculate_features@steps: ../../steps/calculate_features
     - formation_breakdown@steps: ../../steps/formation_breakdown
     - create_manifest@steps: ../../steps/create_manifest
 
 # here we can create workflow-level arguments
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/new_hydra_test
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/drug_perturbation_4_to_86/${workflow.scene}
 
-image_path: //allen/programs/allencell/data/proj0/498/3ec/511/92f/68e/b49/b40/6e0/b2d/1d2/5d/drug_timelapse-01.czi
-timepoint_end: 2
-name: test
-channels: [1]
-scene: 0
+image_path:
+timepoint_end:
+name:
+channels: [0]
+scene:
 
 # here we can override arguments for specific steps, but changing the order here does not change the order of execution
 # task runner args can be overridden, but the TYPE of task runner cannot be changed from the workflow. To use the PACKAGE default task runner of concurrent task runner, set task_runner: null
@@ -28,15 +27,16 @@ steps:
         image_path: ${workflow.image_path}
         channels: ${workflow.channels}
         working_dir: ${workflow.working_dir}
-        timepoints: [0, 1]
-        scenes: ${workflow.scene}
+        timepoint_end: ${workflow.timepoint_end}
+        scenes:
+            - ${workflow.scene}
 
     center_crop:
         image_step: split_image/split_image
 
     run_cytodl:
         input_step: center_crop/center_crop
-        config_path: //allen/aics/assay-dev/users/Benji/hydra_workflow/morflowgenesis_rnd/morflowgenesis/configs/model/vit_config.yaml
+        config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/model/vit_config.yaml
         overrides:
             ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/offset_aug_finetune_aligned_large/2024-01-28_19-42-12/checkpoints/last.ckpt"
 
@@ -56,21 +56,25 @@ steps:
         seg_steps_rename: [nuc_seg]
         mask: False
         keep_lcc: False
+        input_res:
+            nuc_seg: [0.29, 0.108, 0.108]
+            20x_lamin: [0.738, 0.27, 0.27]
+        out_res:
+            nuc_seg: 0.108
+            20x_lamin: 0.108
         padding: [10, 25, 25]
-
-    calculate_features:
-        input_step: single_cell_dataset/single_cell_dataset
         features:
-            - height
-            - height_percentile
-            - surface_area
-            - volume
-            - shcoeff
-            - length_width
+            nuc_seg:
+                - _target_: morflowgenesis.features.Volume
+                - _target_: morflowgenesis.features.SurfaceArea
+                - _target_: morflowgenesis.features.Height
+                - _target_: morflowgenesis.features.HeightPercentile
+                - _target_: morflowgenesis.features.SHCoeff
+                - _target_: morflowgenesis.features.AxisLengths
 
     formation_breakdown:
         image_step: split_image/split_image
-        config_path: //allen/aics/assay-dev/users/Benji/hydra_workflow/morflowgenesis_rnd/morflowgenesis/configs/model/breakdown_per_tp.yaml
+        config_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/model/breakdown_per_tp.yaml
         overrides:
             ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/breakdown_classification/single_timepoint/2024-02-05_13-00-47/checkpoints/epoch_109.ckpt"
         min_track_length: 2

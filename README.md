@@ -33,12 +33,15 @@ docker run -d --name prefect-postgres -v prefectdb:/var/lib/postgresql/data -p 5
 prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://postgres:yourTopSecretPassword@localhost:5432/prefect"
 prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 prefect server start
+
+[OPTIONAL]
+nohup prefect server start > output.log &
 ```
 
 3. \[OPTIONAL\] For workflows generating LOTS of tasks (e.g. 1000s), you may need to increase the number of connections in the postgres database.
 
 ```
-export PREFECT_SQLALCHEMY_POOL_SIZE=10
+export PREFECT_SQLALCHEMY_POOL_SIZE=100
 export PREFECT_SQLALCHEMY_MAX_OVERFLOW=-1
 ```
 
@@ -66,6 +69,7 @@ will create a `DaskTaskRunner` with a `LocalCluster` and a memory limit of 5Gi p
 
 Under `task_runner`, you can include a `_target_` with the task runner you want to use and a `task_limit` which sets a unique `prefect concurrency-limit` for your step. Limiting task concurrency can be useful for resource-intensive steps.
 If runs are cancelled before their concurrency limits can be cleaned up, you may need to manually clean up the unused concurrency limits. You can do this with the following command (WARNING this will delete the first 200 concurrency limits)
+
 ```
 prefect concurrency-limit ls --limit 200 | grep morflowgenesis | awk '{print $2}' | while read arg; do prefect concurrency-limit delete $arg; done
 ```

@@ -125,11 +125,12 @@ def split_image(
     # get source image metadata
     img = AICSImage(image_path)
     scenes = img.scenes if scenes == -1 else scenes
+    scenes = _validate_list(scenes)
 
     # run all timepoints if no timepoints specified in config
     start = timepoint_start or 0
     end = timepoint_end or img.dims.T
-    timepoints = range(start, end) if timepoints == -1 else timepoints
+    timepoints = range(start, end) if (timepoints == -1 or timepoints is None) else timepoints
     timepoints = _validate_list(timepoints)
     # same for channels
     channels = range(img.dims.C) if channels == -1 else channels

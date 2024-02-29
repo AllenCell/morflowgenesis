@@ -3,7 +3,7 @@ defaults:
 
 tracking_task_runner:
     task_limit: 10
-    memory_limit: 30Gi
+    memory_limit: 100Gi
 
 tracking:
     task_runner: ${..tracking_task_runner}
