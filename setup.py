@@ -40,7 +40,7 @@ requirements = [
     "aicsimageio==4.11.0",
     "aicsshparam==0.1.7",
     "camera-alignment-core==1.0.5",
-    "cyto_dl==0.1.1",
+    "cyto_dl==0.1.3",
     "dask==2023.3.1",
     "hydra-core==1.3.2",
     "matplotlib==3.7.2",
@@ -57,7 +57,7 @@ requirements = [
     "scikit_learn==1.3.0",
     "scipy==1.9.1",
     "scikit-image==0.19.2",
-    "timelapsetracking @ git+ssh://git@github.com/aics-int/aics-timelapse-tracking.git@496c1441d373b281eefba6cc6f188e1f4cbd020c#egg=timelapsetracking",
+    "timelapsetracking @ git+ssh://git@github.com/aics-int/aics-timelapse-tracking.git@f5975d06b36029c0f576219a73d19d444a5c23d1",
     "vtk==9.2.6",
 ]
 
