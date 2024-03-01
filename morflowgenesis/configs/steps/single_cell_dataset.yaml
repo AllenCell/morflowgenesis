@@ -3,7 +3,7 @@ defaults:
 
 single_cell_dataset_task_runner:
     task_limit: 60
-    memory_limit: 45Gi
+    memory_limit: 100Gi
 
 single_cell_dataset:
     task_runner: ${..single_cell_dataset_task_runner}

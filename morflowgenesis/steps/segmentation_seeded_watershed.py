@@ -93,10 +93,12 @@ def watershed_fov(
     raw = raw[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
     seg = seg[: min_im_shape[0], : min_im_shape[1], : min_im_shape[2]]
 
-    seg = label(seg)
+    if len(np.unique(seg)) <= 2:
+        seg = label(seg)
 
     labs, all_coords, edges = extract_objects(seg, padding=padding, return_zip=False)
     results = []
+    used_coords = []
     for lab, coords, is_edge in zip(labs, all_coords, edges):
         if not include_edge and is_edge:
             continue
@@ -114,8 +116,9 @@ def watershed_fov(
                 erosion=erosion,
             )
         )
+        used_coords.append(coords)
         print(lab, "done")
-    seg = merge_instance_segs(results, all_coords, np.zeros(raw.shape).astype(np.uint16))
+    seg = merge_instance_segs(results, used_coords, np.zeros(raw.shape).astype(np.uint16))
     output = StepOutput(
         image_object.working_dir,
         "run_watershed",

@@ -3,3 +3,4 @@
 defaults:
     - _self_
     - workflow: null
+    - paths: default.yaml

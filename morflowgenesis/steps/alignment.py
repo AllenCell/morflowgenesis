@@ -63,11 +63,17 @@ def align(
 
 def align_segmentations_to_image(
     image_objects: List[ImageObject],
+    tags: List[str],
     image_step: str,
     segmentation_steps: List[str],
     boundary: bool = False,
 ):
     for step in segmentation_steps:
         parallelize_across_images(
-            image_objects, align, image_step=image_step, segmentation_step=step, boundary=boundary
+            image_objects,
+            align,
+            tags=tags,
+            image_step=image_step,
+            segmentation_step=step,
+            boundary=boundary,
         )

@@ -1,9 +1,7 @@
 import gc
 import hashlib
 import json
-import os
 import re
-from pathlib import Path
 from shutil import rmtree
 from typing import Callable, Dict, List, Optional, Union
 
@@ -13,7 +11,6 @@ import tqdm
 from aicsimageio.writers import OmeTiffWriter
 from hydra.utils import instantiate
 from omegaconf import ListConfig
-from skimage.exposure import rescale_intensity
 from skimage.transform import rescale
 
 from morflowgenesis.utils import (
@@ -67,7 +64,7 @@ def calculate_features(data, features, cellid):
         features_dict,
         index=pd.MultiIndex.from_tuples(multi_index, names=["CellId", "Name"]),
     )
-    if len(features_dict) == 0:
+    if features_dict.shape[0] == 0:
         return None
     return features_dict
 
@@ -105,10 +102,18 @@ def process_cells(
     crops, image_object, output_name, raw_img_paths, seg_img_paths, out_res, features
 ):
     while crops:
-        result = process_cell(
-            image_object, output_name, crops[0], raw_img_paths, seg_img_paths, out_res, features
-        )
-        yield result
+        crop = crops[0]
+        if isinstance(crop, dict):
+            result = process_cell(
+                image_object,
+                output_name,
+                crops[0],
+                raw_img_paths,
+                seg_img_paths,
+                out_res,
+                features,
+            )
+            yield result
         del crops[0]
 
 
@@ -137,11 +142,11 @@ def process_cell(
     # save out raw and segmentation single cell images
     cell_features = []
     name_dict = {}
-    for output_type in ["seg", "raw"]:
+    for output_type in ("seg", "raw"):
         data = crop[output_type]
         channel_names = sorted(data.keys())
         # possible that there is no raw or no segmented image available for this cell
-        if len(channel_names) == 0:
+        if not channel_names:
             continue
         cell_features.append(calculate_features(data, features, cell_meta["CellId"]))
 
@@ -164,6 +169,10 @@ def process_cell(
 
 
 def _calc_iou(im1, im2):
+    minimum_shape = np.minimum(im1.shape[-3:], im2.shape[-3:])
+    im1 = im1[: minimum_shape[0], : minimum_shape[1], : minimum_shape[2]]
+    im2 = im2[: minimum_shape[0], : minimum_shape[1], : minimum_shape[2]]
+
     intersection = np.sum(np.logical_and(im1, im2)) + 1e-8
     union = np.sum(np.logical_or(im1, im2)) + 1e-8
     return intersection / union
@@ -266,13 +275,12 @@ def load_images(image_object, seg_steps, raw_steps, seg_steps_rename, raw_steps_
     }
     seg_images = _rename(seg_images, seg_steps_rename)
 
-    has_raw = len(raw_steps) > 0
     raw_images = (
         {
             step_name: image_object.load_step(step_name)
             for step_name in tqdm.tqdm(raw_steps, desc="Loading Raw Images")
         }
-        if has_raw
+        if raw_steps
         else {}
     )
     raw_images = _rename(raw_images, raw_steps_rename)
@@ -284,14 +292,13 @@ def load_images(image_object, seg_steps, raw_steps, seg_steps_rename, raw_steps_
     return raw_images, seg_images, raw_steps, seg_steps
 
 
-def get_apply_channels(l, channels):
-    # l = True means apply to all channels, l is list means mask channels in list
-    if l is True:
+def get_apply_channels(filter_type, channels):
+    # filter_type = True means apply to all channels, filter_type is list means mask channels in list
+    if filter_type is True:
         return channels
-    elif isinstance(l, (list, ListConfig)):
-        return [c for c in channels if c in l]
-    else:
-        return []
+    elif isinstance(filter_type, (list, ListConfig)):
+        return [c for c in channels if c in filter_type]
+    return []
 
 
 def extract_cells_from_fov(
@@ -380,13 +387,14 @@ def extract_cells_from_fov(
     step_output.save(cell_meta)
     image_object.add_step_output(step_output)
 
-    if len(cell_features) > 0:
+    if cell_features.shape[0] > 0:
         step_output = StepOutput(
             image_object.working_dir,
             "calculate_features",
             output_name,
             output_type="csv",
             image_id=image_object.id,
+            index_col=["CellId", "Name"],
         )
         step_output.save(cell_features)
         image_object.add_step_output(step_output)

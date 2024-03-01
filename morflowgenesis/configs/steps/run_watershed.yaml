@@ -1,0 +1,17 @@
+defaults:
+    - watershed_task_runner: ../../../task_runner/dask
+
+watershed_task_runner:
+    task_limit: 10
+    memory_limit: 100Gi
+
+run_watershed:
+    task_runner: ${..watershed_task_runner}
+    function: morflowgenesis.steps.run_watershed
+    output_name: run_watershed
+    raw_input_step:
+    seg_input_step:
+    mode: centroid
+    min_seed_size: 1000
+    include_edge: True
+    padding: 10

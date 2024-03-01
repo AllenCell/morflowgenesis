@@ -5,10 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import sklearn.metrics as skmetrics
-from prefect import flow
 from sklearn.utils import resample
-
-from morflowgenesis.utils.image_object import ImageObject
 
 
 def target_vs_prediction_scatter_metrics(x, y, niter=200):
@@ -192,7 +189,7 @@ def subset_data(features, pred_level, label_level):
     return label.loc[cellids], pred.loc[cellids]
 
 
-def run_plot(image_objects, output_name, input_step, features, label, pred):
+def run_plot(image_objects, tags, output_name, input_step, features, label, pred):
     features_df = pd.concat([obj.load_step(input_step) for obj in image_objects]).drop_duplicates()
     features_df = features_df[features]
 

@@ -62,6 +62,8 @@ def project(raw, seg):
 
 def project_cell(row, raw_name, seg_names):
     """Project a cell from raw and seg images."""
+    print(f"{row.CellId.iloc[0]}: starting")
+
     raw = AICSImage(row["crop_raw_path"].iloc[0])
     raw = raw.get_image_dask_data("ZYX", C=raw.channel_names.index(raw_name)).compute()
 
@@ -74,6 +76,8 @@ def project_cell(row, raw_name, seg_names):
     seg = np.stack([find_boundaries(seg[ch], mode="inner") for ch in range(seg.shape[0])])
 
     projection = project(raw, seg)
+    print(f"{row.CellId.iloc[0]}: projected")
+
     return projection, row["CellId"].iloc[0]
 
 
@@ -99,11 +103,11 @@ def find_cells_to_plot(n_bins, feature_df, x_feature, y_feature, cell_df):
     """Select random cells from each bin of the binned feature space."""
     quantile_boundaries = [i / n_bins for i in range(n_bins + 1)]
     # Use qcut to bin the DataFrame by percentiles across both features
-    x_binned = pd.qcut(feature_df[x_feature], q=quantile_boundaries, duplicates="drop").unique()
-    y_binned = pd.qcut(feature_df[y_feature], q=quantile_boundaries, duplicates="drop").unique()
+    x_binned = pd.qcut(feature_df[x_feature], q=quantile_boundaries, duplicates="drop")
+    y_binned = pd.qcut(feature_df[y_feature], q=quantile_boundaries, duplicates="drop")
     cells = []
-    for x_bin in x_binned:
-        for y_bin in y_binned:
+    for x_bin in x_binned.unique():
+        for y_bin in y_binned.unique():
             bin = np.logical_and(
                 x_binned == x_bin,
                 x_binned == y_bin,
@@ -205,7 +209,7 @@ def segmentation_contact_sheet(
 
     # project random cells from each quantile bin
     plotting_cells, x_binned, y_binned = find_cells_to_plot(
-        n_bins, feature_df, x_feature, y_feature, cell_df, raw_name, seg_names
+        n_bins, feature_df, x_feature, y_feature, cell_df
     )
     _, results = parallelize_across_images(
         plotting_cells,
@@ -223,7 +227,7 @@ def segmentation_contact_sheet(
         [f"{col}: {name}" for col, name in zip(colors, seg_names)]
     )
     contact_sheet = assemble_contact_sheet(
-        results, x_binned, y_binned, x_feature, y_feature, title=title
+        results, x_binned.unique(), y_binned.unique(), x_feature, y_feature, title=title
     )
 
     output = StepOutput(

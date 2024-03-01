@@ -1,3 +1,4 @@
+from .alignment import align_segmentations_to_image
 from .center_crop import center_crop, center_pad
 from .contact_sheet import segmentation_contact_sheet
 from .create_manifest_nucmorph import create_manifest

@@ -1,0 +1,89 @@
+defaults:
+    - generate_objects@steps: ../../steps/generate_objects
+    - run_cytodl@steps: ../../steps/run_cytodl
+    - align_segmentations_to_image@steps: ../../steps/align_segmentations_to_image
+    - run_watershed@steps: ../../steps/run_watershed
+    - single_cell_dataset@steps: ../../steps/single_cell_dataset
+    - segmentation_contact_sheet@steps: ../../steps/segmentation_contact_sheet
+    - run_pca@steps: ../../steps/run_pca
+    - plot@steps: ../../steps/plot
+
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/test_validation
+
+steps:
+    generate_objects:
+        csv_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/local/all_nuc_tf_validation/manifest.csv
+        working_dir: ${workflow.working_dir}
+        source_column: lr
+        non_source_columns: [hr]
+
+    run_cytodl:
+        input_step: generate_objects/lr
+        config_path: ${paths.model_dir}/vit_new.yaml
+
+    align_segmentations_to_image:
+        image_step: generate_objects/hr
+        segmentation_steps: [run_cytodl/nucseg]
+
+    run_watershed:
+        output_name: real_lamin
+        raw_input_step: generate_objects/hr
+        seg_input_step: align/run_cytodl/nucseg
+        mode: "erosion"
+        erosion: 5
+        include_edge: False
+
+    single_cell_dataset:
+        splitting_step: align/run_cytodl/nucseg
+        raw_steps: [generate_objects/hr]
+        raw_steps_rename: [lamin]
+        seg_steps: [align/run_cytodl/nucseg, run_watershed/real_lamin]
+        seg_steps_rename: [nuc_seg, real_lamin_seg]
+        mask: False
+        keep_lcc: True
+        input_res:
+            nuc_seg: [0.29, 0.108, 0.108]
+            real_lamin_seg: [0.29, 0.108, 0.108]
+            lamin: [0.29, 0.108, 0.108]
+        out_res:
+            nuc_seg: 0.108
+            real_lamin_seg: 0.108
+            lamin: 0.108
+        padding: [5, 5, 5]
+        iou_thresh: 0.5
+        features:
+            nuc_seg:
+                - _target_: morflowgenesis.features.Volume
+                - _target_: morflowgenesis.features.SurfaceArea
+                - _target_: morflowgenesis.features.Height
+                - _target_: morflowgenesis.features.HeightPercentile
+                - _target_: morflowgenesis.features.SHCoeff
+                - _target_: morflowgenesis.features.AxisLengths
+            real_lamin_seg:
+                - _target_: morflowgenesis.features.Volume
+                - _target_: morflowgenesis.features.SurfaceArea
+                - _target_: morflowgenesis.features.Height
+                - _target_: morflowgenesis.features.HeightPercentile
+                - _target_: morflowgenesis.features.SHCoeff
+                - _target_: morflowgenesis.features.AxisLengths
+
+    segmentation_contact_sheet:
+        raw_name: lamin
+        segmentation_name: nuc_seg
+        x_feature: volume
+        y_feature: height_percentile
+        seg_names: [nuc_seg]
+
+    run_pca:
+        features_regex: ".*shcoeffs.*"
+        calculate_name: real_lamin_seg
+        apply_names: [nuc_seg]
+
+    plot:
+        features: [volume, height_percentile, length, width]
+        label:
+            segmentation_name: real_lamin_seg
+            description: "Watershed on Real Lamin"
+        pred:
+            - segmentation_name: nuc_seg
+              description: Direct Seg
