@@ -74,6 +74,20 @@ If runs are cancelled before their concurrency limits can be cleaned up, you may
 prefect concurrency-limit ls --limit 200 | grep morflowgenesis | awk '{print $2}' | while read arg; do prefect concurrency-limit delete $arg; done
 ```
 
+## Running Workflows
+
+morflowgenesis is designed to run `workflows`. To run the `nucmorph.yaml` workflow from the `configs/workflow` directory we can do:
+
+```
+python morflowgenesis/bin/run_workflow.py workflow=nucmorph.yaml
+```
+
+The order of steps in this workflow are determined by the order of steps imported under the `defaults` key in the `workflow` config. This will import the default config for each step as the base of the workflow. Defaults are defined in the `configs/steps` directory. Most of our workflows require modifications of the defaults (for example specifying input and output step names). We can override default arguments under the `steps` key in the `workflow` config. A `paths` config is also created that contains useful paths within your project. For example, `${paths.model_dir}` points to the `configs/model` directory, where you can store model-related configs. For running the same workflow on multiple inputs, you can use the `configs/params` folder to define a different parameter set for a multirun. If you use this, makesure the parameters you sweep over in the multirun are referenced via `params.<param_name>` in your workflow config. To use the params in a multirun:
+
+```
+python morflowgenesis/bin/run_workflow.py workflow=nucmorph.yaml params=param_folder1.yaml,param_folder2.yaml -m
+```
+
 ## Development
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for information related to developing the code.
