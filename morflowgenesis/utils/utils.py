@@ -74,8 +74,8 @@ def extract_objects(img, padding=0, constraints=None, include_ch=False, return_z
     tuples of (lab, coords, is_edge)"""
     if constraints is None:
         constraints = img.shape
-
-    regions = find_objects(img.astype(int))
+    print("Finding objects")
+    regions = find_objects(img)
     labels = []
     rois = []
     edge = []
