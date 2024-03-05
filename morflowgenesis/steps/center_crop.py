@@ -147,9 +147,8 @@ def uncrop(
     image_object: ImageObject,
     output_name: str,
     image_step: str,
-    cropping_step: str,
     mode: str = "constant",
-    pad_rescale: float = 1.0,
+    padding: List[int] = [0, 0, 0],
 ):
     """
     Uncrop image by padding it with zeros according to the padding from the cropping step.
@@ -178,12 +177,6 @@ def uncrop(
     if not output.path.exists():
         img = image_object.load_step(image_step)
         print("image loaded", img.shape)
-        # crop path is same as image path but with .npy extension
-        padding_path = str(image_object.get_step(cropping_step).path.parent / "padding.npy")
-        padding = np.load(padding_path, allow_pickle=True)
-        # in case images are at different resolutions
-        padding = np.round(padding * pad_rescale).astype(int)
-        print("padding loaded", padding)
         img = np.pad(img, padding, mode=mode)
         print("image padded", img.shape)
         output.save(img)
@@ -201,13 +194,19 @@ def center_pad(
     mode: str = "constant",
     pad_rescale: float = 1.0,
 ):
+    # crop path is same as image path but with .npy extension
+    padding_path = str(image_objects[0].get_step(cropping_step).path.parent / "padding.npy")
+    padding = np.load(padding_path, allow_pickle=True)
+    # in case images are at different resolutions
+    padding = np.round(padding * pad_rescale).astype(int)
+    print("padding loaded", padding)
+
     parallelize_across_images(
         image_objects,
         uncrop,
         tags=tags,
         image_step=image_step,
-        cropping_step=cropping_step,
         output_name=output_name,
         mode=mode,
-        pad_rescale=pad_rescale,
+        padding=padding,
     )
