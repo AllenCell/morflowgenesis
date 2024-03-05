@@ -72,7 +72,7 @@ class SHCoeff:
         self.lmax = lmax
         self.sigma = sigma
 
-    def __call__(self, img, transform_params=None, return_transform=False):
+    def __call__(self, img, transform_params=None):
         """
         Calculate spherical harmonics coefficients for a segmentation
         Parameters
@@ -95,9 +95,7 @@ class SHCoeff:
         except ValueError as e:
             print(e)
             return {"shcoeff": None}
-
-        if return_transform:
-            return coeffs, transform_params
+        coeffs.update({"transform_params": transform_params})
         return coeffs
 
 
