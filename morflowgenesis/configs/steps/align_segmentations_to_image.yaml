@@ -1,3 +1,10 @@
+defaults:
+    - align_segmentations_to_image_task_runner: ../../../task_runner/dask
+
+align_segmentations_to_image_task_runner:
+    task_limit: 10
+    memory_limit: 50Gi
+
 align_segmentations_to_image:
     function: morflowgenesis.steps.align_segmentations_to_image
     # all variables passed that aren't "function" or "task_runner" are assumed to be args

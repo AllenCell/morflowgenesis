@@ -1,4 +1,4 @@
 # path to root directory
-root_dir: ${oc.env:PROJECT_ROOT, './'}
+root_dir: ${oc.env:MORFLOW_ROOT, './'}
 
-model_dir: ${paths.root_dir}morflowgenesis/configs/model/
+model_dir: ${paths.root_dir}/morflowgenesis/configs/model/

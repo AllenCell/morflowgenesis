@@ -56,7 +56,7 @@ def align(
         output_type="image",
         image_id=image_object.id,
     )
-    output.save(new_seg)
+    output.save(new_seg.astype(np.uint16))
     image_object.add_step_output(output)
     image_object.save()
 

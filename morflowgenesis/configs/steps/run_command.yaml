@@ -1,0 +1,4 @@
+run_command:
+    function: morflowgenesis.steps.run_command
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    commands:

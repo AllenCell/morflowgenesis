@@ -1,16 +1,21 @@
 defaults:
+    - run_command@steps: ../../steps/run_command
     - generate_objects@steps: ../../steps/generate_objects
     - run_cytodl@steps: ../../steps/run_cytodl
     - align_segmentations_to_image@steps: ../../steps/align_segmentations_to_image
     - run_watershed@steps: ../../steps/run_watershed
     - single_cell_dataset@steps: ../../steps/single_cell_dataset
-    - segmentation_contact_sheet@steps: ../../steps/segmentation_contact_sheet
+    # - segmentation_contact_sheet@steps: ../../steps/segmentation_contact_sheet
     - run_pca@steps: ../../steps/run_pca
     - plot@steps: ../../steps/plot
 
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/test_validation
-
+working_dir: /allen/aics/assay-dev/users/Benji/CurrentProjects/validation/cross_vit_multich_late_thresh=${workflow.semantic_thresh}
+semantic_thresh:
 steps:
+    run_command:
+        commands: 
+            - export CUDA_VISIBLE_DEVICES=${workflow.semantic_thresh}
+            - echo $CUDA_VISIBLE_DEVICES
     generate_objects:
         csv_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/local/all_nuc_tf_validation/manifest.csv
         working_dir: ${workflow.working_dir}
@@ -20,6 +25,9 @@ steps:
     run_cytodl:
         input_step: generate_objects/lr
         config_path: ${paths.model_dir}/vit_new.yaml
+        overrides:
+            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/multich_proj_decoder_cross_mae_late_ckpt/2024-03-07_16-51-35/checkpoints/epoch_269.ckpt"
+            semantic_thresh: ${workflow.semantic_thresh}
 
     align_segmentations_to_image:
         image_step: generate_objects/hr
@@ -34,45 +42,30 @@ steps:
         include_edge: False
 
     single_cell_dataset:
-        splitting_step: align/run_cytodl/nucseg
-        raw_steps: [generate_objects/hr]
-        raw_steps_rename: [lamin]
         seg_steps: [align/run_cytodl/nucseg, run_watershed/real_lamin]
         seg_steps_rename: [nuc_seg, real_lamin_seg]
+        splitting_step: nuc_seg
         mask: False
         keep_lcc: True
-        input_res:
-            nuc_seg: [0.29, 0.108, 0.108]
-            real_lamin_seg: [0.29, 0.108, 0.108]
-            lamin: [0.29, 0.108, 0.108]
-        out_res:
-            nuc_seg: 0.108
-            real_lamin_seg: 0.108
-            lamin: 0.108
+        input_res: [0.29, 0.108, 0.108]
+        out_res: 0.108
         padding: [5, 5, 5]
         iou_thresh: 0.5
         features:
-            nuc_seg:
-                - _target_: morflowgenesis.features.Volume
-                - _target_: morflowgenesis.features.SurfaceArea
-                - _target_: morflowgenesis.features.Height
-                - _target_: morflowgenesis.features.HeightPercentile
-                - _target_: morflowgenesis.features.SHCoeff
-                - _target_: morflowgenesis.features.AxisLengths
-            real_lamin_seg:
-                - _target_: morflowgenesis.features.Volume
-                - _target_: morflowgenesis.features.SurfaceArea
-                - _target_: morflowgenesis.features.Height
-                - _target_: morflowgenesis.features.HeightPercentile
-                - _target_: morflowgenesis.features.SHCoeff
-                - _target_: morflowgenesis.features.AxisLengths
+            - _target_: morflowgenesis.features.Volume
+            - _target_: morflowgenesis.features.SurfaceArea
+            - _target_: morflowgenesis.features.Height
+            - _target_: morflowgenesis.features.HeightPercentile
+            - _target_: morflowgenesis.features.SHCoeff
+            - _target_: morflowgenesis.features.AxisLengths
+        save: False
 
-    segmentation_contact_sheet:
-        raw_name: lamin
-        segmentation_name: nuc_seg
-        x_feature: volume
-        y_feature: height_percentile
-        seg_names: [nuc_seg]
+    # segmentation_contact_sheet:
+    #     raw_name: lamin
+    #     segmentation_name: nuc_seg
+    #     x_feature: volume
+    #     y_feature: height_percentile
+    #     seg_names: [nuc_seg]
 
     run_pca:
         features_regex: ".*shcoeffs.*"
@@ -87,3 +80,13 @@ steps:
         pred:
             - segmentation_name: nuc_seg
               description: Direct Seg
+
+    # plot:
+    #     input_step: run_pca/run_pca
+    #     features: [PC1, PC2, PC3, PC4, PC5, PC6, PC7, PC8, PC9, PC10]
+    #     label:
+    #         segmentation_name: real_lamin_seg
+    #         description: "Watershed on Real Lamin"
+    #     pred:
+    #         - segmentation_name: nuc_seg
+    #           description: Direct Seg

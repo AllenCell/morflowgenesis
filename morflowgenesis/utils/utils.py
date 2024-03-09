@@ -48,7 +48,7 @@ def get_largest_cc(im, do_label=True):
         n = im.max()
     if n > 0:
         largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
-        return im == largest_cc
+        return (im == largest_cc).astype(np.uint8)
     return im
 
 

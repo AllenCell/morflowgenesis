@@ -10,7 +10,7 @@ import pandas as pd
 import tqdm
 from aicsimageio.writers import OmeTiffWriter
 from hydra.utils import instantiate
-from omegaconf import ListConfig
+from omegaconf import DictConfig, ListConfig
 from skimage.transform import rescale
 
 from morflowgenesis.utils import (
@@ -30,14 +30,24 @@ def roi_from_slice(slicee):
     return "[" + ",".join([f"{s.start},{s.stop}" for s in slicee]) + "]"
 
 
-def get_renamed_image_paths(image_object, steps, rename_steps):
-    assert len(rename_steps) == len(
-        steps
-    ), "Renaming field must be None or match 1:1 with the original names."
-    return {
-        rename_steps[steps.index(step_name)] + "_path": image_object.get_step(step_name).path
-        for step_name in steps
-    }
+def get_renamed_image_paths(
+    image_object, raw_steps, raw_rename_steps, seg_steps, seg_rename_steps
+):
+    img_paths = {}
+    for step_type, steps, rename_steps in (
+        ("raw", raw_steps, raw_rename_steps),
+        ("seg", seg_steps, seg_rename_steps),
+    ):
+        if steps is None or len(steps) == 0 or rename_steps is None or len(rename_steps) == 0:
+            continue
+        assert len(rename_steps) == len(
+            steps
+        ), "Renaming field must be None or match 1:1 with the original names."
+        img_paths[step_type] = {
+            rename_steps[steps.index(step_name)] + "_path": image_object.get_step(step_name).path
+            for step_name in steps
+        }
+    return img_paths
 
 
 def append_dict(features_dict, new_dict):
@@ -69,7 +79,7 @@ def calculate_features(data, features, cellid):
     return features_dict
 
 
-def prepare_metadata(image_object, roi, lab, is_edge, raw_img_paths, seg_img_paths, out_res):
+def prepare_metadata(image_object, roi, lab, is_edge, img_paths, out_res):
     centroid = centroid_from_slice(roi)
     roi = roi_from_slice(roi)
     cell_id = hashlib.sha224(bytes(f"{image_object.id}{roi}", "utf-8")).hexdigest()
@@ -84,8 +94,8 @@ def prepare_metadata(image_object, roi, lab, is_edge, raw_img_paths, seg_img_pat
         "label_img": lab,
         "edge_cell": is_edge,
     }
-    df.update(raw_img_paths)
-    df.update(seg_img_paths)
+    for k, v in img_paths.items():
+        df.update(v)
     return df
 
 
@@ -98,20 +108,12 @@ def setup_directories(image_object, output_name, cell_id):
     return thiscell_path
 
 
-def process_cells(
-    crops, image_object, output_name, raw_img_paths, seg_img_paths, out_res, features
-):
+def process_cells(crops, image_object, output_name, img_paths, out_res, features, save):
     while crops:
         crop = crops[0]
         if isinstance(crop, dict):
             result = process_cell(
-                image_object,
-                output_name,
-                crops[0],
-                raw_img_paths,
-                seg_img_paths,
-                out_res,
-                features,
+                image_object, output_name, crops[0], img_paths, out_res, features, save
             )
             yield result
         del crops[0]
@@ -121,10 +123,10 @@ def process_cell(
     image_object: ImageObject,
     output_name: str,
     crop: Dict,
-    raw_img_paths: str,
-    seg_img_paths: str,
+    img_paths: str,
     out_res: Dict[str, Union[float, np.ndarray]],
     features: Dict[str, Callable] = {},
+    save: bool = True,
 ):
     print("processing cell", crop["lab"], "of", image_object.id)
 
@@ -133,8 +135,7 @@ def process_cell(
         crop["roi"],
         crop["lab"],
         crop["is_edge"],
-        raw_img_paths,
-        seg_img_paths,
+        img_paths,
         out_res,
     )
     save_dir = setup_directories(image_object, output_name, cell_meta["CellId"])
@@ -142,28 +143,25 @@ def process_cell(
     # save out raw and segmentation single cell images
     cell_features = []
     name_dict = {}
-    for output_type in ("seg", "raw"):
+    for output_type in img_paths.keys():
         data = crop[output_type]
-        channel_names = sorted(data.keys())
-        # possible that there is no raw or no segmented image available for this cell
-        if not channel_names:
-            continue
         cell_features.append(calculate_features(data, features, cell_meta["CellId"]))
-
-        # stack segmentation/raw images into multichannel image
-        imgs = np.asarray([data[k] for k in channel_names])
-        save_path = save_dir / f"{output_type}.tiff"
-        OmeTiffWriter().save(
-            uri=save_path, data=imgs, dimension_order="CZYX", channel_names=channel_names
-        )
-        cell_meta.update(
-            {
-                f"crop_{output_type}_id": np.nan,
-                f"crop_{output_type}_path": save_path,
-                f"channel_names_{output_type}": str(channel_names),
-            }
-        )
-        name_dict[f"crop_{output_type}"] = channel_names
+        if save:
+            # stack images into multichannel image
+            channel_names = list(data.keys())
+            imgs = np.stack(list(data.values()))
+            save_path = save_dir / f"{output_type}.tiff"
+            OmeTiffWriter().save(
+                uri=save_path, data=imgs, dimension_order="CZYX", channel_names=channel_names
+            )
+            cell_meta.update(
+                {
+                    f"crop_{output_type}_id": np.nan,
+                    f"crop_{output_type}_path": save_path,
+                    f"channel_names_{output_type}": str(channel_names),
+                }
+            )
+            name_dict[f"crop_{output_type}"] = channel_names
     cell_meta["name_dict"] = json.dumps(name_dict)
     return pd.DataFrame([cell_meta]), pd.concat(cell_features)
 
@@ -245,10 +243,14 @@ def mask_images(
 
 
 def _rename(dict, new_names):
+    """if rename is None, use original dictnames if rename is list, use new names iff they have the
+    same length as original names."""
     if new_names is None:
         return dict
+    assert len(new_names) == len(
+        dict
+    ), "Renaming field must be None or match 1:1 with the original names."
     old_names = list(dict.keys())
-    assert len(old_names) == len(new_names), "New names must match length of dict"
     return {new_names[i]: dict[name] for i, name in enumerate(old_names)}
 
 
@@ -283,6 +285,7 @@ def load_images(image_object, seg_steps, raw_steps, seg_steps_rename, raw_steps_
         if raw_steps
         else {}
     )
+
     raw_images = _rename(raw_images, raw_steps_rename)
 
     for k, v in seg_images.items():
@@ -301,6 +304,13 @@ def get_apply_channels(filter_type, channels):
     return []
 
 
+def generate_dict_with_default(data, keys):
+    if isinstance(data, (dict, DictConfig)):
+        assert all(key in data.keys() for key in keys), f"Expected keys {data.keys()}, got {keys}"
+        return data
+    return {k: data for k in keys}
+
+
 def extract_cells_from_fov(
     image_object,
     splitting_step,
@@ -317,16 +327,22 @@ def extract_cells_from_fov(
     out_res,
     include_edge_cells,
     features={},
+    save: bool = True,
 ):
-    # instantiate feature calculation classes
-    features = {k: [instantiate(feat) for feat in v] for k, v in features.items()}
-
     print(f"Processing image {image_object.id}")
     raw_images, seg_images, raw_steps, seg_steps = load_images(
         image_object, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename
     )
     print("images loaded for", image_object.id)
-    # find objects in segmentation
+
+    # instantiate feature calculation classes
+    features = generate_dict_with_default(features, seg_images.keys())
+    features = {k: [instantiate(feat) for feat in v] for k, v in features.items()}
+
+    # get resolution of each image
+    all_keys = list(seg_images.keys()) + list(raw_images.keys())
+    input_res = generate_dict_with_default(input_res, all_keys)
+    out_res = generate_dict_with_default(out_res, all_keys)
 
     mask = get_apply_channels(mask, seg_images.keys())
     keep_lcc = get_apply_channels(keep_lcc, seg_images.keys())
@@ -338,14 +354,15 @@ def extract_cells_from_fov(
         keep_lcc,
     )
 
-    raw_img_paths = get_renamed_image_paths(image_object, raw_steps, raw_steps_rename)
-    seg_img_paths = get_renamed_image_paths(image_object, seg_steps, seg_steps_rename)
+    img_paths = get_renamed_image_paths(
+        image_object, raw_steps, list(raw_images.keys()), seg_steps, list(seg_images.keys())
+    )
 
-    splitting_step = seg_steps_rename[seg_steps.index(splitting_step)]
-
+    # find objects in segmentation
+    if seg_images[splitting_step].dtype != np.uint16:
+        seg_images[splitting_step] = seg_images[splitting_step].astype(np.uint16)
     objects = extract_objects(seg_images[splitting_step], padding=padding)
     print("Object coords extracted")
-
     crops = [
         mask_images(
             raw_images,
@@ -369,9 +386,7 @@ def extract_cells_from_fov(
     gc.collect()
 
     cell_info = list(
-        process_cells(
-            crops, image_object, output_name, raw_img_paths, seg_img_paths, out_res, features
-        )
+        process_cells(crops, image_object, output_name, img_paths, out_res, features, save)
     )
 
     cell_meta = pd.concat([c[0] for c in cell_info])
@@ -410,14 +425,15 @@ def single_cell_dataset(
     raw_steps: Optional[List[str]] = [],
     raw_steps_rename: Optional[List[str]] = None,
     seg_steps_rename: Optional[List[str]] = None,
-    input_res: Optional[Dict[str, List[float]]] = {},
-    out_res: Optional[Dict[str, Union[float, List[float]]]] = {},
+    input_res: Optional[Union[Dict, List[float]]] = {},
+    out_res: Optional[Union[Dict, List[float], float]] = {},
     padding: Optional[Union[int, List[int]]] = 10,
     mask: Optional[Union[bool, List[str]]] = True,
     keep_lcc: Optional[Union[bool, List[str]]] = False,
     iou_thresh: Optional[float] = None,
     include_edge_cells: Optional[bool] = True,
-    features: Optional[Dict[str, List[Dict]]] = {},
+    features: Optional[Union[Dict, List[Dict]]] = {},
+    save: bool = True,
 ):
     """
     Create a single cell dataset from a set of images and segmentation masks.
@@ -439,8 +455,8 @@ def single_cell_dataset(
         New names for raw steps
     seg_steps_rename : List[str], optional
         New names for seg steps
-    xy_res : Dict[str,float], optional
-        Dictionary of zyx resolution for each image in seg_steps and raw_steps. If none is provided, it is assumed images have isotropic `out_res` resolution
+    input_res: float or Dict[List[float]], optional
+        Dictionary of zyx resolution for each image in seg_steps and raw_steps. If none is provided, it is assumed images are already at desired resolution, if only one list is provided, it is assumed to be the resolution for all images
     out_res : float, optional
         Dictionary of zyx resolution for each image in seg_steps and raw_steps. If none is provided, it is assumed images are already at desired resolution
     padding : int or List[int], optional
@@ -455,6 +471,10 @@ def single_cell_dataset(
         Minimum IoU between splitting step and other objects to keep a cell
     include_edge_cells : bool, optional
         Whether to include cells on the edge of the fov
+    features : Dict[str, List[Dict]], optional
+        Dictionary like name : [function1, function2, ...] to apply to each channel in the single cell images OR just [function1, function2, ...] to apply to all segmentations. If None, no features are calculated
+    save : bool, optional
+        Whether to save single cell images to disk
     """
     parallelize_across_images(
         image_objects,
@@ -475,4 +495,5 @@ def single_cell_dataset(
         out_res=out_res,
         include_edge_cells=include_edge_cells,
         features=features,
+        save=save,
     )

@@ -2,8 +2,8 @@ defaults:
     - formation_breakdown_task_runner: ../../../task_runner/dask
 
 formation_breakdown_task_runner:
-    task_limit: 20
-    memory_limit: 5Gi
+    task_limit: 10
+    memory_limit: 25Gi
 
 formation_breakdown:
     task_runner: ${..formation_breakdown_task_runner}

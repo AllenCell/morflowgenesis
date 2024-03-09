@@ -2,8 +2,8 @@ defaults:
     - single_cell_dataset_task_runner: ../../../task_runner/dask
 
 single_cell_dataset_task_runner:
-    task_limit: 60
-    memory_limit: 100Gi
+    task_limit: 30
+    memory_limit: 500Gi
 
 single_cell_dataset:
     task_runner: ${..single_cell_dataset_task_runner}
@@ -13,7 +13,7 @@ single_cell_dataset:
     seg_steps:
     seg_steps_rename:
     raw_steps: []
-    raw_steps_rename: []
+    raw_steps_rename:
     input_res:
     out_res:
     padding: [10, 25, 25]
@@ -22,3 +22,4 @@ single_cell_dataset:
     iou_thresh:
     include_edge_cells: True
     features:
+    save: True

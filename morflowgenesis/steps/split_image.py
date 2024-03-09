@@ -61,6 +61,8 @@ def align_argolight(savedir, optical_control_path):
 def _validate_list(val):
     if isinstance(val, list):
         return val
+    elif isinstance(val, int):
+        return [val]
     return list(val)
 
 
@@ -135,10 +137,13 @@ def split_image(
     # same for channels
     channels = range(img.dims.C) if channels == -1 else channels
     channels = _validate_list(channels)
+    already_run = []
+    for fn in (working_dir / "_ImageObjectStore").glob("*json"):
+        im_obj = ImageObject.parse_file(fn)
+        already_run.append((int(im_obj.metadata.get("T")), im_obj.metadata.get("S")))
 
-    already_run = [
-        (im_obj.metadata.get("T"), im_obj.metadata.get("S")) for im_obj in image_objects
-    ]
+    print("Already run:", already_run)
+
     new_image_objects = []
     for s in scenes:
         for t in timepoints:

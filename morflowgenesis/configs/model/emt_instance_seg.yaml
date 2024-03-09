@@ -1,5 +1,5 @@
-experiment_name: flexi_mae
-run_name: offset_aug_finetune
+experiment_name: femt_instance_seg
+run_name: 3minute_no_anisotropy
 task_name: train
 tags:
     - dev
@@ -17,43 +17,77 @@ data:
           reader:
               - _target_: cyto_dl.image.io.MonaiBioReader
                 dimension_order_out: CZYX
-                C: 0
         - _target_: monai.transforms.NormalizeIntensityd
           keys: ${source_col}
         - _target_: monai.transforms.ToTensord
           keys:
               - ${source_col}
           dtype: float16
+        - _target_: monai.transforms.SpatialPadd
+          keys: ${source_col}
+          spatial_size: [13, -1, -1]
+          method: "end"
+          mode: "replicate"
     _aux:
         patch_shape:
-            - 24
-            - 128
-            - 128
+            - 12
+            - 192
+            - 192
     num_workers: 1
     batch_size: 1
     pin_memory: true
     persistent_workers: false
+
 model:
     _target_: cyto_dl.models.im2im.MultiTaskIm2Im
     save_images_every_n_epochs: 1
-    x_key: ${source_col}
     save_dir: ${paths.output_dir}
+    x_key: ${source_col}
     backbone:
         _target_: cyto_dl.nn.vits.Seg_ViT
+        spatial_dims: 3
         base_patch_size:
             - 4
             - 8
             - 8
         num_patches:
-            - 6
-            - 16
-            - 16
-        emb_dim: 1024
-        encoder_layer: 24
-        encoder_head: 16
+            - 3
+            - 24
+            - 24
+        emb_dim: 768
         decoder_layer: 3
-        # n_decoder_filters: 16
+        encoder_ckpt: //allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/cross_mae/EMT_pretrain/2024-03-04_15-05-33/checkpoints/epoch_1289.ckpt
+        freeze_encoder: true
+        n_decoder_filters: 32
+        upsample_factor:
+            - 1
+            - 1
+            - 1
+        num_layer: 12
+        num_head: 12
+        context_pixels:
+            - 2
+            - 4
+            - 4
     task_heads: ${kv_to_dict:${model._aux._tasks}}
+    optimizer:
+        generator:
+            _partial_: true
+            _target_: torch.optim.AdamW
+            weight_decay: 0.05
+    lr_scheduler:
+        generator:
+            _partial_: true
+            _target_: torch.optim.lr_scheduler.OneCycleLR
+            max_lr: 0.0005
+            epochs: ${trainer.max_epochs}
+            steps_per_epoch: 1
+            pct_start: 0.05
+    inference_args:
+        sw_batch_size: 1
+        roi_size: ${data._aux.patch_shape}
+        overlap: 0.25
+        mode: gaussian
     _aux:
         _tasks:
             - - ${target_col}
@@ -61,40 +95,21 @@ model:
                 loss:
                     _target_: cyto_dl.models.im2im.utils.InstanceSegLoss
                     dim: 3
+                    weights:
+                        skeleton: 10
+                        semantic: 10
+                        boundary: 10
+                        vector: 100
+                save_input: true
                 postprocess:
                     input:
                         _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
                         dtype: numpy.float32
                     prediction:
                         _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegCluster
-                        dim: 3
-                        min_size: 100
-                        skel_threshold: 0
-                        semantic_threshold: -4
-    optimizer:
-        generator:
-            _partial_: true
-            _target_: torch.optim.AdamW
-            weight_decay: 0.01
-    lr_scheduler:
-        generator:
-            _partial_: true
-            _target_: torch.optim.lr_scheduler.OneCycleLR
-            max_lr: 0.0001
-            epochs: ${trainer.max_epochs}
-            steps_per_epoch: 1
-            pct_start: 0.05
-
-    inference_args:
-        roi_size:
-            - 24
-            - 128
-            - 128
-        sw_batch_size: 1
-        overlap: 0.25
-        mode: gaussian
-        progress: true
-
+                        anisotropy: 1
+                        skel_threshold: -4.0
+                        semantic_threshold: -7
 trainer:
     _target_: lightning.Trainer
     default_root_dir: ${paths.output_dir}
@@ -109,7 +124,7 @@ trainer:
     detect_anomaly: false
     gradient_clip_val: 10
 paths:
-    root_dir: .
+    root_dir: ${oc.env:PROJECT_ROOT, './'}
     data_dir: ${paths.root_dir}/data/
     log_dir: ${paths.root_dir}/logs/
     output_dir: ${hydra:runtime.output_dir}
@@ -117,10 +132,10 @@ paths:
 extras:
     ignore_warnings: true
     enforce_tags: false
-    print_config: true
+    print_config: false
     precision:
         _target_: torch.set_float32_matmul_precision
         precision: medium
-source_col: lr
-target_col: nucseg
+source_col: raw
+target_col: seg
 persist_cache: true

@@ -1,7 +1,7 @@
 run_pca:
     function: morflowgenesis.steps.run_pca
     # all variables passed that aren't "function" or "task_runner" are assumed to be args
-    output_name: pca
+    output_name: run_pca
     feature_step: calculate_features/single_cell_dataset
     features_regex:
     calculate_name:

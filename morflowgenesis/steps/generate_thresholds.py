@@ -1,25 +1,27 @@
 from typing import List, Optional
 
 import numpy as np
+import tqdm
 from skimage.measure import label as run_label
 
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
-def run_threshold(image_object, input_step, output_name, thresh, label):
+def run_threshold(image_object, input_step, output_name, threshold_range, label):
     img = image_object.load_step(input_step)
-    step = StepOutput(
-        working_dir=image_object.working_dir,
-        step_name="threshold",
-        output_name=f"{output_name}/{thresh}",
-        output_type="image",
-        image_id=image_object.id,
-    )
-    out = img > thresh
-    if label:
-        out = run_label(out)
-    step.save(out.astype(np.uint8))
-    image_object.add_step_output(step)
+    for thresh in tqdm.tqdm(threshold_range):
+        step = StepOutput(
+            working_dir=image_object.working_dir,
+            step_name="threshold",
+            output_name=f"{output_name}/{thresh}",
+            output_type="image",
+            image_id=image_object.id,
+        )
+        out = img > thresh
+        if label:
+            out = run_label(out)
+        step.save(out.astype(np.uint8))
+        image_object.add_step_output(step)
     image_object.save()
 
 
@@ -65,14 +67,12 @@ def threshold(
     else:
         raise ValueError("Either `step` or `n` must be provided")
 
-    # TODO this loads each image per threshold instead of loading once and applying all thresholds
-    for thresh in threshold_range:
-        parallelize_across_images(
-            image_objects,
-            run_threshold,
-            tags,
-            output_name=output_name,
-            input_step=input_step,
-            thresh=thresh,
-            label=label,
-        )
+    parallelize_across_images(
+        image_objects,
+        run_threshold,
+        tags,
+        output_name=output_name,
+        input_step=input_step,
+        threshold_range=threshold_range,
+        label=label,
+    )

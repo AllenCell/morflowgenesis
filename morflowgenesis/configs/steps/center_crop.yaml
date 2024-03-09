@@ -2,8 +2,8 @@ defaults:
     - center_crop_task_runner: ../../../task_runner/dask
 
 center_crop_task_runner:
-    task_limit: 50
-    memory_limit: 5Gi
+    task_limit: 100
+    memory_limit: 25Gi
 
 center_crop:
     task_runner: ${..center_crop_task_runner}

@@ -1,0 +1,7 @@
+consistency_validation:
+    function: morflowgenesis.steps.consistency_validation
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    manifest_step: create_manifest/create_manifest
+    features_list:
+        - volume
+    min_track_length: 20

@@ -1,0 +1,22 @@
+# tagging with @steps adds the default under the steps key
+# the order of import determines the order of execution
+# note that currently we can't run the same step multiple times with different arguments
+defaults:
+    - split_image@steps: ../../steps/split_image
+    - run_cytodl@steps: ../../steps/run_cytodl
+
+# here we can create workflow-level arguments
+working_dir: //allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/femt_instance_seg/3minute_no_anisotropy/2024-03-06_16-15-04/deliverable_test_lumenoid
+
+steps:
+    split_image:
+        image_path: //allen/aics/microscopy/Data/RnD_Sandbox/20230918_ZSD2_Deliverable/3500005828_20230915_20X_timelapse-02.czi
+        channels: 1
+        working_dir: ${workflow.working_dir}
+        scenes: [42]
+
+    run_cytodl:
+        input_step: split_image/split_image
+        config_path: ${paths.model_dir}emt_instance_seg.yaml
+        overrides:
+            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/femt_instance_seg/3minute_no_anisotropy/2024-03-06_16-15-04/checkpoints/last.ckpt"

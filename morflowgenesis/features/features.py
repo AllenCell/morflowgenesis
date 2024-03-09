@@ -38,9 +38,9 @@ class AxisLengths:
 
 
 class HeightPercentile:
-    def __call__(self, img):
+    def __call__(self, img, top=99.9, bottom=0.1):
         z, _, _ = np.where(img)
-        return {"height_percentile": np.percentile(z, 99.9) - np.percentile(z, 0.1)}
+        return {"height_percentile": np.percentile(z, top) - np.percentile(z, bottom)}
 
 
 class Volume:

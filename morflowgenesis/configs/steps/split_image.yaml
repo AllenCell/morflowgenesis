@@ -3,7 +3,7 @@ defaults:
 
 split_image_task_runner:
     task_limit: 50
-    memory_limit: 5Gi
+    memory_limit: 25Gi
 
 split_image:
     task_runner: ${..split_image_task_runner}

@@ -40,7 +40,7 @@ requirements = [
     "aicsimageio==4.11.0",
     "aicsshparam==0.1.7",
     "camera-alignment-core==1.0.5",
-    "cyto_dl==0.1.3",
+    "cyto_dl==0.1.4",
     "dask==2023.3.1",
     "hydra-core==1.3.2",
     "matplotlib==3.7.2",

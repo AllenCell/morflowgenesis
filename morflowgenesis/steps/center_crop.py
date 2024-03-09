@@ -179,7 +179,7 @@ def uncrop(
         print("image loaded", img.shape)
         img = np.pad(img, padding, mode=mode)
         print("image padded", img.shape)
-        output.save(img)
+        output.save(img.astype(np.uint16))
     print("image saved")
     image_object.add_step_output(output)
     image_object.save()
