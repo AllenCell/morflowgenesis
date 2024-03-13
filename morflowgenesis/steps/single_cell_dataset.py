@@ -138,7 +138,8 @@ def process_cell(
         img_paths,
         out_res,
     )
-    save_dir = setup_directories(image_object, output_name, cell_meta["CellId"])
+    if save:
+        save_dir = setup_directories(image_object, output_name, cell_meta["CellId"])
 
     # save out raw and segmentation single cell images
     cell_features = []
@@ -218,9 +219,15 @@ def mask_images(
         for name in seg_images
     }
     seg_images = {k: reshape(v, in_res[k], out_res[k], order=0) for k, v in seg_images.items()}
+    min_shape = np.min([img.shape for img in list(seg_images.values()) + list(raw_images.values())], axis=0)
+    print('Cropping to', min_shape)
+    raw_images = {k: img[:min_shape[0], :min_shape[1], :min_shape[2]] for k, img in raw_images.items()}
+    seg_images = {k: img[:min_shape[0], :min_shape[1], :min_shape[2]] for k, img in seg_images.items()}
+
 
     seg_images[splitting_step] = (seg_images[splitting_step] == lab).astype(np.uint8)
     mask_img = seg_images[splitting_step]
+
 
     for name, img in seg_images.items():
         if iou_thresh is not None:
