@@ -1,4 +1,8 @@
+defaults:
+    - run_cytodl_task_runner: ../../../task_runner/dask_gpu
+
 run_cytodl:
+    task_runner: ${..run_cytodl_task_runner}
     function: morflowgenesis.steps.run_cytodl
     # all variables passed that aren't "function" or "task_runner" are assumed to be args
     input_step:

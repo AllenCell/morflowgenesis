@@ -1,9 +1,10 @@
-import shutil
+import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 import mlflow
 from cyto_dl.api import CytoDLModel
+from distributed import get_worker
 from prefect import task
 
 from morflowgenesis.utils import ImageObject, StepOutput
@@ -68,6 +69,7 @@ def load_model(
 
 @task(retries=3, retry_delay_seconds=[10, 60, 120])
 def run_evaluate(model):
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(get_worker().name)
     return model.predict()
 
 
@@ -79,6 +81,7 @@ def run_cytodl(
     overrides: Dict[str, Any] = {},
     run_id: Optional[str] = None,
     checkpoint_path: Optional[str] = "checkpoints/val/loss/best.ckpt",
+    n_partitions: int = 2,
     tags: List[str] = [],
 ):
     """Wrapper function to run cytoDL on a list of image objects. Note that the output will be
@@ -100,19 +103,37 @@ def run_cytodl(
         MLFlow run ID to download model from, by default None
     checkpoint_path : Optional[str], optional
         Path to checkpoint to download from MLFlow, by default "checkpoints/val/loss/best.ckpt"
+    n_partitions : int, optional
+        Number of partitions to split the image objects into for parallel processing. By default 2, this should match the number of GPUs available to your dask_gpu worker.
     tags : List[str], optional
         [UNUSED] Tags corresponding to concurrency-limits for parallel processing
     """
-    model = load_model(
-        image_objects,
-        output_name,
-        input_step,
-        Path(config_path),
-        overrides,
-        run_id,
-        checkpoint_path,
-    )
-    _, _, out = run_evaluate(model)
+    # split image objects into partitions for parallel running and submit jobs
+    n_objects_per_partition = len(image_objects) // n_partitions
+    results = []
+    for i in range(n_partitions):
+        start = i * n_objects_per_partition
+        end = (i + 1) * n_objects_per_partition
+        if i == n_partitions - 1:
+            end = len(image_objects)
+
+        model = load_model(
+            image_objects[start:end],
+            output_name,
+            input_step,
+            Path(config_path),
+            overrides,
+            run_id,
+            checkpoint_path,
+        )
+        results.append(run_evaluate.submit(model))
+
+    # gather io maps
+    out = []
+    for r in results:
+        out += r.result()[2]
+
+    # save outputs to image objects
     if out is None:
         return
     for batch in out:
@@ -129,6 +150,6 @@ def run_cytodl(
                             output_type="image",
                             image_id=image_objects[i].id,
                         )
+                        output.path = save_path
                         image_objects[i].add_step_output(output)
                         image_objects[i].save()
-                        shutil.move(str(save_path), str(output.path))
