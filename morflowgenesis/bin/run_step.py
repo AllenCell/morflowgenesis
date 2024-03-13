@@ -36,17 +36,17 @@ def check_state(state, step_name):
         raise RuntimeError(f"Step {step_name} completed with state {state}")
 
 
-async def setup_task_limits(step_cfg):
+async def setup_task_limits(step_cfg, step_name):
     """Set prefect concurrency-limit based on step configuration."""
     task_limit = step_cfg.get("task_runner", {}).get("task_limit")
     step_cfg["tags"] = []
     if task_limit:
         # create unique tag based on task function and submission time
-        task_name = f'{step_cfg["function"]}_{datetime.now().strftime("%Y%m%d%H%M%S")}'
+        task_name = f'{step_name}_{datetime.now().strftime("%Y%m%d%H%M%S")}'
         # set task limits
         async with get_client() as client:
             await client.create_concurrency_limit(tag=task_name, concurrency_limit=task_limit)
-        print(f'Set task limit for {step_cfg["function"]} to {task_limit}')
+        print(f"Set task limit for {step_name} to {task_limit}")
         del step_cfg["task_runner"]["task_limit"]
         step_cfg["task_runner"].pop("memory_limit", None)
 
@@ -70,11 +70,6 @@ async def tear_down_task_limits(step_cfg):
 
 async def run_step(step_cfg, object_store_path, limit=-1):
     """Run a step in the pipeline."""
-    # set up task runner
-    step_cfg = await setup_task_limits(step_cfg)
-    task_runner = step_cfg.pop("task_runner", None)
-    task_runner = instantiate(task_runner) if task_runner is not None else ConcurrentTaskRunner()
-
     # initialize function
     step_fn = step_cfg.pop("function")
     step_name = step_fn.split(".")[-1]
@@ -84,6 +79,12 @@ async def run_step(step_cfg, object_store_path, limit=-1):
     objects_to_run = get_objects_to_run(object_store_path, step_name, step_cfg.get("output_name"))
     if len(objects_to_run) == 0 and object_store_path.exists():
         return StateType.COMPLETED
+
+    # set up task runner
+    step_cfg = await setup_task_limits(step_cfg, step_name)
+    task_runner = step_cfg.pop("task_runner", None)
+    task_runner = instantiate(task_runner) if task_runner is not None else ConcurrentTaskRunner()
+
     step_cfg.update({"image_objects": objects_to_run})
     result = run_flow(step_fn, task_runner, **step_cfg)
     await tear_down_task_limits(step_cfg)

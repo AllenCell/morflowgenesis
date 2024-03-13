@@ -8,6 +8,7 @@ Welcome to morflowgenesis's documentation!
 
    Overview <self>
    installation
+   workflow_creation
    Package modules <modules>
    contributing
 
