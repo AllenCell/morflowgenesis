@@ -213,21 +213,24 @@ def mask_images(
         for name in raw_images
     }
     raw_images = {k: reshape(v, in_res[k], out_res[k], order=0) for k, v in raw_images.items()}
-
     seg_images = {
         name: multi_res_crop(seg_images[name], coords, in_res[splitting_step], in_res[name])
         for name in seg_images
     }
     seg_images = {k: reshape(v, in_res[k], out_res[k], order=0) for k, v in seg_images.items()}
-    min_shape = np.min([img.shape for img in list(seg_images.values()) + list(raw_images.values())], axis=0)
-    print('Cropping to', min_shape)
-    raw_images = {k: img[:min_shape[0], :min_shape[1], :min_shape[2]] for k, img in raw_images.items()}
-    seg_images = {k: img[:min_shape[0], :min_shape[1], :min_shape[2]] for k, img in seg_images.items()}
-
+    min_shape = np.min(
+        [img.shape for img in list(seg_images.values()) + list(raw_images.values())], axis=0
+    )
+    print("Cropping to", min_shape)
+    raw_images = {
+        k: img[: min_shape[0], : min_shape[1], : min_shape[2]] for k, img in raw_images.items()
+    }
+    seg_images = {
+        k: img[: min_shape[0], : min_shape[1], : min_shape[2]] for k, img in seg_images.items()
+    }
 
     seg_images[splitting_step] = (seg_images[splitting_step] == lab).astype(np.uint8)
     mask_img = seg_images[splitting_step]
-
 
     for name, img in seg_images.items():
         if iou_thresh is not None:
@@ -238,7 +241,7 @@ def mask_images(
         if name in mask:
             seg_images[name] *= mask_img
         if name in keep_lcc:
-            seg_images[name] = get_largest_cc(img * mask_img)
+            seg_images[name] = get_largest_cc(img, mask=mask_img)
 
     return {
         "raw": raw_images,
@@ -262,11 +265,7 @@ def _rename(dict, new_names):
 
 
 def load_images(image_object, seg_steps, raw_steps, seg_steps_rename, raw_steps_rename):
-    """load, resize, and rename images.
-
-    Output images are assumed to be at `out_res` resolution, error will be thrown if images are not
-    the same size
-    """
+    """load, and rename images."""
     available_steps = list(image_object.steps.keys())
     for i in range(len(seg_steps)):
         if "*" in seg_steps[i]:

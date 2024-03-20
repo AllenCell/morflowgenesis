@@ -41,13 +41,14 @@ def to_list(x):
     return [x]
 
 
-def get_largest_cc(im, do_label=True):
+def get_largest_cc(im, mask=None, do_label=True):
     if do_label:
         im, n = label(im)
     else:
         n = im.max()
     if n > 0:
-        largest_cc = np.argmax(np.bincount(im.flatten())[1:]) + 1
+        mask = mask if mask is not None else np.ones_like(im)
+        largest_cc = np.argmax(np.bincount((im * mask).flatten())[1:]) + 1
         return (im == largest_cc).astype(np.uint8)
     return im
 
