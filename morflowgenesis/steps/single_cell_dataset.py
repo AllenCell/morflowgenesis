@@ -12,6 +12,7 @@ from aicsimageio.writers import OmeTiffWriter
 from hydra.utils import instantiate
 from omegaconf import DictConfig, ListConfig
 from skimage.transform import rescale
+from skimage.segmentation import clear_border
 
 from morflowgenesis.utils import (
     ImageObject,
@@ -341,6 +342,9 @@ def extract_cells_from_fov(
     )
     print("images loaded for", image_object.id)
 
+    if not include_edge_cells:
+        seg_images = {k: clear_border(v) for k, v in seg_images.items()}
+
     # instantiate feature calculation classes
     features = generate_dict_with_default(features, seg_images.keys())
     features = {k: [instantiate(feat) for feat in v] for k, v in features.items()}
@@ -486,7 +490,7 @@ def single_cell_dataset(
         image_objects,
         extract_cells_from_fov,
         tags=tags,
-        delay=0.5,
+        delay=1.0,
         output_name=output_name,
         splitting_step=splitting_step,
         padding=padding,

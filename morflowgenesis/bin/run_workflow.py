@@ -60,26 +60,27 @@ def check_keys(cfg):
     """Check if any key at any level of a nested dictionary is 'function'."""
     if isinstance(cfg, dict):
         # normal step
-        if 'function' in cfg.keys():
+        if "function" in cfg.keys():
             return cfg
         # nested step (multiple of same step with different names)
         for value in cfg.values():
             if isinstance(value, dict):
-                if 'function' in value.keys():
+                if "function" in value.keys():
                     return value
     return {}
 
+
 def clean_config(cfg):
-    """
-    Remove arguments not assigned to a step, task runners (which are included under the step), and rearrange repeated steps to avoid duplicated keys
-    """
+    """Remove arguments not assigned to a step, task runners (which are included under the step),
+    and rearrange repeated steps to avoid duplicated keys."""
     cleaned_steps = {}
-    for k, v in cfg['workflow'].get('steps', {}).items():
+    for k, v in cfg["workflow"].get("steps", {}).items():
         cleaned_step = check_keys(v)
         if cleaned_step:
             cleaned_steps[k] = cleaned_step
-    cfg['workflow']['steps'] = cleaned_steps
+    cfg["workflow"]["steps"] = cleaned_steps
     return cfg
+
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="workflow.yaml")
 def main(_cfg: DictConfig):

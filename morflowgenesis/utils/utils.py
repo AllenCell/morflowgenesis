@@ -15,7 +15,7 @@ def submit(task_function, tags=[], name=None, **kwargs):
 
 
 def parallelize_across_images(
-    data, task_function, tags=[], data_name="image_object", delay=0, **kwargs
+    data, task_function, tags=[], data_name="image_object", delay=0.5, **kwargs
 ):
     """data is list of image objects results is list of step outputs, one per image object."""
     results = []

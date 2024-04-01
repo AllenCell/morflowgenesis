@@ -1,7 +1,7 @@
 from .alignment import align_segmentations_to_image
 from .center_crop import center_crop, center_pad
 from .consistency import consistency_validation
-from .contact_sheet import segmentation_contact_sheet
+from .contact_sheet import segmentation_contact_sheet, segmentation_contact_sheet_all
 from .create_manifest_nucmorph import create_manifest
 from .generate_thresholds import threshold
 

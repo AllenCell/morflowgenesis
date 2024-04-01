@@ -1,5 +1,4 @@
 defaults:
-    - run_command@steps: ../../steps/run_command
     - generate_objects@steps: ../../steps/generate_objects
     - run_cytodl@steps: ../../steps/run_cytodl
     - align_segmentations_to_image@steps: ../../steps/align_segmentations_to_image

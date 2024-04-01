@@ -14,7 +14,7 @@ Morflowgenesis uses `hydra`_ and `omegaconf`_ to allow flexible configuration of
 
 Overview
 --------------
-Morflowgenesis workflows create a DAG of steps to process data. Connections between steps are specified by the input and output arguments from each step. For example, a step that splits images into channels might be followed by a step that segments the channels. If the image splitting step is called `split_image` and has the output name `test`, the segmentation step can reference it by taking as its input step `split_image/test`.  
+Morflowgenesis workflows create a DAG of steps to process data. Connections between steps are specified by the input and output arguments from each step. For example, a step that splits images into channels might be followed by a step that segments the channels. If the image splitting step is called `split_image` and has the output name `test`, the segmentation step can reference it by taking as its input step `split_image/test`.
 
 Config Structure
 --------------
@@ -22,7 +22,7 @@ Config Structure
 The default config
 ^^^^^^^^^^^^^^
 
-Morflowgenesis uses a hierarchical configuration structure to allow for easy customization of workflows. Running a workflow with no arguments will use the `default configuration`_. The `defaults` section references the other parameters that will be incorporated into the config file. 
+Morflowgenesis uses a hierarchical configuration structure to allow for easy customization of workflows. Running a workflow with no arguments will use the `default configuration`_. The `defaults` section references the other parameters that will be incorporated into the config file.
 
 .. _default configuration: ../morflowgenesis/configs/workflow.yaml
 
@@ -34,7 +34,7 @@ For example, the `paths` default includes a `paths` key in the config that refer
 The workflow config
 ^^^^^^^^^^^^^^
 
-This default workflow, however, has no steps. To add steps, you can specify a `workflow` config with 
+This default workflow, however, has no steps. To add steps, you can specify a `workflow` config with
 .. code-block:: console
 
     $ python morflowgenesis/bin/run_workflow config=workflow_name.yaml
@@ -54,7 +54,7 @@ The key `split_image@steps` imports the default `step` config at `steps/split_im
         split_image:
             image_path: path/to/images
 
-This will update the default image path with the path to your images. 
+This will update the default image path with the path to your images.
 
 **Note**: including two of the same step in a workflow requires a different syntax:
 
@@ -78,11 +78,11 @@ This will update the default image path with the path to your images.
 
 The step config
 ^^^^^^^^^^^^
-Step configs specify default arguments for a given step. This must include a key that matches the name of the step, a `function` key that specifies the function location, and any arguments to that function. Task runners are a frequent addition to function arguments. 
+Step configs specify default arguments for a given step. This must include a key that matches the name of the step, a `function` key that specifies the function location, and any arguments to that function. Task runners are a frequent addition to function arguments.
 
 The task runner config
 ^^^^^^^^^^^^^^
-Two task runners are provided - one for running `cpu`_ jobs in parallel and one for running `gpu`_ jobs in parallel. Step-specific arguments can be overridden from the `step` config. The GPU task runner should be updated with your system's gpu information (GPU memory limits, names, etc.). If no task runner is provided, the step will run using a naive parallelization strategy with prefect's `SequntialTaskRunner`_. To prevent overwhelming your resources, task runners are constrained by a `task_limit` argument, which corresponds to prefect's `concurrency-limit`. 
+Two task runners are provided - one for running `cpu`_ jobs in parallel and one for running `gpu`_ jobs in parallel. Step-specific arguments can be overridden from the `step` config. The GPU task runner should be updated with your system's gpu information (GPU memory limits, names, etc.). If no task runner is provided, the step will run using a naive parallelization strategy with prefect's `SequntialTaskRunner`_. To prevent overwhelming your resources, task runners are constrained by a `task_limit` argument, which corresponds to prefect's `concurrency-limit`.
 
 If runs are cancelled before their concurrency limits can be cleaned up, you may need to manually clean up the unused concurrency limits. You can do this with the following command (WARNING this will delete the first 200 concurrency limits)
 

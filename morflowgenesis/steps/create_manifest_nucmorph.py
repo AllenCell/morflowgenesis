@@ -32,14 +32,12 @@ def create_manifest(
                 "centroid_y",
                 "centroid_x",
                 "label_img",
-                "20x_lamin_path",
-                "nuc_seg_path",
-                "crop_raw_id",
-                "crop_raw_path",
-                "crop_seg_id",
-                "crop_seg_path",
+                "seg_full_zstack_path",
             ]
         ]
+        #HACK
+        cells['raw_full_zstack_path'] = cells['seg_full_zstack_path'].apply(lambda x: x.replace('run_cytodl/nucseg', 'split_image/split_image'))
+
         cells_with_feats = pd.merge(cells, features, on="CellId", how="outer")
         drop_cols = ["shcoeff"] + [
             col for col in cells_with_feats.columns if re.search("Unnamed", col)
@@ -51,7 +49,7 @@ def create_manifest(
 
     # load tracking data
     tracking = obj.load_step(tracking_step)[
-        ["index_sequence", "label_img", "edge_cell", "track_id", "lineage_id"]
+        ["index_sequence", "label_img", "fov_edge", "track_id", "lineage_id"]
     ]
     manifest = pd.merge(manifest, tracking, on=["index_sequence", "label_img"], how="left")
 
@@ -66,16 +64,7 @@ def create_manifest(
     manifest = manifest.sort_values(by="index_sequence")
 
     # rename columns
-    shcoeff_cols = [col for col in manifest.columns if re.search("shcoeff", col)]
-    rename_dict = {col: f"NUC_{col}" for col in shcoeff_cols}
-    rename_dict.update(
-        {
-            "20x_lamin_path": "raw_full_zstack_path",
-            "nuc_seg_path": "seg_full_zstack_path",
-            "edge_cell": "fov_edge",
-        }
-    )
-    manifest = manifest.rename(columns=rename_dict)
+    manifest = manifest.rename(columns={col: f"NUC_{col}" for col in manifest.columns if re.search("shcoeff", col)})
 
     manifest["dataset"] = dataset_name
 

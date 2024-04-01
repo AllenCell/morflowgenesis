@@ -47,8 +47,11 @@ async def setup_task_limits(step_cfg, step_name):
         async with get_client() as client:
             await client.create_concurrency_limit(tag=task_name, concurrency_limit=task_limit)
         print(f"Set task limit for {step_name} to {task_limit}")
+        # remove task limit from step configuration
         del step_cfg["task_runner"]["task_limit"]
         step_cfg["task_runner"].pop("memory_limit", None)
+        step_cfg["task_runner"].pop("processes", None)
+
 
         step_cfg["tags"] = [task_name]
 

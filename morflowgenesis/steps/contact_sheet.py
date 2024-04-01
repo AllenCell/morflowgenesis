@@ -136,18 +136,14 @@ def generate_fov_contact_sheet(image_object, output_name, raw_name, seg_step):
         seg_crop = find_boundaries(seg[coords] == val, mode="inner")[None]
         cells.append((project(raw[coords], seg_crop), val))
 
-    colors = ["Cyan", "Magenta", "Yellow"]
-
-    title = "Contact Sheet: " + ", ".join(
-        [f"{col}: {name}" for col, name in zip(colors, seg_step)]
-    )
+    title = f"Contact Sheet {seg_step}"
     n_bins = int(np.ceil(np.sqrt(len(cells))))
     contact_sheet = assemble_contact_sheet(
         cells, range(n_bins), range(n_bins), "", "", title=title
     )
     output = StepOutput(
         image_object.working_dir,
-        "segmentation_contact_sheet",
+        "segmentation_contact_sheet_fov",
         output_name,
         output_type="image",
         image_id=image_object.id,

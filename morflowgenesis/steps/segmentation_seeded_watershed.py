@@ -52,14 +52,14 @@ def watershed_cell(raw, seg, lab, mode, is_edge, erosion=5):
 
     raw = np.clip(raw, np.percentile(raw, 1), np.percentile(raw, 99))
     raw = gaussian_filter(raw, sigma=[0, 1, 1], truncate=3)
-    seg = watershed(raw, seed, watershed_line=True) != 2
+    watershed_seg = watershed(raw, seed, watershed_line=True) != 2
 
     # remove non-target object segmentations and failed segmentations
-    border_mask = np.ones_like(seg, dtype=bool)
+    border_mask = np.ones_like(watershed_seg, dtype=bool)
     border_mask[1:-1, 1:-1, 1:-1] = False
-    if (not is_edge and np.sum(seg[border_mask]) > 1000) or (is_edge and np.mean(seg) > 0.5):
+    if (not is_edge and np.sum(watershed_seg[border_mask]) > 1000) or (is_edge and np.mean(watershed_seg) > 0.5):
         return np.zeros_like(seg)
-    return seg
+    return watershed_seg
 
 
 def merge_instance_segs(segs, coords, img):

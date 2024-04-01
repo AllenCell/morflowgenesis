@@ -6,9 +6,8 @@ import mlflow
 from cyto_dl.api import CytoDLModel
 from distributed import get_worker
 from prefect import task
-
+import math
 from morflowgenesis.utils import ImageObject, StepOutput
-
 
 def download_mlflow_model(
     run_id: str,
@@ -69,7 +68,11 @@ def load_model(
 
 @task(retries=3, retry_delay_seconds=[10, 60, 120])
 def run_evaluate(model):
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(get_worker().name)
+    # suppress error if not running with dask cuda cluster
+    try:
+        os.environ["CUDA_VISIBLE_DEVICES"] = str(get_worker().name)
+    except ValueError:
+        assert "CUDA_VISIBLE_DEVICES" in os.environ, "CUDA_VISIBLE_DEVICES must be set if not using `dask_gpu` task runner!"
     return model.predict()
 
 
@@ -109,16 +112,19 @@ def run_cytodl(
         [UNUSED] Tags corresponding to concurrency-limits for parallel processing
     """
     # split image objects into partitions for parallel running and submit jobs
-    n_objects_per_partition = len(image_objects) // n_partitions
+    n_objects_per_partition = math.ceil(len(image_objects) / n_partitions)
     results = []
     for i in range(n_partitions):
         start = i * n_objects_per_partition
         end = (i + 1) * n_objects_per_partition
         if i == n_partitions - 1:
             end = len(image_objects)
+        obj = image_objects[start:end]
+        if len(obj) == 0:
+            continue
 
         model = load_model(
-            image_objects[start:end],
+            obj,
             output_name,
             input_step,
             Path(config_path),

@@ -59,6 +59,7 @@ requirements = [
     "scikit-image==0.19.2",
     "timelapsetracking @ git+ssh://git@github.com/aics-int/aics-timelapse-tracking.git@f5975d06b36029c0f576219a73d19d444a5c23d1",
     "vtk==9.2.6",
+    "dask_cuda"
 ]
 
 extra_requirements = {

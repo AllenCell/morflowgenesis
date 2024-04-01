@@ -8,7 +8,8 @@ from camera_alignment_core.alignment_core import align_image, crop
 from camera_alignment_core.channel_info import CameraPosition, channel_info_factory
 from prefect import task
 
-from morflowgenesis.utils.image_object import ImageObject, StepOutput
+from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
+
 
 
 def get_data(path, load_kwargs):
@@ -20,7 +21,6 @@ def get_data(path, load_kwargs):
     return data
 
 
-@task
 def split(path, working_dir, output_name, alignment_args, load_kwargs):
     # create object associated with image
     img_obj = ImageObject(working_dir, path, load_kwargs)
@@ -28,6 +28,7 @@ def split(path, working_dir, output_name, alignment_args, load_kwargs):
 
     # load image
     data = get_data(path, load_kwargs)
+    print('Image loaded', data.shape)
 
     if alignment_args is not None:
         data = align_image(
@@ -36,6 +37,7 @@ def split(path, working_dir, output_name, alignment_args, load_kwargs):
         data = crop(data, Magnification(20))
 
     output.save(data)
+    print('image saved')
     img_obj.add_step_output(output)
     img_obj.save()
 
@@ -144,25 +146,21 @@ def split_image(
 
     print("Already run:", already_run)
 
-    new_image_objects = []
-    for s in scenes:
-        for t in timepoints:
-            load_kwargs = {
-                "S": s,
-                "T": t,
-                "C": channels,
-                "dimension_order_out": dimension_order_out,
-            }
-            if (t, s) not in already_run:
-                new_image_objects.append(
-                    split.submit(
-                        image_path,
-                        working_dir,
-                        output_name,
-                        alignment_args,
-                        load_kwargs.copy(),
-                    )
-                )
-            else:
-                print(f"Scene {s} timepoint {t} already run")
-    [im_obj.result() for im_obj in new_image_objects]
+    load_kwargs = [{
+        "S": s,
+        "T": t,
+        "C": channels,
+        "dimension_order_out": dimension_order_out,
+    } for s in scenes for t in timepoints if (t, s) not in already_run]
+
+
+    parallelize_across_images(
+        load_kwargs,
+        split,
+        tags=tags,
+        data_name="load_kwargs",
+        path=image_path,
+        working_dir=working_dir,
+        output_name=output_name,
+        alignment_args=alignment_args, 
+    )

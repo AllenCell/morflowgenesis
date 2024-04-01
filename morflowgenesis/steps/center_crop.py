@@ -27,7 +27,7 @@ def find_timepoint_crop(
     min_slices: int = 24,
     sigma_cutoff: Union[int, List[int]] = 2,
 ):
-    """Crop to center of an image assuming a Gaussian-like profile along the z-axis.\
+    """Crop to center of an image assuming a Gaussian-like profile along the z-axis./
 
     Parameters
     ----------
@@ -113,19 +113,28 @@ def center_crop(
     min_slices: int = 24,
     sigma_cutoff: Union[int, List[int]] = 2,
 ):
-    _, results = parallelize_across_images(
-        image_objects,
-        find_timepoint_crop,
-        tags=tags,
-        image_step=image_step,
-        pad=pad,
-        min_slices=min_slices,
-        sigma_cutoff=sigma_cutoff,
-    )
-    print("Per-timepoint padding complete")
-    results = np.array(results)
-    bottom_padding = np.max(results[:, 0])
-    top_padding = np.max(results[:, 1])
+    padding_path = image_objects[0].working_dir / "center_crop" / output_name / "padding.npy"
+    if not padding_path.exists():
+        _, results = parallelize_across_images(
+            image_objects,
+            find_timepoint_crop,
+            tags=tags,
+            image_step=image_step,
+            pad=pad,
+            min_slices=min_slices,
+            sigma_cutoff=sigma_cutoff,
+        )
+        results = np.array(results)
+        bottom_padding = np.max(results[:, 0])
+        top_padding = np.max(results[:, 1])
+        print("Per-timepoint padding complete, padding:", bottom_padding, top_padding)
+        padding_path.parent.mkdir(parents=True, exist_ok=True)
+        np.save(padding_path,np.array([(bottom_padding, top_padding), (0, 0), (0, 0)]))
+    else:
+        padding = np.load(padding_path, allow_pickle=True)
+        bottom_padding, top_padding = padding[0]
+    print("Consensus padding is", bottom_padding, top_padding)
+
 
     parallelize_across_images(
         image_objects,
@@ -136,12 +145,7 @@ def center_crop(
         bottom_padding=bottom_padding,
         top_padding=top_padding,
     )
-    np.save(
-        image_objects[0].working_dir / "center_crop" / output_name / "padding.npy",
-        np.array([(bottom_padding, top_padding), (0, 0), (0, 0)]),
-    )
-    print("Consensus padding is", bottom_padding, top_padding)
-
+    
 
 def uncrop(
     image_object: ImageObject,
@@ -176,10 +180,10 @@ def uncrop(
     )
     if not output.path.exists():
         img = image_object.load_step(image_step)
-        print("image loaded", img.shape)
+        print("image loaded", img.shape, img.dtype)
         img = np.pad(img, padding, mode=mode)
         print("image padded", img.shape)
-        output.save(img.astype(np.uint16))
+        output.save(img)
     print("image saved")
     image_object.add_step_output(output)
     image_object.save()

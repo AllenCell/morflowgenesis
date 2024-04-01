@@ -16,4 +16,4 @@ formation_breakdown:
     overrides:
     n_extract: -1
     min_track_length: -1
-    padding: 2
+    padding: 3

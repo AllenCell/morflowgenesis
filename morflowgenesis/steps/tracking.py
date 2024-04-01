@@ -91,6 +91,7 @@ def track(regionprops, working_dir, output_name, edge_thresh_dist=75):
     df = csv_to_nodes.csv_to_nodes(regionprops, meta_dict, img_shape)
     df_edges = add_edges(df, thresh_dist=edge_thresh_dist)
     df_edges = add_connectivity_labels(df_edges)
+    df_edges = df_edges.rename(columns={"edge_cell": "fov_edge"})
 
     df_edges.to_csv(f"{output_dir}/edges.csv")
     return tracking_output

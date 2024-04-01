@@ -31,7 +31,7 @@ def run_project(
         step_name="project",
         output_name=f"{output_name}_{input_step}_{project_type}_{project_slice}_{axis}",
         output_type="image",
-        image_id=f"{image_object.metadata['T']}.tif",
+        image_id=str(image_object.metadata['T']),
     )
     if output.path.exists():
         return output
@@ -64,8 +64,8 @@ def run_project(
         ]
         # limit # of track_id values to prevent overflow
         tracking["track_id"] = tracking["track_id"] % 512
-        offset = tracking["track_id"].max() + 1
-        # make sure we don't overwrite track ids
+        # map new object labels above range of input so they don't overlap
+        offset = tracking["label_img"].max() + 1
         tracking["track_id"] += offset
         # relabel
         for row in tracking.itertuples():
