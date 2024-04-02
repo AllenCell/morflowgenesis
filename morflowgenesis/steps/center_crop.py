@@ -99,7 +99,10 @@ def apply_crop(
         return output
 
     img = image_object.load_step(image_step)
-    output.save(img[bottom_padding:-top_padding])
+    if top_padding > 0:
+        output.save(img[bottom_padding:-top_padding])
+    else:
+        output.save(img[bottom_padding:])
     image_object.add_step_output(output)
     image_object.save()
 
