@@ -3,7 +3,7 @@ defaults:
 
 center_crop_task_runner:
     task_limit: 100
-    memory_limit: 25Gi
+    memory_limit: 50Gi
 
 center_crop:
     task_runner: ${..center_crop_task_runner}

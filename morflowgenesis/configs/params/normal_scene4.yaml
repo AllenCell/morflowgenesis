@@ -1,5 +1,5 @@
-channels: [1]
-image_path: //allen/programs/allencell/data/proj0/94d/984/e94/01e/48f/6ab/046/00d/c84/1ed/49/AD00004745_20230720_AICS13_L01-01_AcquisitionBlock1_pt1.czi
+channels: [0]
+image_path: '/allen/programs/allencell/data/proj0/935/c72/962/3cc/7a4/37b/f4f/6d8/69c/91a/71/20200323_F01_001.czi'
 name: normal_scene4
 scene: 4
 timepoint_end: 570

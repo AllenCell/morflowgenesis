@@ -2,7 +2,8 @@ _target_: prefect_dask.DaskTaskRunner
 cluster_class: dask_cuda.LocalCUDACluster
 cluster_kwargs:
     CUDA_VISIBLE_DEVICES: 
-        - MIG-8f3b2a99-4e01-5b69-8b78-dbd3c9fe2a83
+    #037
+        # - MIG-8f3b2a99-4e01-5b69-8b78-dbd3c9fe2a83
         - MIG-ab01163e-58ea-5bd8-b8e4-c90b03ac3934
         - MIG-bd353f7e-df93-5d2f-8c71-9d3cc0d1e1c6
         - MIG-42b615cb-1979-5834-892b-53ed79689814
@@ -10,6 +11,13 @@ cluster_kwargs:
         - MIG-6861cd30-704f-5285-8bd0-ddbfc5ace104
         - MIG-f75df448-4d8d-59fe-9d32-a98578b2099d
         - MIG-cbc1ff39-4e4e-50c3-9f07-cf3a64633776
+    #039
+        # - MIG-f944a544-4758-56c2-81d7-94574c215198
+        # - MIG-5dae7a03-dc20-5083-8df1-b583c1a5e8b8
+        # - MIG-7d67cf82-0c6b-5aee-99ce-cab54f47f0b6
+        # - MIG-1b2d52a1-2281-5236-bee8-efe0b2d50931
+        # - MIG-1d072c12-7ab9-59d4-9be5-faf8fbf73f0e
+        # - MIG-1c0e6140-3813-5f1d-97d3-aee582a02aa6
+        # - MIG-195f63f2-e855-5f08-80cd-5689c4e14928
+        # - MIG-5c1d3311-7294-5551-9e4f-3535560f5f82
     device_memory_limit: 40GB
-
-

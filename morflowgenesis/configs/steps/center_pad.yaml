@@ -2,8 +2,8 @@ defaults:
     - center_pad_task_runner: ../../../task_runner/dask
 
 center_pad_task_runner:
-    task_limit: 10
-    memory_limit: 50Gi
+    task_limit: 100
+    memory_limit: 150Gi
 
 center_pad:
     task_runner: ${..center_pad_task_runner}

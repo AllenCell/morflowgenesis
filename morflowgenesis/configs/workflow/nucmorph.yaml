@@ -12,7 +12,7 @@ defaults:
     - create_manifest@steps: ../../steps/create_manifest
 
 # here we can create workflow-level arguments
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/reprocess/${params.name}/${params.scene}
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/reprocess_parallel/${params.name}/${params.scene}
 
 # here we can override arguments for specific steps, but changing the order here does not change the order of execution
 # task runner args can be overridden, but the TYPE of task runner cannot be changed from the workflow. To use the PACKAGE default task runner of concurrent task runner, set task_runner: null
@@ -29,14 +29,15 @@ steps:
         image_step: split_image/split_image
 
     run_cytodl:
-        output_name: nucseg
         input_step: center_crop/center_crop
-        config_path: ${paths.model_dir}vit_config.yaml
+        config_path: ${paths.model_dir}/vit_multilayer_new_pretrain.yaml
+        n_partitions: 8
         overrides:
-            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/offset_aug_finetune_aligned_large/2024-01-28_19-42-12/checkpoints/last.ckpt"
+            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/efficient_decoder_multiscale_fixed_smartcache_pretrain/2024-03-24_07-50-08/checkpoints/epoch_059.ckpt"
+            semantic_thresh: -3
 
     center_pad:
-        image_step: run_cytodl/nucseg/nucseg
+        image_step: run_cytodl/nucseg
         cropping_step: center_crop/center_crop
         pad_rescale: 2.6134
 
@@ -44,12 +45,13 @@ steps:
         input_step: center_pad/center_pad
 
     single_cell_dataset:
-        splitting_step: nuc_seg
+        splitting_step: seg_full_zstack
         seg_steps: [center_pad/center_pad]
-        seg_steps_rename: [nuc_seg]
+        seg_steps_rename: [seg_full_zstack]
         mask: False
         keep_lcc: False
-        input_res: [0.29, 0.108, 0.108]
+        input_res: 
+            seg_full_zstack: [0.29, 0.108, 0.108]
         out_res: 0.108
         features:
             - _target_: morflowgenesis.features.Volume
@@ -58,6 +60,7 @@ steps:
             - _target_: morflowgenesis.features.HeightPercentile
             - _target_: morflowgenesis.features.SHCoeff
             - _target_: morflowgenesis.features.AxisLengths
+        save: False
 
     formation_breakdown:
         image_step: split_image/split_image

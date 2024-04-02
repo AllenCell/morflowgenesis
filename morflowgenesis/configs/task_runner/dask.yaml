@@ -1,12 +1,14 @@
 task_limit: 50
 memory_limit: 5Gi
+processes: False
 
 _target_: prefect_dask.DaskTaskRunner
 cluster_class: distributed.LocalCluster
 cluster_kwargs:
     n_workers: ${..task_limit}
     memory_limit: ${..memory_limit}
-    processes: True
-    threads_per_worker: 4
+    processes: ${..processes}
+    threads_per_worker: 1
     resources:
         cpu: 1
+

@@ -2,8 +2,10 @@ defaults:
     - split_image_task_runner: ../../../task_runner/dask
 
 split_image_task_runner:
-    task_limit: 50
-    memory_limit: 25Gi
+    task_limit: 200
+    memory_limit: 125Gi
+    # this might not be optimal since image splitting is io limited
+    processes: True
 
 split_image:
     task_runner: ${..split_image_task_runner}

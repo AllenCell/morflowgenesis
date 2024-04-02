@@ -2,8 +2,9 @@ defaults:
     - single_cell_dataset_task_runner: ../../../task_runner/dask
 
 single_cell_dataset_task_runner:
-    task_limit: 30
+    task_limit: 150
     memory_limit: 500Gi
+    processes: True
 
 single_cell_dataset:
     task_runner: ${..single_cell_dataset_task_runner}

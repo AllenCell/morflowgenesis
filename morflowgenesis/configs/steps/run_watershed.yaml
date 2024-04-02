@@ -2,7 +2,7 @@ defaults:
     - watershed_task_runner: ../../../task_runner/dask
 
 watershed_task_runner:
-    task_limit: 10
+    task_limit: 100
     memory_limit: 100Gi
 
 run_watershed:
