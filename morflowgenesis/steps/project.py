@@ -1,10 +1,10 @@
-from typing import List
+from typing import List, Optional, Union
 
 import numpy as np
 from hydra.utils import get_class
 from numpy.typing import DTypeLike
 from skimage.exposure import rescale_intensity
-from skimage.transform import rescale
+from skimage.transform import rescale, resize
 
 from morflowgenesis.utils import (
     ImageObject,
@@ -18,8 +18,9 @@ def run_project(
     image_object,
     input_step,
     output_name,
-    scale,
     dtype,
+    scale=None,
+    out_size=None,
     project_type="max",
     project_slice=None,
     axis=None,
@@ -31,7 +32,7 @@ def run_project(
         step_name="project",
         output_name=f"{output_name}_{input_step}_{project_type}_{project_slice}_{axis}",
         output_type="image",
-        image_id=str(image_object.metadata['T']),
+        image_id=str(image_object.metadata["T"]) if tracking_step is not None else image_object.id,
     )
     if output.path.exists():
         return output
@@ -49,7 +50,12 @@ def run_project(
             img = img[:, :, project_slice]
     else:
         raise ValueError(f"project_type {project_type} not recognized")
-    img = rescale(img, scale, order=0, preserve_range=True, anti_aliasing=False)
+    # rescale/resize
+    if scale is not None:
+        img = rescale(img, scale, order=0, preserve_range=True, anti_aliasing=False)
+    elif out_size is not None:
+        img = resize(img, out_size, order=0, preserve_range=True, anti_aliasing=False)
+
     if intensity_rescale_range is not None:
         if not isinstance(intensity_rescale_range, str):
             intensity_rescale_range = tuple(intensity_rescale_range)
@@ -84,7 +90,8 @@ def project(
     tags: List[str],
     output_name: str,
     input_steps: List[str],
-    scale: float = 1.0,
+    scale: Optional[Union[float, List[float]]] = None,
+    out_size: Optional[Union[float, List[float]]] = None,
     dtype: DTypeLike = "numpy.uint8",
     project_type: str = "max",
     project_slice: int = None,
@@ -135,6 +142,7 @@ def project(
             input_step=step,
             output_name=output_name,
             scale=scale,
+            out_size=out_size,
             dtype=dtype,
             project_type=project_type,
             project_slice=project_slice,

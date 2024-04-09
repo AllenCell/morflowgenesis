@@ -132,12 +132,11 @@ def center_crop(
         top_padding = np.max(results[:, 1])
         print("Per-timepoint padding complete, padding:", bottom_padding, top_padding)
         padding_path.parent.mkdir(parents=True, exist_ok=True)
-        np.save(padding_path,np.array([(bottom_padding, top_padding), (0, 0), (0, 0)]))
+        np.save(padding_path, np.array([(bottom_padding, top_padding), (0, 0), (0, 0)]))
     else:
         padding = np.load(padding_path, allow_pickle=True)
         bottom_padding, top_padding = padding[0]
     print("Consensus padding is", bottom_padding, top_padding)
-
 
     parallelize_across_images(
         image_objects,
@@ -148,7 +147,7 @@ def center_crop(
         bottom_padding=bottom_padding,
         top_padding=top_padding,
     )
-    
+
 
 def uncrop(
     image_object: ImageObject,

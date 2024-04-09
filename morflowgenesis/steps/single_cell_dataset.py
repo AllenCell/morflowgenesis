@@ -12,7 +12,6 @@ from aicsimageio.writers import OmeTiffWriter
 from hydra.utils import instantiate
 from omegaconf import DictConfig, ListConfig
 from skimage.transform import rescale
-from skimage.segmentation import clear_border
 
 from morflowgenesis.utils import (
     ImageObject,
@@ -209,20 +208,26 @@ def mask_images(
     out_res,
     iou_thresh=None,
 ):
+    # extract objects from all images
     raw_images = {
         name: multi_res_crop(raw_images[name], coords, in_res[splitting_step], in_res[name])
         for name in raw_images
     }
-    raw_images = {k: reshape(v, in_res[k], out_res[k], order=0) for k, v in raw_images.items()}
     seg_images = {
         name: multi_res_crop(seg_images[name], coords, in_res[splitting_step], in_res[name])
         for name in seg_images
     }
+    print("cropping")
+    # resize to anisotropic
+    raw_images = {k: reshape(v, in_res[k], out_res[k], order=0) for k, v in raw_images.items()}
     seg_images = {k: reshape(v, in_res[k], out_res[k], order=0) for k, v in seg_images.items()}
+    print("resizing")
+
+    # crop all images to same shape
     min_shape = np.min(
         [img.shape for img in list(seg_images.values()) + list(raw_images.values())], axis=0
     )
-    print("Cropping to", min_shape)
+    print("Standardizing crops to shape", min_shape)
     raw_images = {
         k: img[: min_shape[0], : min_shape[1], : min_shape[2]] for k, img in raw_images.items()
     }
@@ -240,8 +245,10 @@ def mask_images(
             if _calc_iou(mask_img, img) < iou_thresh:
                 return None, None
         if name in mask:
+            print("masking", name)
             seg_images[name] *= mask_img
         if name in keep_lcc:
+            print("extracting lcc", name)
             seg_images[name] = get_largest_cc(img, mask=mask_img)
 
     return {
@@ -318,6 +325,16 @@ def generate_dict_with_default(data, keys):
     return {k: data for k in keys}
 
 
+def clear_border(img):
+    border_mask = np.ones_like(img, dtype=bool)
+    border_mask[1:-1, 1:-1, 1:-1] = False
+    border_labels = np.unique(img[border_mask])[1:]
+    if len(border_labels) == 0:
+        return img
+    img.ravel()[np.in1d(img, border_labels)] = 0
+    return img
+
+
 def extract_cells_from_fov(
     image_object,
     splitting_step,
@@ -343,7 +360,9 @@ def extract_cells_from_fov(
     print("images loaded for", image_object.id)
 
     if not include_edge_cells:
-        seg_images = {k: clear_border(v) for k, v in seg_images.items()}
+        # objects are extracted based on splitting step, so we only need to clear its borders
+        seg_images[splitting_step] = clear_border(seg_images[splitting_step])
+        print("Edge cells removed")
 
     # instantiate feature calculation classes
     features = generate_dict_with_default(features, seg_images.keys())

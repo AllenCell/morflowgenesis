@@ -74,7 +74,7 @@ This will update the default image path with the path to your images.
             split_image:
                 image_path: path/to/images2
 
-**Note**: Not all arguments can be overridden from the workflow config. Changing the *type* of `task_runner` for a step requires modifing the `step` config itself.
+**Note**: Not all arguments can be overridden from the workflow config. Changing the *type* of `task_runner` for a step requires modifying the `step` config itself.
 
 The step config
 ^^^^^^^^^^^^
@@ -87,7 +87,7 @@ Two task runners are provided - one for running `cpu`_ jobs in parallel and one 
 If runs are cancelled before their concurrency limits can be cleaned up, you may need to manually clean up the unused concurrency limits. You can do this with the following command (WARNING this will delete the first 200 concurrency limits)
 
 .. code-block:: console
-    $ prefect concurrency-limit ls --limit 200 | grep morflowgenesis | awk '{print $2}' | while read arg; do prefect concurrency-limit delete $arg; done
+    $ prefect concurrency-limit ls --limit 200 |  awk '{print $2}' | while read arg; do prefect concurrency-limit delete $arg; done
 
 .. _SequntialTaskRunner: https://docs.prefect.io/latest/concepts/task-runners/
 .. _cpu: ../morflowgenesis/configs/task_runners/dask.yaml

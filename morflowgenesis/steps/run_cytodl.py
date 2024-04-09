@@ -1,3 +1,4 @@
+import math
 import os
 from pathlib import Path
 from typing import Any, Dict, List, Optional
@@ -6,8 +7,9 @@ import mlflow
 from cyto_dl.api import CytoDLModel
 from distributed import get_worker
 from prefect import task
-import math
+
 from morflowgenesis.utils import ImageObject, StepOutput
+
 
 def download_mlflow_model(
     run_id: str,
@@ -72,7 +74,9 @@ def run_evaluate(model):
     try:
         os.environ["CUDA_VISIBLE_DEVICES"] = str(get_worker().name)
     except ValueError:
-        assert "CUDA_VISIBLE_DEVICES" in os.environ, "CUDA_VISIBLE_DEVICES must be set if not using `dask_gpu` task runner!"
+        assert (
+            "CUDA_VISIBLE_DEVICES" in os.environ
+        ), "CUDA_VISIBLE_DEVICES must be set if not using `dask_gpu` task runner!"
     return model.predict()
 
 

@@ -118,7 +118,9 @@ ENV/
 # hydra
 /morflowgenesis/outputs
 /outputs
+/multirun
 
 # ignore local configs
+/morflowgenesis/configs/*/local/
 /morflowgenesis/configs/local/
 # !/morflowgenesis/configs/local/.gitkeep

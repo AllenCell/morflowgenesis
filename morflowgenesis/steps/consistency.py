@@ -17,6 +17,7 @@ def error_plot(feats, feat_name: str, save_dir: Path):
     plt.savefig(save_dir / f"{feat_name}_error_plot.png")
     plt.close()
 
+
 def consistency_validation(
     image_objects: List[ImageObject],
     manifest_step: str,

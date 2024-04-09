@@ -52,7 +52,6 @@ async def setup_task_limits(step_cfg, step_name):
         step_cfg["task_runner"].pop("memory_limit", None)
         step_cfg["task_runner"].pop("processes", None)
 
-
         step_cfg["tags"] = [task_name]
 
     return step_cfg

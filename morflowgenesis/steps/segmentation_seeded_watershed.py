@@ -57,7 +57,9 @@ def watershed_cell(raw, seg, lab, mode, is_edge, erosion=5):
     # remove non-target object segmentations and failed segmentations
     border_mask = np.ones_like(watershed_seg, dtype=bool)
     border_mask[1:-1, 1:-1, 1:-1] = False
-    if (not is_edge and np.sum(watershed_seg[border_mask]) > 1000) or (is_edge and np.mean(watershed_seg) > 0.5):
+    if (not is_edge and np.sum(watershed_seg[border_mask]) > 1000) or (
+        is_edge and np.mean(watershed_seg) > 0.5
+    ):
         return np.zeros_like(seg)
     return watershed_seg
 

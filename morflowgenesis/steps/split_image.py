@@ -11,7 +11,6 @@ from prefect import task
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
-
 def get_data(path, load_kwargs):
     img = AICSImage(path)
     # keep s when load kwargs is used later
@@ -28,7 +27,7 @@ def split(path, working_dir, output_name, alignment_args, load_kwargs):
 
     # load image
     data = get_data(path, load_kwargs)
-    print('Image loaded', data.shape)
+    print("Image loaded", data.shape)
 
     if alignment_args is not None:
         data = align_image(
@@ -37,7 +36,7 @@ def split(path, working_dir, output_name, alignment_args, load_kwargs):
         data = crop(data, Magnification(20))
 
     output.save(data)
-    print('image saved')
+    print("image saved")
     img_obj.add_step_output(output)
     img_obj.save()
 
@@ -146,13 +145,17 @@ def split_image(
 
     print("Already run:", already_run)
 
-    load_kwargs = [{
-        "S": s,
-        "T": t,
-        "C": channels,
-        "dimension_order_out": dimension_order_out,
-    } for s in scenes for t in timepoints if (t, s) not in already_run]
-
+    load_kwargs = [
+        {
+            "S": s,
+            "T": t,
+            "C": channels,
+            "dimension_order_out": dimension_order_out,
+        }
+        for s in scenes
+        for t in timepoints
+        if (t, s) not in already_run
+    ]
 
     parallelize_across_images(
         load_kwargs,
@@ -162,5 +165,5 @@ def split_image(
         path=image_path,
         working_dir=working_dir,
         output_name=output_name,
-        alignment_args=alignment_args, 
+        alignment_args=alignment_args,
     )

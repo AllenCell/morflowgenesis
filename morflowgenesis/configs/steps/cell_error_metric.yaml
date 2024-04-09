@@ -13,5 +13,4 @@ cell_error_metric:
     output_name: cell_error
     single_cell_dataset_step: single_cell_dataset/single_cell_dataset
     label_name:
-    comparison_names: 
-
+    comparison_names:

@@ -58,4 +58,3 @@ steps:
     create_manifest:
         breakdown_classification_step: null
         dataset_name: fixed_test
-

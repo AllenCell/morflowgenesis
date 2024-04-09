@@ -35,8 +35,10 @@ def create_manifest(
                 "seg_full_zstack_path",
             ]
         ]
-        #HACK
-        cells['raw_full_zstack_path'] = cells['seg_full_zstack_path'].apply(lambda x: x.replace('run_cytodl/nucseg', 'split_image/split_image'))
+        # HACK
+        cells["raw_full_zstack_path"] = cells["seg_full_zstack_path"].apply(
+            lambda x: x.replace("run_cytodl/nucseg", "split_image/split_image")
+        )
 
         cells_with_feats = pd.merge(cells, features, on="CellId", how="outer")
         drop_cols = ["shcoeff"] + [
@@ -64,7 +66,9 @@ def create_manifest(
     manifest = manifest.sort_values(by="index_sequence")
 
     # rename columns
-    manifest = manifest.rename(columns={col: f"NUC_{col}" for col in manifest.columns if re.search("shcoeff", col)})
+    manifest = manifest.rename(
+        columns={col: f"NUC_{col}" for col in manifest.columns if re.search("shcoeff", col)}
+    )
 
     manifest["dataset"] = dataset_name
 
