@@ -27,7 +27,7 @@ dev_requirements = [
     "bumpversion>=0.6.0",
     "coverage>=5.1",
     "ipython>=7.15.0",
-    "m2r>=0.2.3",
+    "m2r>=0.3.0",
     "pytest-runner>=5.2",
     "Sphinx>=2.0.0b1,<3",
     "sphinx_rtd_theme>=0.4.3",
@@ -106,6 +106,6 @@ setup(
     url="https://github.com/AllenCell/morflowgenesis",
     # Do not edit this string manually, always use bumpversion
     # Details in CONTRIBUTING.rst
-    version="0.2.3",
+    version="0.3.0",
     zip_safe=False,
 )
