@@ -9,7 +9,7 @@ defaults:
     - consistency_validation@steps: ../../steps/consistency_validation
 
 # here we can create workflow-level arguments
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/fixed_validation_crossmae_multich/
+working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/reprocess_parallel_vit_small/consistency_validation
 
 steps:
     split_image:
@@ -24,10 +24,11 @@ steps:
 
     run_cytodl:
         input_step: center_crop/center_crop
-        config_path: ${paths.model_dir}/vit_new.yaml
+        config_path: ${paths.model_dir}/small_vit.yaml
+        n_partitions: 8
         overrides:
-            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/multich_proj_decoder_cross_mae/2024-03-05_12-23-49/checkpoints/epoch_269.ckpt"
-            semantic_thresh: 6
+            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/small_encoder_curated_data_no_offset_aug/2024-04-02_11-59-39/checkpoints/epoch_099.ckpt"
+            semantic_thresh: -3
 
     center_pad:
         image_step: run_cytodl/nucseg
@@ -38,21 +39,23 @@ steps:
         input_step: center_pad/center_pad
 
     single_cell_dataset:
-        splitting_step: nuc_seg
+        splitting_step: seg_full_zstack
         seg_steps: [center_pad/center_pad]
-        seg_steps_rename: [nuc_seg]
+        seg_steps_rename: [seg_full_zstack]
         mask: False
         keep_lcc: False
         input_res: [0.29, 0.108, 0.108]
         out_res: 0.108
-        padding: [10, 25, 25]
         features:
             - _target_: morflowgenesis.features.Volume
+            - _target_: morflowgenesis.features.SurfaceArea
             - _target_: morflowgenesis.features.Height
             - _target_: morflowgenesis.features.HeightPercentile
+            - _target_: morflowgenesis.features.SHCoeff
             - _target_: morflowgenesis.features.AxisLengths
         save: False
 
     create_manifest:
         breakdown_classification_step: null
         dataset_name: fixed_test
+

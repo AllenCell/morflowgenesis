@@ -10,5 +10,4 @@ cluster_kwargs:
     processes: ${..processes}
     threads_per_worker: 1
     resources:
-        cpu: 1
-
+        cpu: 2
