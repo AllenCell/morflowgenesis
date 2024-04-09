@@ -1,0 +1,17 @@
+defaults:
+    - cell_error_metric_task_runner: ../../../task_runner/dask
+
+cell_error_metric_task_runner:
+    task_limit: 18
+    memory_limit: 50Gi
+    processes: True
+
+cell_error_metric:
+    task_runner: ${..cell_error_metric_task_runner}
+    function: morflowgenesis.steps.cell_error_metric
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    output_name: cell_error
+    single_cell_dataset_step: single_cell_dataset/single_cell_dataset
+    label_name:
+    comparison_names: 
+

@@ -6,6 +6,7 @@ import pandas as pd
 from aicsimageio import AICSImage
 from omegaconf import ListConfig
 from skimage.exposure import rescale_intensity
+from skimage.io import imsave
 from skimage.segmentation import find_boundaries
 
 from morflowgenesis.utils import (
@@ -22,6 +23,7 @@ def make_rgb(img, contour):
     img = np.clip(img, np.percentile(img, 0.1), np.percentile(img, 99.9))
     img = rescale_intensity(img, out_range=(0, 255)).astype(np.uint8)
     rgb = np.stack([img] * 3, axis=-1).astype(float)
+    # colors correspond to Cyan, Magenta, Yellow respectively
     colors = [(0, 255, 255), (255, 0, 255), (255, 255, 0)]
     for ch in range(contour.shape[0]):
         rgb[contour[ch] > 0] = colors[ch]
@@ -62,21 +64,21 @@ def project(raw, seg):
 
 def project_cell(row, raw_name, seg_names):
     """Project a cell from raw and seg images."""
-    print(f"{row.CellId.iloc[0]}: starting")
+    print(f"{row['CellId'].iloc[0]}: starting")
 
     raw = AICSImage(row["crop_raw_path"].iloc[0])
-    raw = raw.get_image_dask_data("ZYX", C=raw.channel_names.index(raw_name)).compute()
+    raw = raw.get_image_data("ZYX", C=raw.channel_names.index(raw_name))
 
     seg = AICSImage(row["crop_seg_path"].iloc[0])
     seg_channels = seg.channel_names
     if seg_names is not None:
         seg_channels = [seg.channel_names.index(n) for n in seg_names]
-    seg = seg.get_image_dask_data("CZYX", C=seg_channels).compute().astype(np.uint8)
+    seg = seg.get_image_data("CZYX", C=seg_channels).astype(np.uint8)
 
     seg = np.stack([find_boundaries(seg[ch], mode="inner") for ch in range(seg.shape[0])])
 
     projection = project(raw, seg)
-    print(f"{row.CellId.iloc[0]}: projected")
+    print(f"{row['CellId'].iloc[0]}: projected")
 
     return projection, row["CellId"].iloc[0]
 
@@ -254,4 +256,52 @@ def segmentation_contact_sheet_all(
         output_name=output_name,
         raw_name=raw_name,
         seg_step=seg_step,
+    )
+
+
+def generate_single_cell_overlays(
+    image_object, single_cell_dataset_step, raw_name, seg_names, output_name
+):
+    """Generate a contact sheet of all cells in a fov."""
+    single_cell_dataset = image_object.load_step(single_cell_dataset_step)
+    for cid in single_cell_dataset.CellId.unique():
+        projection, cid = project_cell(
+            single_cell_dataset[single_cell_dataset.CellId == cid], raw_name, seg_names
+        )
+        imsave(
+            f"{image_object.working_dir}/segmentation_contact_sheet/{output_name}/{cid}.png",
+            projection,
+        )
+
+
+def segmentation_contact_sheet_cell(
+    image_objects: List[ImageObject],
+    output_name: str,
+    single_cell_dataset_step: str,
+    raw_name: str,
+    seg_names: List[str],
+    tags: List[str],
+):
+    (image_objects[0].working_dir / "segmentation_contact_sheet" / output_name).mkdir(
+        exist_ok=True, parents=True
+    )
+
+    seg_colors = ["Cyan", "Magenta", "Yellow"]
+    seg_key = dict(zip(seg_names, seg_colors))
+
+    with open(
+        image_objects[0].working_dir / "segmentation_contact_sheet" / output_name / "key.txt", "w"
+    ) as f:
+        for seg_name, color in seg_key.items():
+            f.write(f"{seg_name}: {color}\n")
+
+    parallelize_across_images(
+        image_objects,
+        generate_single_cell_overlays,
+        tags,
+        data_name="image_object",
+        output_name=output_name,
+        raw_name=raw_name,
+        seg_names=seg_names,
+        single_cell_dataset_step=single_cell_dataset_step,
     )

@@ -1,0 +1,15 @@
+defaults:
+    - segmentation_contact_sheet_cell_task_runner: ../../../task_runner/dask
+
+segmentation_contact_sheet_cell_task_runner:
+    task_limit: 18
+    memory_limit: 100Gi
+
+segmentation_contact_sheet_cell:
+    task_runner: ${..segmentation_contact_sheet_cell_task_runner}
+    function: morflowgenesis.steps.segmentation_contact_sheet_cell
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    output_name: cell
+    single_cell_dataset_step: single_cell_dataset/single_cell_dataset
+    raw_name:
+    seg_names:

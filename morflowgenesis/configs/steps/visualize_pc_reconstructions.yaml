@@ -1,0 +1,19 @@
+defaults:
+    - visualize_pc_reconstructions_task_runner: ../../../task_runner/dask
+
+visualize_pc_reconstructions_task_runner:
+    task_limit: 18
+    memory_limit: 50Gi
+    processes: True
+
+visualize_pc_reconstructions:
+    task_runner: ${..visualize_pc_reconstructions_task_runner}
+    function: morflowgenesis.steps.visualize_pc_reconstructions
+    # all variables passed that aren't "function" or "task_runner" are assumed to be args
+    output_name: recon
+    features_step: calculate_features/single_cell_dataset
+    features_regex: ".*shcoeffs.*"
+    calculate_name:
+    apply_names:
+    n_components: 10
+    lmax: 16

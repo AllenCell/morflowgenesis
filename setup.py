@@ -38,7 +38,7 @@ dev_requirements = [
 
 requirements = [
     "aicsimageio>=4.11.0",
-    "aicsshparam>=0.1.7",
+    "aicsshparam>=0.1.10",
     "camera-alignment-core==1.0.5",
     "cyto_dl==0.1.5",
     "dask>=2023.3.1",
@@ -57,9 +57,10 @@ requirements = [
     "scikit-learn",
     "scipy>=1.9.1",
     "scikit-image>=0.19.2",
-    "timelapsetracking @ git+ssh://git@github.com/aics-int/aics-timelapse-tracking.git@059530d04c33c47c1ecf35959f8c4470ed0cb91a",
+    "timelapsetracking @ git+ssh://git@github.com/aics-int/aics-timelapse-tracking.git@b905e0f5bbbc84c9b61c2496009ae49295a0b4ab",
     "vtk>=9.2.6",
-    "dask_cuda>=24.2.0"
+    "dask_cuda>=24.2.0",
+    "plotly>=5.20.0",
 ]
 
 extra_requirements = {
@@ -84,7 +85,11 @@ setup(
         "Programming Language :: Python :: 3.11",
     ],
     description="general workflow for morphogenesis projects",
-    entry_points={"run_morflowgenesis": ["morflowgenesis=morflowgenesis.bin.run_workflow:main"]},
+    entry_points={
+        "console_scripts": [
+            "run_morflowgenesis=morflowgenesis.bin.run_workflow:main",
+        ],
+    },
     install_requires=requirements,
     license="Allen Institute Software License",
     long_description=readme,

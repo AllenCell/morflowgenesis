@@ -22,6 +22,7 @@ def parallelize_across_images(
     for d in data:
         kwargs.update({data_name: d})
         results.append(submit(task_function, tags=tags, **kwargs))
+        # rate limit task submission to spare postgres db
         if delay > 0:
             time.sleep(delay)
     results = [r.result() for r in results]
@@ -41,7 +42,7 @@ def to_list(x):
     return [x]
 
 
-def get_largest_cc(im, mask=None, do_label=True):
+def get_largest_cc(im, mask=None, do_label=False):
     if do_label:
         im, n = label(im)
     else:
