@@ -9,11 +9,11 @@ defaults:
     - consistency_validation@steps: ../../steps/consistency_validation
 
 # here we can create workflow-level arguments
-working_dir: /allen/aics/assay-dev/users/Benji/hydra_workflow/reprocess_parallel_vit_small/consistency_validation
+working_dir: YOUR/PATH/HERE
 
 steps:
     split_image:
-        image_path: //allen/programs/allencell/data/proj0/029/bca/2b7/002/559/9ea/94e/29a/501/25f/c0/20220901_AD00001016_20X_L01_001_020.tif
+        image_path: PATH/TO/CONSISTENCY/TIMELAPSE
         channels: [1]
         working_dir: ${workflow.working_dir}
         timepoints: -1
@@ -27,7 +27,7 @@ steps:
         config_path: ${paths.model_dir}/small_vit.yaml
         n_partitions: 8
         overrides:
-            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/small_encoder_curated_data_no_offset_aug/2024-04-02_11-59-39/checkpoints/epoch_099.ckpt"
+            ckpt_path: PATH/TO/MODEL.ckpt
             semantic_thresh: -3
 
     center_pad:

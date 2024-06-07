@@ -4,19 +4,15 @@ defaults:
     - align_segmentations_to_image@steps: ../../steps/align_segmentations_to_image
     - run_watershed@steps: ../../steps/run_watershed
     - single_cell_dataset@steps: ../../steps/single_cell_dataset
-    # - segmentation_contact_sheet@steps: ../../steps/segmentation_contact_sheet
+    - segmentation_contact_sheet@steps: ../../steps/segmentation_contact_sheet
     - run_pca@steps: ../../steps/run_pca
     - plot@steps: ../../steps/plot
 
-working_dir: /allen/aics/assay-dev/users/Benji/CurrentProjects/validation/cross_vit_multich_late_thresh=${workflow.semantic_thresh}
+working_dir: YOUR/PATH/HERE/${workflow.semantic_thresh}
 semantic_thresh:
 steps:
-    run_command:
-        commands: 
-            - export CUDA_VISIBLE_DEVICES=${workflow.semantic_thresh}
-            - echo $CUDA_VISIBLE_DEVICES
     generate_objects:
-        csv_path: //allen/aics/assay-dev/users/Benji/CurrentProjects/hydra_workflow/morflowgenesis/morflowgenesis/configs/local/all_nuc_tf_validation/manifest.csv
+        csv_path: MANIFEST/PATH/HERE
         working_dir: ${workflow.working_dir}
         source_column: lr
         non_source_columns: [hr]
@@ -25,7 +21,7 @@ steps:
         input_step: generate_objects/lr
         config_path: ${paths.model_dir}/vit_new.yaml
         overrides:
-            ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/flexi_mae/multich_proj_decoder_cross_mae_late_ckpt/2024-03-07_16-51-35/checkpoints/epoch_269.ckpt"
+            ckpt_path: PATH/TO/model.ckpt
             semantic_thresh: ${workflow.semantic_thresh}
 
     align_segmentations_to_image:
@@ -59,12 +55,12 @@ steps:
             - _target_: morflowgenesis.features.AxisLengths
         save: False
 
-    # segmentation_contact_sheet:
-    #     raw_name: lamin
-    #     segmentation_name: nuc_seg
-    #     x_feature: volume
-    #     y_feature: height_percentile
-    #     seg_names: [nuc_seg]
+    segmentation_contact_sheet:
+        raw_name: lamin
+        segmentation_name: nuc_seg
+        x_feature: volume
+        y_feature: height_percentile
+        seg_names: [nuc_seg]
 
     run_pca:
         features_regex: ".*shcoeffs.*"
