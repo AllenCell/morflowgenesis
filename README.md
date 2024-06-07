@@ -15,7 +15,6 @@ source morflowgenesis/bin/activate
 
 git clone  https://github.com/aics-int/morflowgenesis.git
 cd morflowgenesis
-pip install -r requirements.txt
 pip install -e .
 ```
 
@@ -41,7 +40,7 @@ prefect config set PREFECT_API_DATABASE_CONNECTION_URL="postgresql+asyncpg://pos
 prefect config set PREFECT_API_URL="http://127.0.0.1:4200/api"
 prefect server start
 
-[OPTIONAL]
+[OPTIONAL, if you want to run the server in the background]
 nohup prefect server start > output.log &
 ```
 
@@ -58,6 +57,33 @@ The order of steps in this workflow are determined by the order of steps importe
 ```
 python morflowgenesis/bin/run_workflow.py workflow=nucmorph.yaml params=param_folder1.yaml,param_folder2.yaml -m
 ```
+
+## Replicating NucMorph Piplines
+To replicate our workflows, please first download the relevant data and models following instructions [in the Quilt repository](https://open.quiltdata.com/b/allencell/tree/aics/nuc_morph_data/). All pipelines require deep learning model inference and assume the presence of an NVIDIA GPU. GPU characteristice (e.g. number of GPUs, GPU memory) can be specified in the [`dask_gpu.yaml` file](morflowgenesis\configs\task_runner\dask_gpu.yaml). In each of the example workflow `yaml` files, `working_dir` should be set to the path where you want to save pipeline outputs (you can also override it through the CLI by adding `++workflow.working_dir=YOUR/PATH` toe the `run_workflow` command outlined in the "Running Workflows" section). 
+
+### Shape validation
+The shape validation pipeline uses data from the `additional_data_for_fine_tuning` folder. 
+The following fields must be changed in your local copy of the `nucleus_shape_validation.yaml` file:
+- `segmentation_model`: path to the downloaded segmentation model
+- `manifest_path`: path to a .csv file containing local paths to the data in `data_for_finetuning/low_res_20x` under the column `lr` and `data_for_finetuning/high_res_100x` under the column `hr`
+
+### Consistency validation
+The consistency validation pipeline uses data from the `data_for_analysis/fixed_plates` folder.
+The following fields must be changed in your local copy of the `fixed_validation.yaml` file:
+- `segmentation_model`: path to the downloaded segmentation model
+- `steps.run_cytodl.n_partitions`: this should match the number of GPUs on your local machine
+- `image_path`: path to the `fixed_plates` raw zarr file 
+
+### Colony processing pipeline
+Full pipeline processing can be run on any of the directories in the `data_for_analysis` folder.
+The following fields must be changed in your local copy of the `nucmorph.yaml` file:
+- `segmentation_model`: path to the downloaded segmentation model
+- `breakdown_classification_model`: path to the downloaded lamin shell formation and breakdown classification model
+- `steps.run_cytodl.n_partitions`: this should match the number of GPUs on your local machine
+
+Creation of a new parameters file in the `configs/params` folder is required to run the pipeline on a new dataset. The parameters file follow the format of the [example file](morflowgenesis\configs\params\example_params.yaml).
+
+
 
 ## Development
 
