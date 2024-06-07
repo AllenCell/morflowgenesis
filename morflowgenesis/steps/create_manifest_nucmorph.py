@@ -37,7 +37,7 @@ def create_manifest(
         ]
         # HACK
         cells["raw_full_zstack_path"] = cells["seg_full_zstack_path"].apply(
-            lambda x: x.replace("run_cytodl/nucseg", "split_image/split_image")
+            lambda x: x.replace("center_pad/center_pad", "split_image/split_image")
         )
 
         cells_with_feats = pd.merge(cells, features, on="CellId", how="outer")
