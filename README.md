@@ -59,7 +59,7 @@ python morflowgenesis/bin/run_workflow.py workflow=nucmorph.yaml params=param_fo
 ```
 
 ## Replicating NucMorph Piplines
-To replicate our workflows, please first download the relevant data and models following instructions [in the Quilt repository](https://open.quiltdata.com/b/allencell/tree/aics/nuc_morph_data/). All pipelines require deep learning model inference and assume the presence of an NVIDIA GPU. GPU characteristice (e.g. number of GPUs, GPU memory) can be specified in the [`dask_gpu.yaml` file](morflowgenesis\configs\task_runner\dask_gpu.yaml). In each of the example workflow `yaml` files, `working_dir` should be set to the path where you want to save pipeline outputs (you can also override it through the CLI by adding `++workflow.working_dir=YOUR/PATH` toe the `run_workflow` command outlined in the "Running Workflows" section). 
+To replicate our workflows, please first download the relevant data and models following instructions [in the Quilt repository](https://open.quiltdata.com/b/allencell/tree/aics/nuc_morph_data/). All pipelines require deep learning model inference and assume the presence of an NVIDIA GPU. GPU characteristice (e.g. number of GPUs, GPU memory) can be specified in the [`dask_gpu.yaml` file](configs/task_runner/dask_gpu.yaml). In each of the example workflow `yaml` files, `working_dir` should be set to the path where you want to save pipeline outputs (you can also override it through the CLI by adding `++workflow.working_dir=YOUR/PATH` to the `run_workflow` command outlined in the "Running Workflows" section). 
 
 ### Shape validation
 The shape validation pipeline uses data from the `additional_data_for_fine_tuning` folder. 
@@ -81,7 +81,7 @@ The following fields must be changed in your local copy of the `nucmorph.yaml` f
 - `breakdown_classification_model`: path to the downloaded lamin shell formation and breakdown classification model
 - `steps.run_cytodl.n_partitions`: this should match the number of GPUs on your local machine
 
-Creation of a new parameters file in the `configs/params` folder is required to run the pipeline on a new dataset. The parameters file follow the format of the [example file](morflowgenesis\configs\params\example_params.yaml).
+Creation of a new parameters file in the `configs/params` folder is required to run the pipeline on a new dataset. The parameters file follow the format of the [example file](/configs/params/example_params.yaml).
 
 
 
