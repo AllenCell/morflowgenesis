@@ -81,7 +81,7 @@ The following fields must be changed in your local copy of the `nucmorph.yaml` f
 - `breakdown_classification_model`: path to the downloaded lamin shell formation and breakdown classification model
 - `steps.run_cytodl.n_partitions`: this should match the number of GPUs on your local machine
 
-Creation of a new parameters file in the `configs/params` folder is required to run the pipeline on a new dataset. The parameters file follow the format of the [example file](morflowgenesis/configs/params/example_params.yaml).
+Creation of a new parameters file in the `configs/params` folder is required to run the pipeline on a new dataset. The parameters file follow the format of the [example file](morflowgenesis/configs/params/nucmorph_example.yaml).
 
 
 
