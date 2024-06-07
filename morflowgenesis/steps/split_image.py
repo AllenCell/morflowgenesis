@@ -1,12 +1,7 @@
-import json
 from pathlib import Path
 from typing import List, Optional, Union
 
 from bioio import BioImage
-from camera_alignment_core import Align, Magnification
-from camera_alignment_core.alignment_core import align_image, crop
-from camera_alignment_core.channel_info import CameraPosition, channel_info_factory
-from prefect import task
 
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
@@ -20,7 +15,7 @@ def get_data(path, load_kwargs):
     return data
 
 
-def split(path, working_dir, output_name, alignment_args, load_kwargs):
+def split(path, working_dir, output_name, load_kwargs):
     # create object associated with image
     img_obj = ImageObject(working_dir, path, load_kwargs)
     output = StepOutput(working_dir, "split_image", output_name, "image", image_id=img_obj.id)
@@ -29,34 +24,10 @@ def split(path, working_dir, output_name, alignment_args, load_kwargs):
     data = get_data(path, load_kwargs)
     print("Image loaded", data.shape)
 
-    if alignment_args is not None:
-        data = align_image(
-            data, alignment_args["matrix"], channels_to_shift=alignment_args["channels"]
-        )
-        data = crop(data, Magnification(20))
-
     output.save(data)
     print("image saved")
     img_obj.add_step_output(output)
     img_obj.save()
-
-
-@task
-def align_argolight(savedir, optical_control_path):
-    align = Align(
-        optical_control=optical_control_path,
-        magnification=Magnification(20),
-        out_dir=savedir,
-    )
-    optical_control_channel_info = channel_info_factory(optical_control_path)
-    optical_control_back_channels = optical_control_channel_info.channels_from_camera_position(
-        CameraPosition.BACK
-    )
-
-    align.align_optical_control(
-        channels_to_shift=[channel.channel_index for channel in optical_control_back_channels],
-    )
-    return align.alignment_transform.matrix
 
 
 def _validate_list(val):
@@ -75,7 +46,6 @@ def split_image(
     timepoints: Optional[Union[int, List[int]]] = -1,
     channels: Optional[Union[int, List[int]]] = -1,
     dimension_order_out: str = "CZYX",
-    optical_control_path: Optional[str] = None,
     image_objects: List[ImageObject] = None,
     tags: List[str] = [],
     timepoint_start: Optional[int] = None,
@@ -99,8 +69,6 @@ def split_image(
         List of channels to run on, by default -1 to indicate all channels
     dimension_order_out : str
         Dimension order of output image, by default "CZYX"
-    optical_control_path : str, optional
-        Path to optical control image, by default None. If passed, input image will be aligned to optical control
     image_objects : List[ImageObject]
         List of existing ImageObjects
     tags : List[str]
@@ -108,22 +76,6 @@ def split_image(
     """
     working_dir = Path(working_dir)
     (working_dir / "split_image").mkdir(exist_ok=True, parents=True)
-
-    alignment_args = None
-    if optical_control_path is not None:
-        alignment_args = {}
-        alignment_args["matrix"] = align_argolight(
-            working_dir / "optical_control_alignment" / output_name, optical_control_path
-        )
-        alignment_channels = channel_info_factory(image_path).channels_from_camera_position(
-            CameraPosition.BACK
-        )
-        alignment_args["channels"] = [channel.channel_index for channel in alignment_channels]
-        with open(
-            working_dir / "optical_control_alignment" / output_name / "alignment_params.json", "w"
-        ) as f:
-            json.dump(str(alignment_args), f)
-        print("Alignment Parameters:", alignment_args)
 
     # get source image metadata
     img = BioImage(image_path)
@@ -165,5 +117,4 @@ def split_image(
         path=image_path,
         working_dir=working_dir,
         output_name=output_name,
-        alignment_args=alignment_args,
     )
