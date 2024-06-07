@@ -1,0 +1,5 @@
+channels: [1]
+image_path: PATH/TO/QUILT/CZI
+name: test
+scene: 0
+timepoint_end: 110

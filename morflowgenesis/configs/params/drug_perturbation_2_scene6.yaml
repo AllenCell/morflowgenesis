@@ -1,5 +1,0 @@
-channels: [1]
-image_path: //allen/programs/allencell/data/proj0/a97/411/893/fc1/5cb/dcb/049/70b/79a/483/f6/drug_timelapse-01.czi
-name: drug_perturbation_2
-scene: 6
-timepoint_end: 150
