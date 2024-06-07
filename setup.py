@@ -43,7 +43,6 @@ requirements = [
     "bioio-tifffile",
     "bioio-ome-zarr",
     "aicsshparam>=0.1.10",
-    "camera-alignment-core==1.0.5",
     "cyto_dl==0.1.5",
     "dask>=2023.3.1",
     "hydra-core>=1.3.2",

@@ -2,8 +2,8 @@ from pathlib import Path
 from typing import List, Literal, Optional, Union
 
 import pandas as pd
-from aicsimageio import AICSImage
-from aicsimageio.writers import OmeTiffWriter
+from bioio import BioImage
+from bioio.writers import OmeTiffWriter
 from pydantic import BaseModel
 
 
@@ -41,7 +41,7 @@ class StepOutput(BaseModel):
     def load_output(self, path=None):
         path = path or self.path
         if self.output_type == "image":
-            return AICSImage(self.path).data.squeeze()
+            return BioImage(self.path).data.squeeze()
         elif self.output_type == "csv":
             return pd.read_csv(self.path, index_col=self.index_col)
 
