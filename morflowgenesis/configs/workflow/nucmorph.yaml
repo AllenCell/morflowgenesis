@@ -13,6 +13,8 @@ defaults:
 
 # here we can create workflow-level arguments
 working_dir: YOUR/PATH/${params.name}/${params.scene}
+segmentation_model: PATH/TO/MODEL.ckpt
+breakdown_classification_model: PATH/TO/MODEL.ckpt
 
 # here we can override arguments for specific steps, but changing the order here does not change the order of execution
 # task runner args can be overridden, but the TYPE of task runner cannot be changed from the workflow. To use the PACKAGE default task runner of concurrent task runner, set task_runner: null
@@ -33,7 +35,7 @@ steps:
         config_path: ${paths.model_dir}/small_vit.yaml
         n_partitions: 8
         overrides:
-            ckpt_path: PATH/TO/MODEL.ckpt
+            ckpt_path: ${workflow.segmentation_model}
 
     center_pad:
         image_step: run_cytodl/nucseg
@@ -65,7 +67,7 @@ steps:
         image_step: split_image/split_image
         config_path: ${paths.model_dir}breakdown_per_tp.yaml
         overrides:
-            ckpt_path: PATH/TO/OTHER.ckpt
+            ckpt_path: ${workflow.breakdown_classification_model}
         min_track_length: 2
 
     create_manifest:

@@ -10,10 +10,12 @@ defaults:
 
 # here we can create workflow-level arguments
 working_dir: YOUR/PATH/HERE
+segmentation_model: PATH/TO/MODEL.ckpt
+image_path: PATH/TO/CONSISTENCY/TIMELAPSE
 
 steps:
     split_image:
-        image_path: PATH/TO/CONSISTENCY/TIMELAPSE
+        image_path: ${workflow.image_path}
         channels: [1]
         working_dir: ${workflow.working_dir}
         timepoints: -1
@@ -27,8 +29,7 @@ steps:
         config_path: ${paths.model_dir}/small_vit.yaml
         n_partitions: 8
         overrides:
-            ckpt_path: PATH/TO/MODEL.ckpt
-            semantic_thresh: -3
+            ckpt_path: ${workflow.segmentation_model}
 
     center_pad:
         image_step: run_cytodl/nucseg
