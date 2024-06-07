@@ -2,8 +2,7 @@ import json
 from typing import List
 
 import pandas as pd
-from aicsimageio import AICSImage
-
+from bioio import BioImage
 from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_images
 
 
@@ -16,7 +15,7 @@ def generate_object(
     metadata_column=None,
 ):
     row = row._asdict()
-    source_img = AICSImage(row[source_column])
+    source_img = BioImage(row[source_column])
     # add metadata
     metadata = {"S": source_img.scenes, "T": source_img.dims.T - 1, "C": source_img.dims.C - 1}
     if metadata_column is not None:

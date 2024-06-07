@@ -5,7 +5,7 @@ from typing import Dict, List, Optional
 import numpy as np
 import pandas as pd
 import tqdm
-from aicsimageio.writers import OmeTiffWriter
+from bioio.writers import OmeTiffWriter
 from cyto_dl.api import CytoDLModel
 from prefect import task
 from skimage.transform import resize

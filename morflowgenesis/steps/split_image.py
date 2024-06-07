@@ -2,7 +2,7 @@ import json
 from pathlib import Path
 from typing import List, Optional, Union
 
-from aicsimageio import AICSImage
+from bioio import BioImage
 from camera_alignment_core import Align, Magnification
 from camera_alignment_core.alignment_core import align_image, crop
 from camera_alignment_core.channel_info import CameraPosition, channel_info_factory
@@ -12,7 +12,7 @@ from morflowgenesis.utils import ImageObject, StepOutput, parallelize_across_ima
 
 
 def get_data(path, load_kwargs):
-    img = AICSImage(path)
+    img = BioImage(path)
     # keep s when load kwargs is used later
     if "S" in load_kwargs:
         img.set_scene(load_kwargs["S"])
@@ -126,7 +126,7 @@ def split_image(
         print("Alignment Parameters:", alignment_args)
 
     # get source image metadata
-    img = AICSImage(image_path)
+    img = BioImage(image_path)
     scenes = img.scenes if scenes == -1 else scenes
     scenes = _validate_list(scenes)
 

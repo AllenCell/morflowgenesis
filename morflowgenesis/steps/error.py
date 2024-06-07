@@ -6,7 +6,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as py
 import torch
-from aicsimageio import AICSImage
+from bioio import BioImage
 from monai.metrics import compute_hausdorff_distance
 
 from morflowgenesis.utils import ImageObject, parallelize_across_images
@@ -22,7 +22,7 @@ def get_surface_distance(
     dataset = image_object.load_step(single_cell_dataset_step)
     distances = {"CellId": [], "Name": [], "HausdorffDistance": []}
     for row in dataset.itertuples():
-        crop = AICSImage(row.crop_seg_path)
+        crop = BioImage(row.crop_seg_path)
         channel_names = crop.channel_names
         crop = crop.data.squeeze()
         gt = crop[channel_names.index(label_name)]

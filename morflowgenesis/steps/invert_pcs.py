@@ -3,7 +3,7 @@ from typing import List
 
 import numpy as np
 import pandas as pd
-from aicsimageio.writers import OmeTiffWriter
+from bioio.writers import OmeTiffWriter
 from aicsshparam.shtools import get_reconstruction_from_coeffs, voxelize_meshes
 from sklearn.decomposition import PCA
 

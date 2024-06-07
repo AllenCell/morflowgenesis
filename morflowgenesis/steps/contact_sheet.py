@@ -3,7 +3,7 @@ from typing import List
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from aicsimageio import AICSImage
+from bioio import BioImage
 from omegaconf import ListConfig
 from skimage.exposure import rescale_intensity
 from skimage.io import imsave
@@ -66,10 +66,10 @@ def project_cell(row, raw_name, seg_names):
     """Project a cell from raw and seg images."""
     print(f"{row['CellId'].iloc[0]}: starting")
 
-    raw = AICSImage(row["crop_raw_path"].iloc[0])
+    raw = BioImage(row["crop_raw_path"].iloc[0])
     raw = raw.get_image_data("ZYX", C=raw.channel_names.index(raw_name))
 
-    seg = AICSImage(row["crop_seg_path"].iloc[0])
+    seg = BioImage(row["crop_seg_path"].iloc[0])
     seg_channels = seg.channel_names
     if seg_names is not None:
         seg_channels = [seg.channel_names.index(n) for n in seg_names]

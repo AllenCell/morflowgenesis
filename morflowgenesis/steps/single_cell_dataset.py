@@ -8,7 +8,7 @@ from typing import Callable, Dict, List, Optional, Union
 import numpy as np
 import pandas as pd
 import tqdm
-from aicsimageio.writers import OmeTiffWriter
+from bioio.writers import OmeTiffWriter
 from hydra.utils import instantiate
 from omegaconf import DictConfig, ListConfig
 from skimage.transform import rescale

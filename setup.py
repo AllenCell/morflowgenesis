@@ -37,7 +37,11 @@ dev_requirements = [
 ]
 
 requirements = [
-    "aicsimageio>=4.11.0",
+    "bioio>=1.0.1",
+    "bioio-czi",
+    "bioio-ome-tiff",
+    "bioio-tifffile",
+    "bioio-ome-zarr",
     "aicsshparam>=0.1.10",
     "camera-alignment-core==1.0.5",
     "cyto_dl==0.1.5",
